@@ -56,23 +56,41 @@ Flex SDK and commit the result first.
 
 ## Status
 
-`build.yml` is **verified on the live instance** (run #695, `workflow_dispatch`,
-all 8 steps green in ~3.5 min). It produced `Skua.exe` (173,568 bytes),
-`Skua.Manager.exe`, `skua.swf` and a 65 MB `Build/AnyCPU`, and uploaded a
-120-file artifact via `actions/upload-artifact@v3`. The
-`Assemblies/Assemblies` flattening fired, confirming it is required on the
-runner as well as locally.
+All three workflows are **verified on the live instance**.
 
-Note the runner's default shell is `sh -e`, not bash. Keep these scripts POSIX.
+| Run | Workflow | Event | Result |
+| :--- | :--- | :--- | :--- |
+| #695 | build | dispatch | 8/8 green, 3m30s |
+| #696 | build | **push** | 8/8 green, 1m57s |
+| #697 | release | dispatch | 7/7 green, `VibeSkua-1.8.6-portable.zip` (25.6 MB) |
+| #698 | ruffle bridge | dispatch | 6/6 green, `=== PASS ===`, callbacks 28/28 |
 
-**Triggers.** `build.yml` has no branch filter. The repo's default branch is
+`build` produces `Skua.exe` (173,568 bytes), `Skua.Manager.exe`, `skua.swf` and
+a 65 MB `Build/AnyCPU`. The `Assemblies/Assemblies` flattening fires on the
+runner, confirming it is required there and not only locally.
+
+`ruffle-test` reached `RESULT: callbacks=28/28 requestLoadGame=true` against the
+live AQW client from inside CI — the bridge works with no Windows, no desktop
+and no Flash anywhere in the pipeline.
+
+### Things to know
+
+**The release is a draft.** `release.yml` defaults `draft: true`, so run #697
+created the release object and uploaded the zip, but Gitea does not create the
+git tag until a draft is published — `list_tags` is still empty and
+`get_latest_release` returns not-found. Both are expected. Publish from the
+release page when you want the tag. A read-only API token cannot enumerate
+drafts at all, so they look absent over the API even though they exist.
+
+**Version comes from the dispatch input** when you supply one (#697 used
+1.8.6); blank falls back to `<Version>` in `Directory.Build.props`.
+
+**Default shell is `sh -e`, not bash.** Keep these scripts POSIX.
+
+**Triggers:** `build.yml` has no branch filter. The repo's default branch is
 `docker-and-ruffle-test` and there is no `main`, so an earlier `branches:
-[main]` filter meant push events never fired. Add a filter back once the
-branch layout settles.
+[main]` filter meant push events never fired. Add a filter back once the branch
+layout settles.
 
-**Still unverified:** `release.yml` (never dispatched — in particular the
-`gitea-release-action` token and the zip step) and `ruffle-test.yml`.
-
-**Artifact listing quirk.** The upload succeeds and the log confirms it, but
-the Gitea artifacts API returns an empty list for both `list_artifacts` and
-`list_run_artifacts`. Download artifacts from the run's web page instead.
+**Artifact listing quirk.** Uploads succeed and the logs confirm them, but the
+Gitea artifacts API returns an empty list. Download from the run page instead.
