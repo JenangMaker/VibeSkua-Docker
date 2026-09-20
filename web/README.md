@@ -69,6 +69,44 @@ thing a real login attempt will answer.
 - A handful of AVM2 stubs (`Security.allowDomain`, `Dictionary` weak keys,
   `describeTypeJSON`, `Loader.close`/`unloadAndStop`).
 
+## CPU usage
+
+This container is CPU-hungry by nature, and one bug made it much worse.
+
+**The fixable part.** `QuestRequirementWiki` throws an uncaught AVM2 error on
+every `ENTER_FRAME` before login — it reads `game.ui.ModalStack` without
+guarding `game.ui`. At 30fps that is ~30 exceptions per second, each one
+constructed with a stack trace, marshalled over Electron's IPC, written to
+stdout and captured by Docker's log driver. In one sample **22,530 of 22,601
+log lines (99.7%, 2.2MB) were this single error.**
+
+Two mitigations now ship by default:
+
+- `DISABLE_MODULES=QuestRequirementWiki` turns the module off via the
+  `modDisable` ExternalInterface callback once the game has loaded, which stops
+  the exception at source. Set it to `""` to keep every module.
+- `main.js` collapses repeated console lines instead of writing each one.
+
+The underlying bug is still in `QuestRequirementWiki.as:18` and wants
+`if (!game.ui) return;`, which needs the Flex SDK to recompile `skua.swf`.
+
+**The irreducible part.** With no GPU, Ruffle renders through SwiftShader — a
+software rasteriser — and a 30fps Flash game in software will use as much CPU
+as you give it. On top of that, KasmVNC continuously encodes the framebuffer
+for the browser. Neither is a bug.
+
+Options, best first:
+
+| Approach | Effect |
+| :--- | :--- |
+| Pass through a GPU: uncomment `devices: [/dev/dri:/dev/dri]` | Largest win — real hardware rendering |
+| `cpus: 2.0` in compose (set by default) | Caps the burn so the host cannot thermal throttle |
+| Skua's own perf modules | `modEnable("DisableFX")`, `modEnable("HidePlayers")` cut Flash's display-tree work |
+| Smaller window | Fewer pixels for both Ruffle and KasmVNC |
+
+The `cpus` cap does not make it faster — it stops it cooking your machine. Drop
+it if you have cores to spare.
+
 ## How it fits together
 
 ```

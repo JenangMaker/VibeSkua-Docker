@@ -23,6 +23,15 @@ const PORT = Number(process.env.PORT || 8770);
 const PROXY_PORT = Number(process.env.SOCKET_PROXY_PORT || 8181);
 const SERVERS_API = 'https://game.aq.com/game/api/data/servers';
 
+// Skua modules to switch off once the game loads. QuestRequirementWiki throws
+// an uncaught AVM2 error every frame before login (it reads game.ui.ModalStack
+// without guarding game.ui), which at 30fps means ~30 exceptions/sec, each one
+// formatted with a stack trace, piped over IPC and written to the container
+// log. That was 99.7% of a 2.2MB log sample and a large slice of the CPU burn.
+// Set DISABLE_MODULES="" to keep them all.
+const DISABLE_MODULES = (process.env.DISABLE_MODULES ?? 'QuestRequirementWiki')
+  .split(',').map(s => s.trim()).filter(Boolean);
+
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm',
   '.swf': 'application/x-shockwave-flash', '.json': 'application/json',
@@ -59,7 +68,7 @@ function serve() {
       if (req.url === '/servers') {
         const servers = await fetchServers();
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ servers, proxyPort: PROXY_PORT }));
+        res.end(JSON.stringify({ servers, proxyPort: PROXY_PORT, disableModules: DISABLE_MODULES }));
         return;
       }
       const rel = decodeURIComponent(req.url.split('?')[0]).replace(/^\/+/, '') || 'index.html';
@@ -112,7 +121,25 @@ app.whenReady().then(async () => {
     backgroundColor: '#111111',
     webPreferences: { nodeIntegration: false, contextIsolation: true },
   });
-  win.webContents.on('console-message', (_e, _lvl, msg) => console.log('[page]', msg.slice(0, 300)));
+  // Collapse repeats. Ruffle can emit the same error every frame, and writing
+  // each one to stdout is itself a meaningful cost once Docker is capturing it.
+  let lastMsg = null, repeats = 0, flushTimer = null;
+  const flush = () => {
+    if (repeats > 0) console.log(`[page] (previous line repeated ${repeats}x)`);
+    repeats = 0;
+    flushTimer = null;
+  };
+  win.webContents.on('console-message', (_e, _lvl, msg) => {
+    const line = msg.slice(0, 300);
+    if (line === lastMsg) {
+      repeats++;
+      if (!flushTimer) flushTimer = setTimeout(flush, 10000);
+      return;
+    }
+    flush();
+    lastMsg = line;
+    console.log('[page]', line);
+  });
   win.loadURL(`http://127.0.0.1:${PORT}/index.html`);
 });
 

@@ -60,12 +60,32 @@ function buildSocketProxy(servers, proxyPort) {
   return out;
 }
 
+// Modules.disable() is a no-op until Modules.init() has run, which happens in
+// Main.as onComplete -- i.e. only after the game SWF loads. Retry until the
+// game is up, then apply once.
+async function suppressModules(names) {
+  if (!names.length) return;
+  for (let i = 0; i < 40; i++) {
+    await new Promise(r => setTimeout(r, 1500));
+    let loaded = false;
+    try { loaded = player.getGameObject('params.sURL') != null; } catch (e) {}
+    if (!loaded) continue;
+    for (const n of names) {
+      try { player.modDisable(n); say('disabled module: ' + n, 'ok'); }
+      catch (e) { say('could not disable ' + n + ': ' + e, 'err'); }
+    }
+    return;
+  }
+  say('game never finished loading; modules left as-is', 'err');
+}
+
 async function main() {
-  let servers = [], proxyPort = 8181;
+  let servers = [], proxyPort = 8181, disableModules = [];
   try {
     const r = await (await fetch('/servers')).json();
     servers = r.servers || [];
     proxyPort = r.proxyPort || proxyPort;
+    disableModules = r.disableModules || [];
   } catch (e) {
     say('could not fetch server list: ' + e, 'err');
   }
@@ -94,6 +114,7 @@ async function main() {
       socketProxy,
     });
     say('skua.swf loaded', 'ok');
+    suppressModules(disableModules);
   } catch (e) {
     say('failed to load skua.swf: ' + e, 'err');
   }

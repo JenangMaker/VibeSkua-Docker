@@ -90,8 +90,20 @@ services:
       CUSTOM_USER: vibeskua
       PASSWORD: changeme
       TITLE: VibeSkua Web
+      # Skua modules switched off after the game loads. QuestRequirementWiki
+      # throws an uncaught AVM2 error every frame before login; leaving it on
+      # costs ~30 exceptions/sec and floods the container log.
+      DISABLE_MODULES: QuestRequirementWiki
     # Chromium needs syscalls Docker's default seccomp profile blocks.
     security_opt:
       - seccomp=unconfined
     shm_size: 1gb
     restart: unless-stopped
+    # Without a GPU, Ruffle renders through SwiftShader on the CPU, and a 30fps
+    # Flash game in software will saturate whatever it is given. Cap it so the
+    # host cannot thermal throttle.
+    cpus: 2.0
+    # Far better than capping: hand it the host's GPU, if there is one. The
+    # LinuxServer base picks this up automatically.
+    # devices:
+    #   - /dev/dri:/dev/dri
