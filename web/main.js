@@ -29,6 +29,10 @@ const MIME = {
   '.map': 'application/json', '.css': 'text/css',
 };
 
+// Hosts seen in the live server list. The proxy consults this on top of its
+// static allowlist, so Artix adding a domain does not require a code change.
+const discoveredHosts = new Set();
+
 // Fetched server-side so the page never has to fight CORS for this one call.
 function fetchServers() {
   return new Promise(resolve => {
@@ -38,7 +42,11 @@ function fetchServers() {
       res.on('end', () => {
         try {
           const list = JSON.parse(body);
-          resolve(Array.isArray(list) ? list : []);
+          const servers = Array.isArray(list) ? list : [];
+          for (const srv of servers) {
+            if (typeof srv.sIP === 'string' && srv.sIP) discoveredHosts.add(srv.sIP.toLowerCase());
+          }
+          resolve(servers);
         } catch { resolve([]); }
       });
     }).on('error', () => resolve([]));
@@ -87,7 +95,14 @@ app.whenReady().then(async () => {
 
   await serve();
   installCorsFix();
-  socketProxy.start({ port: PROXY_PORT, log: m => console.log(m) });
+  // Prime the host set before the page asks, so the first connection attempt
+  // is not refused in a race with the page's own /servers fetch.
+  await fetchServers();
+  socketProxy.start({
+    port: PROXY_PORT,
+    log: m => console.log(m),
+    allow: host => discoveredHosts.has(host.toLowerCase()),
+  });
   console.log(`[host] serving http://127.0.0.1:${PORT}`);
 
   const win = new BrowserWindow({

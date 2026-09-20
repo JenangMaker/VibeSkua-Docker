@@ -28,42 +28,46 @@ See `docs/ruffle-test/README.md` for what has actually been proven, and
 
 ## Status
 
-The container **runs**. First launch reached the live AQW client: Electron
-started under KasmVNC, Ruffle loaded, `skua.swf` ran, and the game SWF loaded
-inside it — confirmed by `Modules.handleFrame` firing, which only happens after
-`Main.as`'s `onComplete`.
+**Ruffle's `socketProxy` works.** That was the one design assumption nothing
+could confirm, and the second container run settled it: Ruffle routed a game
+socket to the local bridge, exactly as `{host, port, proxyUrl}` predicted.
 
-Three build/runtime bugs fixed so far, all from assuming a fuller base image
-than LinuxServer ships:
+Confirmed working in the container: Electron under KasmVNC, Ruffle 0.6.0, the
+live AQW client loading inside `skua.swf`, the ExternalInterface bridge
+(`Externalizer::init done.`), the Auras API initialising, and socket routing
+reaching the proxy.
 
-- `tar -xJ` failed with `xz: Cannot exec: No such file or directory` — no `xz`
-  in the base. Now uses the `.tar.gz` Node tarball.
-- `setup.js` shells out to `unzip` on Linux; not installed. Added to apt.
-- Installing Node 22 into `/usr/local` shadowed the base image's Node 18 and
-  broke KasmVNC's own `/kclient` audio component, whose native `pulseaudio2`
-  module is built for `NODE_MODULE_VERSION 108`:
-  `ERR_DLOPEN_FAILED ... requires NODE_MODULE_VERSION 127`. Node 22 now lives
-  in `/opt/node`, off the global `PATH`, and `autostart` runs the Electron ELF
-  binary directly rather than the Node wrapper in `node_modules/.bin`.
+Five bugs found and fixed so far, all mine:
 
-Still unverified:
+| Symptom | Cause |
+| :--- | :--- |
+| `xz: Cannot exec` | Base image has no `xz`; use the `.tar.gz` Node tarball |
+| `unzip` missing | `setup.js` shells out to it on Linux |
+| `/kclient` `ERR_DLOPEN_FAILED` | Node 22 in `/usr/local` shadowed the base image's Node 18, whose native `pulseaudio2` needs `NODE_MODULE_VERSION 108` |
+| `[proxy #1] refused asia.game.artix.com:5588` | Allowlist only covered `*.aq.com`; live servers also use `asia.game.artix.com` and `euro.aqw.artix.com`, which are two labels deep |
+| WebGL software fallback refused | Chromium needs `--enable-unsafe-swiftshader` where there is no GPU |
 
-- **Ruffle's `socketProxy` schema.** This assumes `{host, port, proxyUrl}`.
-  If Ruffle expects something else, login silently fails with no error.
-- Whether the WebSocket↔TCP bridge carries SmartFoxServer traffic correctly
-- Login and gameplay end to end
+The allowlist now accepts any depth under `aq.com` / `aqworlds.com` /
+`artix.com`, and `main.js` additionally feeds it every `sIP` from the live
+server list, so a new Artix domain needs no code change. The trailing anchor
+still refuses `sock7.aq.com.evil.net`.
 
-The decisive check is a `[proxy #N] connecting <host>:<port>` line in
-`docker logs` when you pick a server. If it never appears, Ruffle is not
-routing sockets through the proxy at all.
+Still unverified: **login and gameplay end to end.** The socket now reaches the
+bridge; whether SmartFoxServer traffic survives the round trip is the next
+thing a real login attempt will answer.
 
 ### Expected noise
 
-`Error #1009 ... (accessing field: ModalStack)` repeating ~30×/sec before login
-is a known bug in `Skua.AS3/skua/src/skua/module/QuestRequirementWiki.as:18`,
-not a container problem. It reads `game.ui.ModalStack` and guards the result
-but not `game.ui`, which is null until login. Fix: `if (!game.ui) return;` —
-needs the Flex SDK to recompile `skua.swf`.
+- `Error #1009 ... (accessing field: ModalStack)` ~30x/sec before login is a
+  known bug in `Skua.AS3/skua/src/skua/module/QuestRequirementWiki.as:18`, not
+  a container problem. It reads `game.ui.ModalStack` and guards the result but
+  not `game.ui`, which is null until login. Fix: `if (!game.ui) return;` —
+  needs the Flex SDK to recompile `skua.swf`.
+- `hideme.swf ... 404` — the default background SWF; cosmetic.
+- `SharedObject ... non-HTTPS origin` — the page is served over
+  `http://127.0.0.1`; affects saved preferences, not login.
+- A handful of AVM2 stubs (`Security.allowDomain`, `Dictionary` weak keys,
+  `describeTypeJSON`, `Loader.close`/`unloadAndStop`).
 
 ## How it fits together
 

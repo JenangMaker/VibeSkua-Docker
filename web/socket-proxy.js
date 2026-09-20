@@ -16,9 +16,16 @@ const net = require('net');
 
 // Only ever dial Artix. Without this the container would be an open relay for
 // anything that can reach the proxy port.
-const ALLOWED_HOST = /^[a-z0-9-]+\.(aq|aqworlds)\.com$/i;
+//
+// The live server list spans several domains and depths -- sock7.aq.com,
+// asia.game.artix.com, euro.aqw.artix.com -- so this allows any number of
+// labels under the known registrable domains. The end anchor is what stops
+// sock7.aq.com.evil.net matching.
+const ALLOWED_HOST = /^(?:[a-z0-9-]+\.)+(?:aq|aqworlds|artix)\.com$/i;
 
-function start({ port = 8181, host = '127.0.0.1', log = console.log } = {}) {
+// `allow` lets the caller widen this with hosts discovered from the live
+// server list, so a new Artix domain does not need a code change.
+function start({ port = 8181, host = '127.0.0.1', log = console.log, allow = null } = {}) {
   const wss = new WebSocketServer({ host, port });
   let seq = 0;
 
@@ -32,7 +39,8 @@ function start({ port = 8181, host = '127.0.0.1', log = console.log } = {}) {
 
     const targetHost = decodeURIComponent(m[1]);
     const targetPort = Number(m[2]);
-    if (!ALLOWED_HOST.test(targetHost) || targetPort < 1 || targetPort > 65535) {
+    const permitted = ALLOWED_HOST.test(targetHost) || (allow ? allow(targetHost) : false);
+    if (!permitted || targetPort < 1 || targetPort > 65535) {
       log(`[proxy #${id}] refused ${targetHost}:${targetPort}`);
       return ws.close(1008, 'host not allowed');
     }
