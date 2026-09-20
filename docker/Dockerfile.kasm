@@ -22,14 +22,24 @@ FROM ${BASE_IMAGE}
 
 ARG NODE_VERSION
 
-# Debian bookworm ships node 18; Electron 33 wants newer. Official tarball
-# keeps this independent of distro packaging.
+# Node 22 for Electron, installed to /opt/node and deliberately kept OFF the
+# global PATH.
 #
-# .tar.gz, not .tar.xz: the KasmVNC base image has no xz binary, so
-# `tar -xJ` dies with "xz: Cannot exec: No such file or directory".
-RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz" \
-      | tar -xz -C /usr/local --strip-components=1 \
- && node --version && npm --version
+# The KasmVNC base ships its own Node 18 for its web/audio client under
+# /kclient, whose native pulseaudio2 module is built for
+# NODE_MODULE_VERSION 108. Installing Node 22 into /usr/local shadows that
+# and /kclient dies at startup with ERR_DLOPEN_FAILED ("compiled against a
+# different Node.js version ... requires NODE_MODULE_VERSION 127").
+#
+# .tar.gz, not .tar.xz: the base image has no xz binary, so `tar -xJ` dies
+# with "xz: Cannot exec: No such file or directory".
+ENV NODE_HOME=/opt/node
+RUN mkdir -p "$NODE_HOME" \
+ && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz" \
+      | tar -xz -C "$NODE_HOME" --strip-components=1 \
+ && "$NODE_HOME/bin/node" --version \
+ && "$NODE_HOME/bin/npm" --version \
+ && echo "base image node stays at: $(command -v node || echo none)"
 
 # Electron's runtime libraries, plus unzip which setup.js shells out to when
 # unpacking the Ruffle web build.
@@ -51,14 +61,14 @@ WORKDIR /app
 
 # Dependencies first so npm install caches independently of app source.
 COPY web/package.json ./
-RUN npm install --no-audit --no-fund
+RUN "$NODE_HOME/bin/npm" install --no-audit --no-fund
 
 COPY web/ ./
 
 # setup.js normally copies this out of the repo tree, which is not at that path
 # inside the build context; stage it directly and let setup.js keep it.
 COPY Skua.AS3/skua/bin/skua.swf ./public/skua.swf
-RUN node setup.js
+RUN "$NODE_HOME/bin/node" setup.js
 
 # LinuxServer's init runs this to launch the session's application.
 COPY docker/kasm-root/ /

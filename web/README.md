@@ -26,31 +26,44 @@ Until it does, this is a way to play AQW in a browser, not to automate it.
 See `docs/ruffle-test/README.md` for what has actually been proven, and
 `DOCKER.md` for why the real client cannot be containerised as written.
 
-## Status: builds in progress
+## Status
 
-The image build has been exercised in CI (Gitea `Publish image`). Two bugs are
-fixed so far, both in the base image's toolset rather than the app:
+The container **runs**. First launch reached the live AQW client: Electron
+started under KasmVNC, Ruffle loaded, `skua.swf` ran, and the game SWF loaded
+inside it — confirmed by `Modules.handleFrame` firing, which only happens after
+`Main.as`'s `onComplete`.
 
-- `tar -xJ` failed with `xz: Cannot exec: No such file or directory` — the
-  KasmVNC base has no `xz`. Now uses the `.tar.gz` Node tarball.
-- `setup.js` shells out to `unzip` on Linux to unpack Ruffle; it was not
-  installed. Added to the apt list.
+Three build/runtime bugs fixed so far, all from assuming a fuller base image
+than LinuxServer ships:
 
-**The container has still never run.** What is verified, in CI on
-Linux, is the layer underneath: Ruffle loading `skua.swf`, the live AQW client
-loading inside it, and all 28 probed ExternalInterface callbacks registering.
+- `tar -xJ` failed with `xz: Cannot exec: No such file or directory` — no `xz`
+  in the base. Now uses the `.tar.gz` Node tarball.
+- `setup.js` shells out to `unzip` on Linux; not installed. Added to apt.
+- Installing Node 22 into `/usr/local` shadowed the base image's Node 18 and
+  broke KasmVNC's own `/kclient` audio component, whose native `pulseaudio2`
+  module is built for `NODE_MODULE_VERSION 108`:
+  `ERR_DLOPEN_FAILED ... requires NODE_MODULE_VERSION 127`. Node 22 now lives
+  in `/opt/node`, off the global `PATH`, and `autostart` runs the Electron ELF
+  binary directly rather than the Node wrapper in `node_modules/.bin`.
 
-Specifically unverified:
+Still unverified:
 
-- Electron starting under KasmVNC's X session
-- Node 22 + Electron's shared libraries on `debianbookworm`
 - **Ruffle's `socketProxy` schema.** This assumes `{host, port, proxyUrl}`.
-  If Ruffle expects something else, login silently fails.
+  If Ruffle expects something else, login silently fails with no error.
 - Whether the WebSocket↔TCP bridge carries SmartFoxServer traffic correctly
 - Login and gameplay end to end
 
-Expect to iterate. The `Publish image` workflow builds it in CI, which is the
-cheapest way to find the first round of breakage.
+The decisive check is a `[proxy #N] connecting <host>:<port>` line in
+`docker logs` when you pick a server. If it never appears, Ruffle is not
+routing sockets through the proxy at all.
+
+### Expected noise
+
+`Error #1009 ... (accessing field: ModalStack)` repeating ~30×/sec before login
+is a known bug in `Skua.AS3/skua/src/skua/module/QuestRequirementWiki.as:18`,
+not a container problem. It reads `game.ui.ModalStack` and guards the result
+but not `game.ui`, which is null until login. Fix: `if (!game.ui) return;` —
+needs the Flex SDK to recompile `skua.swf`.
 
 ## How it fits together
 

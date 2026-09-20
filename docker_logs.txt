@@ -1,0 +1,51 @@
+root@omv:~# docker logs vibeskua-web --tail 50
+[page] %cERROR%c core/src/avm2.rs:703%c Error dispatching event "enterFrame": TypeError: Error #1009: Cannot access a property or method of a null object reference. (accessing field: ModalStack)
+        at skua.module::QuestRequirementWiki/onFrame()
+        at skua.module::Modules$/handleFrame() color: red; background: 
+[page] %cERROR%c core/src/avm2.rs:703%c Error dispatching event "enterFrame": TypeError: Error #1009: Cannot access a property or method of a null object reference. (accessing field: ModalStack)
+        at skua.module::QuestRequirementWiki/onFrame()
+        at skua.module::Modules$/handleFrame() color: red; background: 
+[page] %cERROR%c core/src/avm2.rs:703%c Error dispatching event "enterFrame": TypeError: Error #1009: Cannot access a property or method of a null object reference. (accessing field: ModalStack)
+        at skua.module::QuestRequirementWiki/onFrame()
+        at skua.module::Modules$/handleFrame() color: red; background: 
+[page] %cERROR%c core/src/avm2.rs:703%c Error dispatching event "enterFrame": TypeError: Error #1009: Cannot access a property or method of a null object reference. (accessing field: ModalStack)
+        at skua.module::QuestRequirementWiki/onFrame()
+        at skua.module::Modules$/handleFrame() color: red; background: 
+[page] %cERROR%c core/src/avm2.rs:703%c Error dispatching event "enterFrame": TypeError: Error #1009: Cannot access a property or method of a null object reference. (accessing field: ModalStack)
+        at skua.module::QuestRequirementWiki/onFrame()
+        at skua.module::Modules$/handleFrame() color: red; background: 
+[page] %cERROR%c core/src/avm2.rs:703%c Error dispatching event "enterFrame": TypeError: Error #1009: Cannot access a property or method of a null object reference. (accessing field: ModalStack)
+        at skua.module::QuestRequirementWiki/onFrame()
+        at skua.module::Modules$/handleFrame() color: red; background: 
+[page] %cERROR%c core/src/avm2.rs:703%c Error dispatching event "enterFrame": TypeError: Error #1009: Cannot access a property or method of a null object reference. (accessing field: ModalStack)
+        at skua.module::QuestRequirementWiki/onFrame()
+        at skua.module::Modules$/handleFrame() color: red; background: 
+[page] %cERROR%c core/src/avm2.rs:703%c Error dispatching event "enterFrame": TypeError: Error #1009: Cannot access a property or method of a null object reference. (accessing field: ModalStack)
+        at skua.module::QuestRequirementWiki/onFrame()
+        at skua.module::Modules$/handleFrame() color: red; background: 
+[page] %cERROR%c core/src/avm2.rs:703%c Error dispatching event "enterFrame": TypeError: Error #1009: Cannot access a property or method of a null object reference. (accessing field: ModalStack)
+        at skua.module::QuestRequirementWiki/onFrame()
+        at skua.module::Modules$/handleFrame() color: red; background: 
+/kclient/node_modules/bindings/bindings.js:121
+        throw e;
+        ^
+
+Error: The module '/kclient/node_modules/pulseaudio2/build/Release/pulse.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 108. This version of Node.js requires
+NODE_MODULE_VERSION 127. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1715:18)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:218:24)
+    at Module.require (node:internal/modules/cjs/loader:1340:12)
+    at require (node:internal/modules/helpers:141:16)
+    at bindings (/kclient/node_modules/bindings/bindings.js:112:48)
+    at Object.<anonymous> (/kclient/node_modules/pulseaudio2/lib/pulse.js:21:34)
+    at Module._compile (node:internal/modules/cjs/loader:1546:14) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+
+Node.js v22.11.0
