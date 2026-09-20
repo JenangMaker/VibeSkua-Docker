@@ -26,10 +26,17 @@ Until it does, this is a way to play AQW in a browser, not to automate it.
 See `docs/ruffle-test/README.md` for what has actually been proven, and
 `DOCKER.md` for why the real client cannot be containerised as written.
 
-## Status: untested
+## Status: builds in progress
 
-Docker was not installed on the machine where this was written. **The image has
-never been built and the container has never run.** What is verified, in CI on
+The image build has been exercised in CI (Gitea `Publish image`). Two bugs are
+fixed so far, both in the base image's toolset rather than the app:
+
+- `tar -xJ` failed with `xz: Cannot exec: No such file or directory` — the
+  KasmVNC base has no `xz`. Now uses the `.tar.gz` Node tarball.
+- `setup.js` shells out to `unzip` on Linux to unpack Ruffle; it was not
+  installed. Added to the apt list.
+
+**The container has still never run.** What is verified, in CI on
 Linux, is the layer underneath: Ruffle loading `skua.swf`, the live AQW client
 loading inside it, and all 28 probed ExternalInterface callbacks registering.
 

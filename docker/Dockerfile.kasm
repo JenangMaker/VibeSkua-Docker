@@ -24,12 +24,17 @@ ARG NODE_VERSION
 
 # Debian bookworm ships node 18; Electron 33 wants newer. Official tarball
 # keeps this independent of distro packaging.
-RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
-      | tar -xJ -C /usr/local --strip-components=1 \
+#
+# .tar.gz, not .tar.xz: the KasmVNC base image has no xz binary, so
+# `tar -xJ` dies with "xz: Cannot exec: No such file or directory".
+RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz" \
+      | tar -xz -C /usr/local --strip-components=1 \
  && node --version && npm --version
 
-# Electron's runtime libraries.
+# Electron's runtime libraries, plus unzip which setup.js shells out to when
+# unpacking the Ruffle web build.
 RUN apt-get update && apt-get install -y --no-install-recommends \
+      unzip \
       libasound2 \
       libatspi2.0-0 \
       libgbm1 \
