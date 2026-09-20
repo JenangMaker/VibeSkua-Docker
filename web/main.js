@@ -23,14 +23,31 @@ const PORT = Number(process.env.PORT || 8770);
 const PROXY_PORT = Number(process.env.SOCKET_PROXY_PORT || 8181);
 const SERVERS_API = 'https://game.aq.com/game/api/data/servers';
 
-// Skua modules to switch off once the game loads. QuestRequirementWiki throws
-// an uncaught AVM2 error every frame before login (it reads game.ui.ModalStack
-// without guarding game.ui), which at 30fps means ~30 exceptions/sec, each one
-// formatted with a stack trace, piped over IPC and written to the container
-// log. That was 99.7% of a 2.2MB log sample and a large slice of the CPU burn.
+// Skua modules to switch off once the game loads.
+//
+// QuestRequirementWiki.as:18 and QuestItemRates.as:12 both read
+// game.ui.ModalStack and guard the result but not game.ui, which is null
+// whenever no UI is up. Both are enabled by default and run on ENTER_FRAME, so
+// each throws an uncaught AVM2 error ~30 times a second, every one formatted
+// with a stack trace and marshalled over IPC. OptimizePlayers guards the same
+// access correctly (`if (game.ui != null)`) and is fine.
+//
 // Set DISABLE_MODULES="" to keep them all.
-const DISABLE_MODULES = (process.env.DISABLE_MODULES ?? 'QuestRequirementWiki')
+const DISABLE_MODULES = (process.env.DISABLE_MODULES ?? 'QuestRequirementWiki,QuestItemRates')
   .split(',').map(s => s.trim()).filter(Boolean);
+
+// Skua modules to switch ON. These are its own performance modules, all
+// disabled by default: DisableFX and HidePlayers cut how much of the Flash
+// display tree has to be walked and drawn each frame, which is the single
+// biggest lever inside the game. Off by default here because they change what
+// you see.
+const ENABLE_MODULES = (process.env.ENABLE_MODULES ?? '')
+  .split(',').map(s => s.trim()).filter(Boolean);
+
+// Ruffle render quality. With no GPU this is software rasterisation, and
+// anti-aliasing is charged straight to the CPU. 'low' disables AA and bitmap
+// smoothing. Raise to 'medium'/'high' if you have cycles or a real GPU.
+const RUFFLE_QUALITY = process.env.RUFFLE_QUALITY || 'low';
 
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm',
@@ -68,7 +85,12 @@ function serve() {
       if (req.url === '/servers') {
         const servers = await fetchServers();
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ servers, proxyPort: PROXY_PORT, disableModules: DISABLE_MODULES }));
+        res.end(JSON.stringify({
+          servers, proxyPort: PROXY_PORT,
+          disableModules: DISABLE_MODULES,
+          enableModules: ENABLE_MODULES,
+          quality: RUFFLE_QUALITY,
+        }));
         return;
       }
       const rel = decodeURIComponent(req.url.split('?')[0]).replace(/^\/+/, '') || 'index.html';

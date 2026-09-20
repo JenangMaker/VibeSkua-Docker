@@ -63,16 +63,20 @@ function buildSocketProxy(servers, proxyPort) {
 // Modules.disable() is a no-op until Modules.init() has run, which happens in
 // Main.as onComplete -- i.e. only after the game SWF loads. Retry until the
 // game is up, then apply once.
-async function suppressModules(names) {
-  if (!names.length) return;
+async function applyModules(disable, enable) {
+  if (!disable.length && !enable.length) return;
   for (let i = 0; i < 40; i++) {
     await new Promise(r => setTimeout(r, 1500));
     let loaded = false;
     try { loaded = player.getGameObject('params.sURL') != null; } catch (e) {}
     if (!loaded) continue;
-    for (const n of names) {
+    for (const n of disable) {
       try { player.modDisable(n); say('disabled module: ' + n, 'ok'); }
       catch (e) { say('could not disable ' + n + ': ' + e, 'err'); }
+    }
+    for (const n of enable) {
+      try { player.modEnable(n); say('enabled module: ' + n, 'ok'); }
+      catch (e) { say('could not enable ' + n + ': ' + e, 'err'); }
     }
     return;
   }
@@ -80,12 +84,14 @@ async function suppressModules(names) {
 }
 
 async function main() {
-  let servers = [], proxyPort = 8181, disableModules = [];
+  let servers = [], proxyPort = 8181, disableModules = [], enableModules = [], quality = 'low';
   try {
     const r = await (await fetch('/servers')).json();
     servers = r.servers || [];
     proxyPort = r.proxyPort || proxyPort;
     disableModules = r.disableModules || [];
+    enableModules = r.enableModules || [];
+    quality = r.quality || quality;
   } catch (e) {
     say('could not fetch server list: ' + e, 'err');
   }
@@ -111,10 +117,12 @@ async function main() {
       contextMenu: 'off',
       splashScreen: false,
       logLevel: 'warn',
+      quality,
       socketProxy,
     });
     say('skua.swf loaded', 'ok');
-    suppressModules(disableModules);
+    say('render quality: ' + quality);
+    applyModules(disableModules, enableModules);
   } catch (e) {
     say('failed to load skua.swf: ' + e, 'err');
   }

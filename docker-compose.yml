@@ -90,10 +90,15 @@ services:
       CUSTOM_USER: vibeskua
       PASSWORD: changeme
       TITLE: VibeSkua Web
-      # Skua modules switched off after the game loads. QuestRequirementWiki
-      # throws an uncaught AVM2 error every frame before login; leaving it on
-      # costs ~30 exceptions/sec and floods the container log.
-      DISABLE_MODULES: QuestRequirementWiki
+      # Skua modules switched off after the game loads. Both of these read
+      # game.ui.ModalStack without guarding game.ui, so each throws an uncaught
+      # AVM2 error ~30x/sec whenever no UI is up.
+      DISABLE_MODULES: QuestRequirementWiki,QuestItemRates
+      # Skua's own performance modules, off by default because they change what
+      # you see. DisableFX,HidePlayers is the biggest in-game CPU lever.
+      ENABLE_MODULES: ""
+      # Software rasterisation charges anti-aliasing to the CPU. low|medium|high
+      RUFFLE_QUALITY: low
     # Chromium needs syscalls Docker's default seccomp profile blocks.
     security_opt:
       - seccomp=unconfined

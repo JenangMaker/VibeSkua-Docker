@@ -71,41 +71,54 @@ thing a real login attempt will answer.
 
 ## CPU usage
 
-This container is CPU-hungry by nature, and one bug made it much worse.
+This container is CPU-hungry, from three separate causes.
 
-**The fixable part.** `QuestRequirementWiki` throws an uncaught AVM2 error on
-every `ENTER_FRAME` before login — it reads `game.ui.ModalStack` without
-guarding `game.ui`. At 30fps that is ~30 exceptions per second, each one
-constructed with a stack trace, marshalled over Electron's IPC, written to
-stdout and captured by Docker's log driver. In one sample **22,530 of 22,601
-log lines (99.7%, 2.2MB) were this single error.**
+### 1. Per-frame AVM2 exceptions (fixed)
 
-Two mitigations now ship by default:
+Two Skua modules are enabled by default and both read `game.ui.ModalStack`
+while guarding only the result, not `game.ui`:
 
-- `DISABLE_MODULES=QuestRequirementWiki` turns the module off via the
-  `modDisable` ExternalInterface callback once the game has loaded, which stops
-  the exception at source. Set it to `""` to keep every module.
-- `main.js` collapses repeated console lines instead of writing each one.
+- `QuestRequirementWiki.as:18`
+- `QuestItemRates.as:12`
 
-The underlying bug is still in `QuestRequirementWiki.as:18` and wants
-`if (!game.ui) return;`, which needs the Flex SDK to recompile `skua.swf`.
+`game.ui` is null whenever no UI panel is open, so each throws an uncaught
+AVM2 error on every `ENTER_FRAME` — ~30/sec each, every one formatted with a
+stack trace and marshalled over Electron IPC. In one sample that was **22,530
+of 22,601 log lines (99.7%, 2.2MB)**.
 
-**The irreducible part.** With no GPU, Ruffle renders through SwiftShader — a
-software rasteriser — and a 30fps Flash game in software will use as much CPU
-as you give it. On top of that, KasmVNC continuously encodes the framebuffer
-for the browser. Neither is a bug.
+`DISABLE_MODULES` switches both off via the `modDisable` callback once the game
+has loaded. `OptimizePlayers` guards the same access correctly
+(`if (game.ui != null)`) and is left alone. The real fix is a null check in the
+AS3, which needs the Flex SDK to recompile `skua.swf`.
 
-Options, best first:
+### 2. Software rendering (not fixable in this container)
 
-| Approach | Effect |
-| :--- | :--- |
-| Pass through a GPU: uncomment `devices: [/dev/dri:/dev/dri]` | Largest win — real hardware rendering |
-| `cpus: 2.0` in compose (set by default) | Caps the burn so the host cannot thermal throttle |
-| Skua's own perf modules | `modEnable("DisableFX")`, `modEnable("HidePlayers")` cut Flash's display-tree work |
-| Smaller window | Fewer pixels for both Ruffle and KasmVNC |
+With no GPU, Ruffle's wgpu renderer falls back to SwiftShader and rasterises
+every frame on the CPU — visible in the logs as
+`GPU stall due to ReadPixels`. `RUFFLE_QUALITY=low` drops anti-aliasing and
+bitmap smoothing, which is the cheapest saving available. A real GPU via
+`devices: [/dev/dri:/dev/dri]` is the actual fix.
 
-The `cpus` cap does not make it faster — it stops it cooking your machine. Drop
-it if you have cores to spare.
+### 3. Ruffle itself
+
+Ruffle's AVM2 is slower than Adobe's Flash Player, which shipped a JIT. This
+is a known, upstream gap, and it is corroborated: Artix cite a Ruffle memory
+leak as the blocker for putting their bigger games on it, and the aquastar
+launcher reports poor FPS in crowded rooms, "mostly limited by Ruffle itself".
+
+Nothing in this repo fixes that. It gets better as Ruffle does.
+
+### Knobs
+
+| Setting | Default | Effect |
+| :--- | :--- | :--- |
+| `DISABLE_MODULES` | `QuestRequirementWiki,QuestItemRates` | Stops ~60 exceptions/sec |
+| `ENABLE_MODULES` | empty | `DisableFX,HidePlayers` is the biggest in-game lever; changes what you see |
+| `RUFFLE_QUALITY` | `low` | `low`/`medium`/`high` — AA costs CPU in software |
+| `cpus:` | `2.0` | Caps the burn so the host cannot thermal throttle |
+| `devices: /dev/dri` | commented out | Real GPU rendering — the largest win by far |
+
+The `cpus` cap does not make it faster; it stops it cooking your machine.
 
 ## How it fits together
 
