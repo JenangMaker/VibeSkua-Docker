@@ -395,3 +395,6 @@ Skua.AS3/flex.zip
 
 # Velopack packaging output (Build-VibeSkua.ps1 / docker compose package-windows)
 /Releases
+
+# Ad-hoc container logs pasted in for debugging
+/docker_logs*.txt
