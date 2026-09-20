@@ -50,8 +50,22 @@ FROM restore AS build
 
 COPY . .
 
-RUN dotnet build Skua.sln -c Release -p:WarningLevel=0 --nologo \
-        -p:EnableWindowsTargeting=true
+# NOT `dotnet build Skua.sln`. Two SDK rules collide on Linux:
+#   * without a RuntimeIdentifier no Windows apphost is emitted, so Skua.exe
+#     and Skua.Manager.exe are never produced and the PostBuild copy in
+#     Skua.Manager.csproj fails with MSB3030;
+#   * adding -p:RuntimeIdentifier to a *solution* build fails with NETSDK1134
+#     ("Building a solution with a specific RuntimeIdentifier is not
+#     supported").
+# So the two WinExe projects are built individually with the RID. Their
+# ProjectReferences pull in Skua.Core / Skua.WPF / the rest.
+ARG RID=win-x64
+RUN set -eu; \
+    FLAGS="-c Release -p:WarningLevel=0 --nologo -p:EnableWindowsTargeting=true"; \
+    RIDFLAGS="-p:RuntimeIdentifier=${RID} -p:SelfContained=false"; \
+    dotnet build Skua.App.WPF/Skua.App.WPF.csproj $FLAGS $RIDFLAGS; \
+    dotnet build Skua.Manager/Skua.Manager.csproj  $FLAGS $RIDFLAGS; \
+    dotnet build Skua.Plugin.DailyTracker/Skua.Plugin.DailyTracker.csproj $FLAGS
 
 # The Skua.App.WPF PostBuild target excludes "$(TargetDir)assemblies\**" from
 # its Move. MSBuild globs are case-sensitive on Linux, so the real
@@ -66,6 +80,8 @@ RUN set -eu; \
         rm -rf "$nested"; \
       fi; \
     done; \
+    test -f Build/AnyCPU/Skua.exe; \
+    test -f Build/AnyCPU/Skua.Manager.exe; \
     ls -la Build/AnyCPU
 
 # ----------------------------------------------------------------- export ---

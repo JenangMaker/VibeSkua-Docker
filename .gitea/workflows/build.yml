@@ -1,0 +1,101 @@
+# VibeSkua CI on Gitea Actions.
+#
+# Gitea's act_runner is Linux/Docker, and there is no Windows runner, so this
+# cannot reproduce the toolchain-exact Windows build that
+# .github/workflows/release.yml does. It cross-compiles instead, the same way
+# docker/Dockerfile.linux does: -p:EnableWindowsTargeting=true. The output is
+# still a Windows build and must be run on Windows.
+#
+# Runner label: adjust `runs-on` to whatever your act_runner registered with
+# (`ubuntu-latest` is the usual default). The job needs a container image with
+# node in it, because Gitea runs JS actions like actions/checkout inside it.
+
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+  NUGET_XMLDOC_MODE: skip
+  # Skua.Plugin.DailyTracker's PostBuild target writes to $(AppData); there is
+  # no %APPDATA% on Linux, so give it somewhere harmless.
+  APPDATA: /tmp/appdata
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: node:22-bookworm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install .NET 10 SDK
+        run: |
+          set -eu
+          curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+          bash /tmp/dotnet-install.sh --channel 10.0 --install-dir "$HOME/.dotnet" --no-path
+          echo "$HOME/.dotnet" >> "$GITHUB_PATH"
+          echo "DOTNET_ROOT=$HOME/.dotnet" >> "$GITHUB_ENV"
+
+      - name: Report SDK
+        run: dotnet --list-sdks
+
+      - name: Restore
+        run: |
+          mkdir -p "$APPDATA"
+          dotnet restore Skua.App.WPF/Skua.App.WPF.csproj -p:EnableWindowsTargeting=true -p:RuntimeIdentifier=win-x64
+          dotnet restore Skua.Manager/Skua.Manager.csproj  -p:EnableWindowsTargeting=true -p:RuntimeIdentifier=win-x64
+
+      - name: Build (Release)
+        run: |
+          set -eu
+          FLAGS="-c Release -p:WarningLevel=0 --nologo -p:EnableWindowsTargeting=true"
+          RIDFLAGS="-p:RuntimeIdentifier=win-x64 -p:SelfContained=false"
+          # Per project, not the solution. A solution-wide RuntimeIdentifier is
+          # rejected (NETSDK1134); without one, no Windows apphost is emitted, so
+          # Skua.exe never appears and Skua.Manager PostBuild fails with MSB3030.
+          dotnet build Skua.App.WPF/Skua.App.WPF.csproj $FLAGS $RIDFLAGS
+          dotnet build Skua.Manager/Skua.Manager.csproj  $FLAGS $RIDFLAGS
+          dotnet build Skua.Plugin.DailyTracker/Skua.Plugin.DailyTracker.csproj $FLAGS
+
+      # The PostBuild target in Skua.App.WPF.csproj excludes
+      # "$(TargetDir)assemblies\**" from its Move, but the directory is
+      # "Assemblies". MSBuild globs are case-sensitive on Linux, so the COM
+      # interop DLLs land one level too deep. Flatten them back.
+      - name: Normalize release layout
+        run: |
+          set -eu
+          for root in Build/*/; do
+            nested="${root}Assemblies/Assemblies"
+            if [ -d "$nested" ]; then
+              echo "Flattening $nested"
+              cp -a "$nested/." "${root}Assemblies/"
+              rm -rf "$nested"
+            fi
+          done
+
+      - name: Verify expected output
+        run: |
+          set -eu
+          test -f Build/AnyCPU/Skua.exe   || { echo "MISSING Skua.exe"; exit 1; }
+          test -f Build/AnyCPU/skua.swf   || { echo "MISSING skua.swf"; exit 1; }
+          test -d Build/AnyCPU/Assemblies || { echo "MISSING Assemblies/"; exit 1; }
+          echo "--- Build/AnyCPU ---"
+          ls -la Build/AnyCPU
+          du -sh Build/AnyCPU
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v3
+        with:
+          name: vibeskua-anycpu
+          path: Build/AnyCPU
+          retention-days: 14

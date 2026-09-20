@@ -129,8 +129,8 @@ building the image.
 in `Skua.App.WPF.csproj` excludes `$(TargetDir)assemblies\**` from its `Move`,
 but the directory on disk is `Assemblies`. MSBuild globs are case-insensitive
 on Windows and case-sensitive on Linux, so on Linux the exclude misses and the
-COM interop DLLs end up at `Build/AnyCPU/Assemblies/Assemblies/`. The Linux
-Dockerfile flattens that back after the build. Fixing the casing in
+COM interop DLLs end up at `Build/AnyCPU/Assemblies/Assemblies/`. Confirmed on
+Ubuntu 20.04; the Linux Dockerfile flattens that back after the build. Fixing the casing in
 `Skua.App.WPF.csproj` would remove the need for the workaround and is harmless
 on Windows.
 
@@ -149,8 +149,35 @@ docker build -f docker/Dockerfile.windows \
   --build-arg EXPORT_IMAGE=mcr.microsoft.com/windows/servercore:ltsc2025 .
 ```
 
-**Not verified in this repo's environment.** Docker is not installed on the
-machine where these files were written, so neither image has been built end to
-end here. The Windows path mirrors the CI workflow closely and should be the
-lower-risk one; the Linux cross-compile is the best-effort path for hosts that
-cannot run Windows containers.
+**The Linux build cannot use `dotnet build Skua.sln`.** Verified on Ubuntu
+20.04 with SDK 10.0.401. Two SDK rules collide:
+
+* With no `RuntimeIdentifier`, no Windows apphost is emitted. `Skua.exe` and
+  `Skua.Manager.exe` are never produced, and `Skua.Manager.csproj`'s PostBuild
+  copy fails with `MSB3030: Could not copy the file "Skua.Manager.exe" because
+  it was not found`.
+* Adding `-p:RuntimeIdentifier=win-x64` to a *solution* build fails with
+  `NETSDK1134: Building a solution with a specific RuntimeIdentifier is not
+  supported`.
+
+So the two `WinExe` projects are built individually with the RID, and their
+ProjectReferences pull in the rest:
+
+```bash
+FLAGS="-c Release -p:WarningLevel=0 --nologo -p:EnableWindowsTargeting=true"
+RIDFLAGS="-p:RuntimeIdentifier=win-x64 -p:SelfContained=false"
+dotnet build Skua.App.WPF/Skua.App.WPF.csproj $FLAGS $RIDFLAGS
+dotnet build Skua.Manager/Skua.Manager.csproj  $FLAGS $RIDFLAGS
+dotnet build Skua.Plugin.DailyTracker/Skua.Plugin.DailyTracker.csproj $FLAGS
+```
+
+That produces a complete `Build/AnyCPU` — `Skua.exe`, `Skua.Manager.exe`,
+`skua.swf`, `Assemblies/`, `FFDec/`, `plugins/`, and the JSON data files — with
+0 warnings and 0 errors.
+
+**Verification status.** The build recipe above and the `Assemblies/Assemblies`
+flattening are verified on Linux. Docker itself is not installed on the machine
+where these files were written, so the **images** have not been built end to
+end — what is unproven is the Dockerfile plumbing around a recipe that is
+known-good, not the recipe. `Dockerfile.windows` is unverified in both senses;
+it mirrors `.github/workflows/release.yml` closely.

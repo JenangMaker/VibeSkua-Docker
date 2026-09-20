@@ -1,0 +1,109 @@
+# VibeSkua release on Gitea Actions.
+#
+# Mirrors .github/workflows/release.yml as closely as a Linux runner allows.
+#
+# IMPORTANT DIFFERENCE: this does NOT run Velopack (`vpk pack`). Velopack
+# packaging of a Windows app is only verified on Windows, and Gitea has no
+# Windows runner. This publishes the portable Build/AnyCPU tree as a zip
+# instead. Keep using the GitHub workflow (or a Windows runner) when you need
+# the Velopack installer and the Manager's auto-update feed.
+
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.8.6). Blank = read Directory.Build.props"
+        required: false
+        default: ""
+      draft:
+        description: "Create as draft"
+        required: false
+        default: "true"
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  APPDATA: /tmp/appdata
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    container:
+      image: node:22-bookworm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: ver
+        run: |
+          set -eu
+          V="${{ inputs.version }}"
+          if [ -z "$V" ]; then
+            V=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props | head -1 | tr -d '[:space:]')
+          fi
+          if [ -z "$V" ]; then echo "could not resolve a version"; exit 1; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Releasing v$V"
+
+      - name: Install .NET 10 SDK
+        run: |
+          set -eu
+          curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+          bash /tmp/dotnet-install.sh --channel 10.0 --install-dir "$HOME/.dotnet" --no-path
+          echo "$HOME/.dotnet" >> "$GITHUB_PATH"
+          echo "DOTNET_ROOT=$HOME/.dotnet" >> "$GITHUB_ENV"
+
+      - name: Build (Release)
+        run: |
+          set -eu
+          mkdir -p "$APPDATA"
+          FLAGS="-c Release -p:WarningLevel=0 --nologo -p:EnableWindowsTargeting=true"
+          RIDFLAGS="-p:RuntimeIdentifier=win-x64 -p:SelfContained=false"
+          # Per project, not the solution. A solution-wide RuntimeIdentifier is
+          # rejected (NETSDK1134); without one, no Windows apphost is emitted, so
+          # Skua.exe never appears and Skua.Manager PostBuild fails with MSB3030.
+          dotnet build Skua.App.WPF/Skua.App.WPF.csproj $FLAGS $RIDFLAGS
+          dotnet build Skua.Manager/Skua.Manager.csproj  $FLAGS $RIDFLAGS
+          dotnet build Skua.Plugin.DailyTracker/Skua.Plugin.DailyTracker.csproj $FLAGS
+
+      - name: Normalize release layout
+        run: |
+          set -eu
+          for root in Build/*/; do
+            nested="${root}Assemblies/Assemblies"
+            if [ -d "$nested" ]; then
+              cp -a "$nested/." "${root}Assemblies/"
+              rm -rf "$nested"
+            fi
+          done
+          test -f Build/AnyCPU/Skua.exe || { echo "MISSING Skua.exe"; exit 1; }
+
+      - name: Package portable zip
+        run: |
+          set -eu
+          apt-get update && apt-get install -y --no-install-recommends zip
+          mkdir -p dist
+          cd Build/AnyCPU
+          zip -qr "../../dist/VibeSkua-${{ steps.ver.outputs.version }}-portable.zip" .
+          cd ../..
+          ls -la dist
+
+      - name: Publish Gitea release
+        uses: https://gitea.com/actions/gitea-release-action@main
+        with:
+          token: ${{ secrets.GITEA_TOKEN }}
+          tag_name: v${{ steps.ver.outputs.version }}
+          title: VibeSkua ${{ steps.ver.outputs.version }}
+          draft: ${{ inputs.draft }}
+          files: dist/*
+          body: |
+            VibeSkua ${{ steps.ver.outputs.version }}
+
+            Portable build, cross-compiled on Linux with EnableWindowsTargeting.
+            Extract and run `Skua.exe` on Windows.
+
+            No Velopack installer in this artifact — build that on Windows.
