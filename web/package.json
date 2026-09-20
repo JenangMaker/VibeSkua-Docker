@@ -1,0 +1,17 @@
+{
+  "name": "vibeskua-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AQW client on Ruffle with the Skua bridge, in a browser-accessible container",
+  "main": "main.js",
+  "scripts": {
+    "setup": "node setup.js",
+    "start": "electron . --no-sandbox"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}

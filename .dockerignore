@@ -39,3 +39,7 @@ docs/ruffle-test/report.txt
 # --- NEVER put a credential in a build context ---
 **/credentials.local.json
 **/*.local.json
+
+# web app generated files
+web/public/ruffle/
+web/public/skua.swf

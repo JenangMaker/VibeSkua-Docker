@@ -1,0 +1,102 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>VibeSkua Web</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #111; color: #ddd; font: 13px/1.5 system-ui, sans-serif; }
+  #stage { display: flex; justify-content: center; background: #000; }
+  #status { padding: 6px 10px; font-family: ui-monospace, monospace; font-size: 12px;
+            border-top: 1px solid #333; max-height: 9em; overflow-y: auto; }
+  .err { color: #ff8a80; }
+  .ok  { color: #9ae6a0; }
+</style>
+<div id="stage"></div>
+<div id="status"></div>
+
+<script src="/ruffle/ruffle.js"></script>
+<script>
+const statusEl = document.getElementById('status');
+function say(msg, cls) {
+  const d = document.createElement('div');
+  if (cls) d.className = cls;
+  d.textContent = msg;
+  statusEl.appendChild(d);
+  statusEl.scrollTop = statusEl.scrollHeight;
+  console.log(msg);
+}
+
+// --- JS side of the Skua bridge (see Skua.AS3 Externalizer.as) ---
+let player = null;
+window.debug = m => { say('swf: ' + m); return true; };
+window.requestLoadGame = () => {
+  say('bridge up - loading game client');
+  // skua.swf registers its callbacks then asks the host to start the load.
+  setTimeout(() => { try { player.loadClient(); } catch (e) { say('loadClient failed: ' + e, 'err'); } }, 0);
+  return true;
+};
+window['pre-load'] = () => true;
+
+// Ruffle cannot open raw TCP. Every (host, port) the SWF dials has to be
+// declared here and routed through the local WebSocket bridge. Port 843 is
+// Flash's cross-domain policy port and is registered for each host too.
+function buildSocketProxy(servers, proxyPort) {
+  const seen = new Set();
+  const out = [];
+  const add = (host, port) => {
+    const key = host + ':' + port;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({
+      host,
+      port,
+      proxyUrl: `ws://127.0.0.1:${proxyPort}/${encodeURIComponent(host)}/${port}`,
+    });
+  };
+  for (const s of servers) {
+    if (!s.sIP || !s.iPort) continue;
+    add(s.sIP, Number(s.iPort));
+    add(s.sIP, 843);
+  }
+  return out;
+}
+
+async function main() {
+  let servers = [], proxyPort = 8181;
+  try {
+    const r = await (await fetch('/servers')).json();
+    servers = r.servers || [];
+    proxyPort = r.proxyPort || proxyPort;
+  } catch (e) {
+    say('could not fetch server list: ' + e, 'err');
+  }
+
+  const socketProxy = buildSocketProxy(servers, proxyPort);
+  say(`${servers.length} servers, ${socketProxy.length} socketProxy entries`);
+  if (!socketProxy.length) say('no socket routes - login will not work', 'err');
+
+  const ruffle = window.RufflePlayer.newest();
+  player = ruffle.createPlayer();
+  player.style.width = '958px';
+  player.style.height = '550px';
+  player.style.display = 'block';
+  document.getElementById('stage').appendChild(player);
+
+  try {
+    await player.load({
+      url: '/skua.swf',
+      allowScriptAccess: true,
+      allowNetworking: 'all',
+      autoplay: 'on',
+      unmuteOverlay: 'hidden',
+      contextMenu: 'off',
+      splashScreen: false,
+      logLevel: 'warn',
+      socketProxy,
+    });
+    say('skua.swf loaded', 'ok');
+  } catch (e) {
+    say('failed to load skua.swf: ' + e, 'err');
+  }
+}
+main();
+</script>

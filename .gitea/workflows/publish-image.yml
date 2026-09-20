@@ -1,0 +1,68 @@
+# Builds the VibeSkua Web image and pushes it to this Gitea's container
+# registry.
+#
+#   gitea.jenangmaker.cloud/jenangmaker/vibeskua-web:latest
+#
+# Requires the act_runner to expose a Docker daemon to jobs. If it does not,
+# the "Check Docker access" step fails early with a clear message rather than
+# dying somewhere inside buildx.
+#
+# The registry push needs a token with write:package. GITEA_TOKEN is injected
+# automatically by Gitea Actions; if your instance scopes it down, add a PAT as
+# a repo secret and swap it in below.
+
+name: Publish image
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag (default: latest)"
+        required: false
+        default: "latest"
+      push:
+        description: "Push to the registry, or build only"
+        required: false
+        default: "true"
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Docker access
+        run: |
+          set -eu
+          if ! command -v docker >/dev/null 2>&1; then
+            echo "No docker CLI on this runner."
+            echo "The act_runner must mount the Docker socket into jobs for this to work."
+            exit 1
+          fi
+          docker version
+          docker buildx version || echo "buildx unavailable - falling back to classic build"
+
+      - name: Log in to Gitea registry
+        if: ${{ inputs.push == 'true' }}
+        run: |
+          set -eu
+          echo "${{ secrets.GITEA_TOKEN }}" \
+            | docker login gitea.jenangmaker.cloud -u "${{ gitea.actor }}" --password-stdin
+
+      - name: Build image
+        run: |
+          set -eu
+          IMAGE=gitea.jenangmaker.cloud/jenangmaker/vibeskua-web:${{ inputs.tag }}
+          echo "Building $IMAGE"
+          docker build -f docker/Dockerfile.kasm -t "$IMAGE" .
+          docker image inspect "$IMAGE" --format 'built {{.Id}} ({{.Size}} bytes)'
+
+      - name: Push image
+        if: ${{ inputs.push == 'true' }}
+        run: |
+          set -eu
+          IMAGE=gitea.jenangmaker.cloud/jenangmaker/vibeskua-web:${{ inputs.tag }}
+          docker push "$IMAGE"
+          echo "Pushed $IMAGE"

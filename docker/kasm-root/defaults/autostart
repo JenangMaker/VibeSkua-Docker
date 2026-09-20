@@ -1,0 +1,11 @@
+#!/bin/bash
+# Launched by the KasmVNC base image once the X session is up.
+cd /app
+
+# --no-sandbox: Chromium's setuid sandbox does not work in this container
+#   without extra privileges. The window is already confined to the container.
+# --disable-dev-shm-usage: survive a small /dev/shm if shm_size is not raised.
+exec /app/node_modules/.bin/electron . \
+  --no-sandbox \
+  --disable-dev-shm-usage \
+  --disable-gpu-sandbox

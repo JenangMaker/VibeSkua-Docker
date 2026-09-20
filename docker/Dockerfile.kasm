@@ -1,0 +1,66 @@
+# VibeSkua Web — AQW on Ruffle, in a browser-accessible container.
+#
+# Same shape as linuxserver/chrome: a LinuxServer KasmVNC base image running a
+# desktop app, reachable over HTTP. Browse to :3000 and the game is there.
+#
+#   docker compose up -d vibeskua-web
+#   open http://<host>:3000
+#
+# WHAT THIS IS NOT: it is not the bot. It runs the AQW client on Ruffle with
+# the Skua ExternalInterface bridge live, which is the foundation VibeSkua's
+# automation would sit on — but Skua.Core still has no IFlashUtil pointing at
+# it. See web/README.md.
+#
+# UNTESTED. No Docker on the machine where this was written; the image has
+# never been built. The pieces it wraps (Ruffle + skua.swf + the live AQW
+# client) are verified, in CI, on Linux — the packaging around them is not.
+
+ARG BASE_IMAGE=ghcr.io/linuxserver/baseimage-kasmvnc:debianbookworm
+ARG NODE_VERSION=22.11.0
+
+FROM ${BASE_IMAGE}
+
+ARG NODE_VERSION
+
+# Debian bookworm ships node 18; Electron 33 wants newer. Official tarball
+# keeps this independent of distro packaging.
+RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+      | tar -xJ -C /usr/local --strip-components=1 \
+ && node --version && npm --version
+
+# Electron's runtime libraries.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      libasound2 \
+      libatspi2.0-0 \
+      libgbm1 \
+      libgtk-3-0 \
+      libnotify4 \
+      libnss3 \
+      libsecret-1-0 \
+      libxss1 \
+      libxtst6 \
+      xdg-utils \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Dependencies first so npm install caches independently of app source.
+COPY web/package.json ./
+RUN npm install --no-audit --no-fund
+
+COPY web/ ./
+
+# setup.js normally copies this out of the repo tree, which is not at that path
+# inside the build context; stage it directly and let setup.js keep it.
+COPY Skua.AS3/skua/bin/skua.swf ./public/skua.swf
+RUN node setup.js
+
+# LinuxServer's init runs this to launch the session's application.
+COPY docker/kasm-root/ /
+RUN chmod +x /defaults/autostart
+
+ENV TITLE="VibeSkua Web" \
+    PORT=8770 \
+    SOCKET_PROXY_PORT=8181
+
+EXPOSE 3000 3001

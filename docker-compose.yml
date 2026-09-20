@@ -76,3 +76,22 @@ services:
       RUN_SECONDS: "90"
     # Chrome needs more than the default 64MB of shared memory.
     shm_size: 1gb
+
+  # AQW on Ruffle with the Skua bridge, reachable in a browser at :3000.
+  # Same pattern as linuxserver/chrome. NOT the bot - see web/README.md.
+  vibeskua-web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.kasm
+    image: gitea.jenangmaker.cloud/jenangmaker/vibeskua-web:latest
+    ports:
+      - "3000:3000"
+    environment:
+      CUSTOM_USER: vibeskua
+      PASSWORD: changeme
+      TITLE: VibeSkua Web
+    # Chromium needs syscalls Docker's default seccomp profile blocks.
+    security_opt:
+      - seccomp=unconfined
+    shm_size: 1gb
+    restart: unless-stopped
