@@ -13,10 +13,11 @@
 name: Build
 
 on:
+  # No branch filter on purpose. This repo's default branch is
+  # `docker-and-ruffle-test` and there is no `main`, so filtering on [main]
+  # meant push events never triggered anything.
   push:
-    branches: [main]
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 env:

@@ -6,7 +6,7 @@ toolchain-exact Windows build in `.github/workflows/release.yml`.
 
 | Workflow | Trigger | What it does |
 | :--- | :--- | :--- |
-| `build.yml` | push/PR to `main`, manual | Cross-compiles, verifies the layout, uploads `Build/AnyCPU` |
+| `build.yml` | any push/PR, manual | Cross-compiles, verifies the layout, uploads `Build/AnyCPU` |
 | `release.yml` | manual | Same, then publishes a portable zip as a Gitea release |
 | `ruffle-test.yml` | manual + weekly | Runs `docs/ruffle-test` against the live AQW client |
 
@@ -54,10 +54,25 @@ need the installer.
 used. If you change anything under `Skua.AS3/`, recompile on a machine with the
 Flex SDK and commit the result first.
 
-## Not yet run
+## Status
 
-These have not executed against a live Gitea instance. The build recipe inside
-them is verified on Linux, but the surrounding Actions plumbing — runner label,
-`actions/upload-artifact@v3` compatibility with your Gitea version, and the
-`gitea-release-action` token — has not been. Expect to adjust on first run;
-`workflow_dispatch` is enabled on all three so you can trigger them by hand.
+`build.yml` is **verified on the live instance** (run #695, `workflow_dispatch`,
+all 8 steps green in ~3.5 min). It produced `Skua.exe` (173,568 bytes),
+`Skua.Manager.exe`, `skua.swf` and a 65 MB `Build/AnyCPU`, and uploaded a
+120-file artifact via `actions/upload-artifact@v3`. The
+`Assemblies/Assemblies` flattening fired, confirming it is required on the
+runner as well as locally.
+
+Note the runner's default shell is `sh -e`, not bash. Keep these scripts POSIX.
+
+**Triggers.** `build.yml` has no branch filter. The repo's default branch is
+`docker-and-ruffle-test` and there is no `main`, so an earlier `branches:
+[main]` filter meant push events never fired. Add a filter back once the
+branch layout settles.
+
+**Still unverified:** `release.yml` (never dispatched — in particular the
+`gitea-release-action` token and the zip step) and `ruffle-test.yml`.
+
+**Artifact listing quirk.** The upload succeeds and the log confirms it, but
+the Gitea artifacts API returns an empty list for both `list_artifacts` and
+`list_run_artifacts`. Download artifacts from the run's web page instead.
