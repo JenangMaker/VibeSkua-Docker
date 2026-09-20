@@ -1,0 +1,18 @@
+{
+  "name": "vibeskua-ruffle-test",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reproducible test: does the Skua ExternalInterface bridge work on Ruffle instead of Flash ActiveX?",
+  "main": "main.js",
+  "scripts": {
+    "setup": "node setup.js",
+    "test": "electron .",
+    "test:headless": "node run-headless.js"
+  },
+  "dependencies": {
+    "puppeteer": "^24.15.0"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}

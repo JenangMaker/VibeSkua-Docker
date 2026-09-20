@@ -1,0 +1,136 @@
+<!doctype html>
+<title>Ruffle web / Skua ExternalInterface bridge test</title>
+<style>body{font:13px monospace;background:#111;color:#ddd;margin:0}#log{padding:8px;white-space:pre-wrap}</style>
+<div id="stage"></div>
+<div id="log"></div>
+<script>
+const LOG = [];
+function log(tag, msg) {
+  const line = `[${(performance.now()/1000).toFixed(1)}s] ${tag}: ${msg}`;
+  LOG.push(line);
+  const el = document.getElementById('log');
+  if (el) el.textContent += line + '\n';
+}
+for (const lvl of ['log','warn','error','info']) {
+  const orig = console[lvl].bind(console);
+  console[lvl] = (...a) => { log('console.'+lvl, a.map(String).join(' ').slice(0,500)); orig(...a); };
+}
+window.onerror = (m,s,l) => log('window.onerror', `${m} @${s}:${l}`);
+window.addEventListener('unhandledrejection', e => log('unhandledrejection', String(e.reason)));
+async function post() { try { await fetch('/report', {method:'POST', body: LOG.join('\n')}); } catch(e){} }
+setTimeout(post, 20000); setTimeout(post, 50000); setTimeout(post, 70000); setTimeout(post, 100000);
+</script>
+<script src="/ruffle/ruffle.js" onload="log('harness','ruffle.js loaded')" onerror="log('harness','ruffle.js FAILED to load')"></script>
+<script>
+let sawRequestLoadGame = false;
+window.debug = (m) => { log('AS3->JS debug', String(m)); return true; };
+window.requestLoadGame = () => { sawRequestLoadGame = true; log('AS3->JS', 'requestLoadGame() received'); return true; };
+window['pre-load'] = () => { log('AS3->JS', 'pre-load() received'); return true; };
+
+const EXPECTED = ['loadClient','isTrue','isNull','getGameObject','getGameObjectS','setGameObject',
+  'callGameFunction','callGameFunction0','getArrayObject','selectArrayObjects','connectToServer',
+  'isLoggedIn','walkTo','jumpCorrectRoom','getMonsters','canUseSkill','useSkill','buyItemByName',
+  'sendClientPacket','catchPackets','injectScript','lnkCreate','lnkCall','fcCreate','fcCall',
+  'modEnable','modDisable','getSubjectAuras'];
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let player;
+
+function probe(where) {
+  const present = EXPECTED.filter(n => typeof player[n] === 'function');
+  log('PROBE '+where, `callbacks ${present.length}/${EXPECTED.length}` + (present.length?` [${present.slice(0,6).join(',')}...]`:''));
+  return present.length;
+}
+function tryCall(label, fn) {
+  try { const r = fn(); log('CALL ok', `${label} -> ${String(JSON.stringify(r)).slice(0,300)}`); return r; }
+  catch (e) { log('CALL FAIL', `${label} -> ${e}`); }
+}
+
+async function run() {
+  log('harness', 'RufflePlayer type: ' + typeof window.RufflePlayer);
+  if (typeof window.RufflePlayer === 'undefined') { await post(); return; }
+
+  const ruffle = window.RufflePlayer.newest();
+  log('harness', 'newest() -> ' + (ruffle ? 'ok' : 'null'));
+  player = ruffle.createPlayer();
+  player.style.width = '958px'; player.style.height = '550px';
+  player.style.display = 'block';
+  document.getElementById('stage').appendChild(player);
+
+  for (const ev of ['loadedmetadata','error','panic','ruffleerror']) {
+    player.addEventListener(ev, e => log('player.'+ev, String(e.detail || e.type)));
+  }
+
+  log('harness', 'calling player.load()');
+  try {
+    await player.load({
+      url: '/skua.swf',
+      allowScriptAccess: true,
+      allowNetworking: 'all',
+      autoplay: 'on',
+      unmuteOverlay: 'hidden',
+      logLevel: 'warn',
+      contextMenu: 'off',
+      splashScreen: false,
+    });
+    log('harness', 'player.load() resolved');
+  } catch (e) { log('harness', 'player.load() rejected: ' + e); }
+
+  for (const t of [2,5,10,15]) { await sleep(t*1000 - (t>2? (t-2)*1000:0)); if (probe(t+'s') > 0) break; }
+
+  const n = probe('final');
+  log('harness', 'readyState=' + player.readyState + ' metadata=' + JSON.stringify(player.metadata||null));
+
+  if (n > 0) {
+    tryCall('isTrue()', () => player.isTrue());
+    tryCall('loadClient()', () => player.loadClient());
+    for (const w of [10,20,20]) {
+      await sleep(w*1000);
+      // params.* is set by skua.swf onComplete() AFTER the game SWF loads,
+      // so a non-null value proves game load + cross-SWF property access.
+      const p = tryCall('getGameObject("params.sURL")', () => player.getGameObject('params.sURL'));
+      if (p && p !== 'null') { log('RESULT', 'GAME SWF LOADED - cross-SWF reflection works'); break; }
+    }
+    tryCall('getGameObject("params.sTitle")', () => player.getGameObject('params.sTitle'));
+    tryCall('isNull("sfc")  [SmartFox client]', () => player.isNull('sfc'));
+    tryCall('isNull("world")', () => player.isNull('world'));
+    tryCall('isLoggedIn()', () => player.isLoggedIn());
+    tryCall('catchPackets() [cross-domain listener]', () => player.catchPackets());
+
+    // --- Optional login step (only if credentials.local.json / env vars exist) ---
+    let creds = null;
+    try { creds = await (await fetch('/creds')).json(); } catch (e) {}
+    if (!creds) {
+      log('LOGIN', 'skipped - no credentials provided (see README)');
+    } else {
+      // Mirrors ScriptServers: [MethodCallBinding("login", GameFunction = true)]
+      // The password is never passed to log() or tryCall().
+      log('LOGIN', `attempting login as "${creds.username}"`);
+      try {
+        player.callGameFunction('login', creds.username, creds.password);
+        log('LOGIN', 'callGameFunction("login", ...) returned without throwing');
+      } catch (e) {
+        log('LOGIN', 'callGameFunction threw: ' + String(e).slice(0, 200));
+      }
+      creds = null; // drop the reference
+
+      for (let i = 0; i < 12; i++) {
+        await sleep(5000);
+        const li = player.isLoggedIn();
+        const w = player.isNull('world');
+        log('LOGIN poll', `isLoggedIn=${li} isNull("world")=${w}`);
+        if (String(li) === 'true') {
+          log('RESULT', 'LOGGED IN ON RUFFLE');
+          tryCall('getGameObject("world.strMapName")', () => player.getGameObject('world.strMapName'));
+          tryCall('getGameObject("world.myAvatar.objData.intLevel")', () => player.getGameObject('world.myAvatar.objData.intLevel'));
+          tryCall('getMonsters()', () => String(player.getMonsters()).slice(0, 200));
+          break;
+        }
+      }
+    }
+  }
+  log('RESULT', `callbacks=${n}/${EXPECTED.length} requestLoadGame=${sawRequestLoadGame}`);
+  await post();
+}
+run();
+</script>

@@ -50,7 +50,7 @@ The following overview compares the systems and core features between the origin
 
 ## Building the Project
 
-There are two ways to build the project:
+There are three ways to build the project:
 
 1. **Automated:** Navigate to the root folder and run the **BuildRelease.bat** file. Once completed, your output files will be located in a newly created **"Build"** folder within the same directory.
 
@@ -59,6 +59,14 @@ There are two ways to build the project:
 ```bash
 dotnet build Skua.sln -c Release -p:WarningLevel=0 --nologo
 ```
+
+3. **Docker:** Build without installing the .NET SDK or Visual Studio on your machine. Output still lands in **Build/AnyCPU**.
+
+```bash
+docker compose run --rm build
+```
+
+> **Note:** the container **builds** VibeSkua, it does not run it. The client needs WPF, the Flash ActiveX control, and process hooking on an interactive Windows desktop, none of which exist inside a container. See [DOCKER.md](DOCKER.md) for the full rundown.
 
 ### Copyright & Disclaimer
 

@@ -1,0 +1,9 @@
+node_modules/
+public/ruffle/
+public/skua.swf
+report.txt
+package-lock.json
+*.zip
+run.log
+run.err
+credentials.local.json

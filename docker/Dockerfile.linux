@@ -1,0 +1,83 @@
+# VibeSkua — Linux cross-compile container
+# ----------------------------------------
+# Cross-compiles the net10.0-windows solution from a Linux container using
+# `-p:EnableWindowsTargeting=true`. The output is still a WINDOWS build: run it
+# on a Windows host, not in this container. See DOCKER.md.
+#
+# Use this when your Docker host cannot run Windows containers (Docker Desktop
+# on Windows Home, macOS, Linux, most CI). For a toolchain-exact build, use
+# docker/Dockerfile.windows instead.
+
+ARG SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0
+
+# ---------------------------------------------------------------- restore ---
+FROM ${SDK_IMAGE} AS restore
+
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_NOLOGO=1 \
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 \
+    NUGET_XMLDOC_MODE=skip
+
+# Skua.Plugin.DailyTracker's PostBuild target writes to $(AppData); give it
+# somewhere harmless instead of the container root.
+ENV APPDATA=/tmp/appdata
+
+WORKDIR /src
+
+# Project files first, so NuGet restore is cached independently of source edits.
+COPY Skua.sln Directory.Build.props ./
+COPY Shared/ Shared/
+COPY Skua.AS3/Skua.AS3.csproj                                 Skua.AS3/
+COPY Skua.Core/Skua.Core.csproj                               Skua.Core/
+COPY Skua.Core.Generators/Skua.Core.Generators.csproj         Skua.Core.Generators/
+COPY Skua.Core.Interfaces/Skua.Core.Interfaces.csproj         Skua.Core.Interfaces/
+COPY Skua.Core.Models/Skua.Core.Models.csproj                 Skua.Core.Models/
+COPY Skua.Core.Utils/Skua.Core.Utils.csproj                   Skua.Core.Utils/
+COPY Skua.WPF/Skua.WPF.csproj                                 Skua.WPF/
+COPY Skua.App.WPF/Skua.App.WPF.csproj                         Skua.App.WPF/
+COPY Skua.App.WPF.Follower/Skua.App.WPF.Follower.csproj       Skua.App.WPF.Follower/
+COPY Skua.App.WPF.Lite/Skua.App.WPF.Lite.csproj               Skua.App.WPF.Lite/
+COPY Skua.App.WPF.Sync/Skua.App.WPF.Sync.csproj               Skua.App.WPF.Sync/
+COPY Skua.Manager/Skua.Manager.csproj                         Skua.Manager/
+COPY Skua.Plugin.DailyTracker/Skua.Plugin.DailyTracker.csproj Skua.Plugin.DailyTracker/
+COPY Skua.App.WPF/Assemblies/ Skua.App.WPF/Assemblies/
+
+RUN mkdir -p "$APPDATA" \
+ && dotnet restore Skua.sln -p:EnableWindowsTargeting=true
+
+# ------------------------------------------------------------------ build ---
+FROM restore AS build
+
+COPY . .
+
+RUN dotnet build Skua.sln -c Release -p:WarningLevel=0 --nologo \
+        -p:EnableWindowsTargeting=true
+
+# The Skua.App.WPF PostBuild target excludes "$(TargetDir)assemblies\**" from
+# its Move. MSBuild globs are case-sensitive on Linux, so the real
+# "Assemblies/" directory is not excluded and ends up nested one level deep.
+# Flatten it back so the release layout matches a Windows build.
+RUN set -eu; \
+    for root in Build/*/; do \
+      nested="${root}Assemblies/Assemblies"; \
+      if [ -d "$nested" ]; then \
+        echo "Flattening $nested"; \
+        cp -a "$nested/." "${root}Assemblies/"; \
+        rm -rf "$nested"; \
+      fi; \
+    done; \
+    ls -la Build/AnyCPU
+
+# ----------------------------------------------------------------- export ---
+# Artifacts only, no base image. Fastest way onto the host (needs BuildKit):
+#   docker build -f docker/Dockerfile.linux --target export --output type=local,dest=./Build .
+FROM scratch AS export
+COPY --from=build /src/Build/ /
+
+# ------------------------------------------------------------------- copy ---
+# Default target: runnable artifact carrier for hosts without BuildKit output.
+# Mount a host directory at /out and run it.
+FROM alpine:3.20 AS copy
+COPY --from=build /src/Build/ /artifacts/Build/
+VOLUME /out
+CMD ["sh", "-c", "cp -a /artifacts/. /out/ && echo 'Copied build artifacts to /out'"]

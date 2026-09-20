@@ -1,0 +1,78 @@
+# VibeSkua containers.
+#
+# The build services BUILD VibeSkua; they cannot run it (WPF + Flash ActiveX +
+# process hooking need an interactive Windows desktop). See DOCKER.md.
+#
+#   docker compose run --rm build            # Linux host / Docker Desktop (WSL2)
+#   docker compose run --rm build-windows    # Windows container host
+#   docker compose run --rm package-windows  # + Velopack installer output
+#
+# Each build service drops its output into ./Build (and ./Releases) on the host.
+#
+# ruffle-test is different: it RUNS the Skua bridge headless on Linux, against
+# the live AQW client, using Ruffle instead of Flash. Exits 0/1 for CI.
+#
+#   docker compose run --rm ruffle-test
+
+services:
+  # Cross-compiles the Windows binaries from a Linux container.
+  # Works on any Docker host, including Docker Desktop on Windows Home.
+  build:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.linux
+      target: copy
+      args:
+        SDK_IMAGE: mcr.microsoft.com/dotnet/sdk:10.0
+    image: vibeskua-build:linux
+    volumes:
+      - ./Build:/out/Build
+
+  # Toolchain-exact build. Needs a Windows container host.
+  build-windows:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.windows
+      target: export
+      args:
+        SDK_IMAGE: mcr.microsoft.com/dotnet/sdk:10.0-windowsservercore-ltsc2022
+        EXPORT_IMAGE: mcr.microsoft.com/windows/servercore:ltsc2022
+    image: vibeskua-build:windows
+    volumes:
+      - type: bind
+        source: ./Build
+        target: C:\out\Build
+
+  # Toolchain-exact build plus `vpk pack`. Needs a Windows container host.
+  package-windows:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.windows
+      target: export-package
+      args:
+        SDK_IMAGE: mcr.microsoft.com/dotnet/sdk:10.0-windowsservercore-ltsc2022
+        EXPORT_IMAGE: mcr.microsoft.com/windows/servercore:ltsc2022
+        # VERSION: "1.8.5"   # defaults to <Version> in Directory.Build.props
+    image: vibeskua-package:windows
+    volumes:
+      - type: bind
+        source: ./Build
+        target: C:\out\Build
+      - type: bind
+        source: ./Releases
+        target: C:\out\Releases
+
+  # Runs the Ruffle bridge test headless. No Windows, no desktop, no Flash.
+  # Credentials are optional and passed at RUN time only, never baked in:
+  #   docker compose run --rm -e AQW_USER=alt -e AQW_PASS=... ruffle-test
+  ruffle-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ruffle-test
+      args:
+        NODE_IMAGE: node:22-bookworm-slim
+    image: vibeskua-ruffle-test:latest
+    environment:
+      RUN_SECONDS: "90"
+    # Chrome needs more than the default 64MB of shared memory.
+    shm_size: 1gb

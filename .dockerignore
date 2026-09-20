@@ -1,0 +1,41 @@
+# --- VCS / IDE ---
+.git
+.gitignore
+.gitattributes
+.github
+.vs
+.idea
+*.user
+*.suo
+
+# --- Build output (regenerated inside the container) ---
+**/bin/
+**/obj/
+Build/
+Releases/
+dist/
+publish/
+
+# skua.swf is a committed pre-built artifact and IS required by the build.
+# Re-include it after the blanket **/bin/ rule above.
+!Skua.AS3/skua/bin/
+!Skua.AS3/skua/bin/skua.swf
+
+# --- Docker's own files ---
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# --- Large assets not needed to compile ---
+Assets/*.psd
+Assets/*.jpg
+
+# --- Node / test harness ---
+**/node_modules/
+docs/ruffle-test/public/ruffle/
+docs/ruffle-test/public/skua.swf
+docs/ruffle-test/report.txt
+
+# --- NEVER put a credential in a build context ---
+**/credentials.local.json
+**/*.local.json
