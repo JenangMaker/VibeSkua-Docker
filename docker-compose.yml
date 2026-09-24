@@ -99,6 +99,18 @@ services:
       ENABLE_MODULES: ""
       # Software rasterisation charges anti-aliasing to the CPU. low|medium|high
       RUFFLE_QUALITY: low
+      # The next three need the patched Ruffle (RUFFLE_WEB_URL build arg); the
+      # official release ignores them. All three can also be changed live from
+      # the control bar under the game.
+      #
+      # webgl is far steadier than wgpu-webgl without a GPU (worst frame ~20ms
+      # vs 500-2000ms) but does not draw filters (glows, drop shadows).
+      RUFFLE_RENDERER: webgl
+      # Fraction of display resolution to render at; 0.5 = a quarter the pixels.
+      RENDER_SCALE: "0.5"
+      # Most frames drawn per second. The game itself always runs at full speed.
+      # 0 = headless (nothing drawn): ~0.17 cores. Infinity = unlimited.
+      MAX_RENDER_FPS: "15"
     # Chromium needs syscalls Docker's default seccomp profile blocks.
     security_opt:
       - seccomp=unconfined

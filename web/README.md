@@ -137,6 +137,38 @@ docker build -f docker/Dockerfile.kasm --build-arg RUFFLE_WEB_URL=<zip url> .
 # or set the RUFFLE_WEB_URL repo variable for the Publish image workflow
 ```
 
+### 4. Drawing less (patched Ruffle)
+
+The biggest lever turned out to be rendering itself. Benchmarked on 2 cores
+with SwiftShader (no GPU), against the live AQW client:
+
+| Renderer | Scale | Max draw fps | Game ticks/s | CPU cores |
+| :--- | :--- | :--- | :--- | :--- |
+| wgpu-webgl | 1.0 | unlimited | 14.9 | **1.89** (pegged) |
+| webgl | 0.5 | 15 | full speed | ~1 |
+| webgl | 0.5 | 10 | 60 | 0.74 |
+| webgl | 0.5 | 5 | 60 | 0.46 |
+| — | — | **0 (headless)** | **60** | **0.17** |
+
+"Game ticks/s" is the point: once drawing stops saturating the CPU, the game
+logic runs at full speed even while little or nothing is drawn. The patched
+Ruffle adds two controls to do that -- `maxRenderFps` and `renderScale` -- and
+the page exposes them three ways:
+
+- env vars `RUFFLE_RENDERER`, `RENDER_SCALE`, `MAX_RENDER_FPS`
+  (defaults: webgl, 0.5, 15)
+- a control bar under the game: **Draw** Off/5/15/30/Max, **Resolution**
+  50/75/100%
+- `window.vibeskua.setRender({ fps, scale })` for automation, e.g.
+  `{ fps: 0 }` while farming
+
+With the official Ruffle release these do nothing and the bar stays hidden.
+
+`webgl` is chosen over `wgpu-webgl` because its worst frame stayed around
+20 ms where wgpu-webgl stalled for 500-2000 ms. Its trade-off: it does not
+draw filters, so glows and drop shadows disappear. Set
+`RUFFLE_RENDERER=wgpu-webgl` for full visuals.
+
 ### Knobs
 
 | Setting | Default | Effect |
@@ -144,6 +176,9 @@ docker build -f docker/Dockerfile.kasm --build-arg RUFFLE_WEB_URL=<zip url> .
 | `DISABLE_MODULES` | `QuestRequirementWiki,QuestItemRates` | Stops ~60 exceptions/sec |
 | `ENABLE_MODULES` | empty | `DisableFX,HidePlayers` is the biggest in-game lever; changes what you see |
 | `RUFFLE_QUALITY` | `low` | `low`/`medium`/`high` — AA costs CPU in software |
+| `RUFFLE_RENDERER` | `webgl` | `wgpu-webgl` for filters, at the cost of long stalls |
+| `RENDER_SCALE` | `0.5` | Render resolution; 0.5 draws a quarter of the pixels |
+| `MAX_RENDER_FPS` | `15` | `0` = headless, `Infinity` = unlimited |
 | `cpus:` | `2.0` | Caps the burn so the host cannot thermal throttle |
 | `devices: /dev/dri` | commented out | Real GPU rendering — the largest win by far |
 

@@ -49,6 +49,26 @@ const ENABLE_MODULES = (process.env.ENABLE_MODULES ?? '')
 // smoothing. Raise to 'medium'/'high' if you have cycles or a real GPU.
 const RUFFLE_QUALITY = process.env.RUFFLE_QUALITY || 'low';
 
+// Rendering controls. These need the patched Ruffle (branch aqw-loader-fixes);
+// the official release ignores them. Measured on 2 cores with no GPU, where
+// rasterisation is nearly all of the CPU cost:
+//
+//   wgpu-webgl, scale 1.0, unlimited  -> 1.89 cores, ~15 ticks/s, 500ms+ stalls
+//   webgl,      scale 0.5, 15 fps     -> ~1 core,    full-speed game logic
+//   render paused (0 fps)             -> 0.17 cores, full-speed game logic
+//
+// The game keeps running at full speed whatever these are set to; they only
+// decide how much of it gets drawn. They can also be changed live from the
+// control bar under the game.
+//
+// RUFFLE_RENDERER: webgl is much steadier than wgpu-webgl in software, but does
+// not draw filters (GlowFilter, drop shadows). Use wgpu-webgl for full visuals.
+const RUFFLE_RENDERER = process.env.RUFFLE_RENDERER || 'webgl';
+// Fraction of display resolution to render at; the browser upscales.
+const RENDER_SCALE = Number(process.env.RENDER_SCALE || '0.5');
+// Most renders per second. 0 = headless (nothing drawn), Infinity = unlimited.
+const MAX_RENDER_FPS = Number(process.env.MAX_RENDER_FPS ?? '15');
+
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm',
   '.swf': 'application/x-shockwave-flash', '.json': 'application/json',
@@ -90,6 +110,10 @@ function serve() {
           disableModules: DISABLE_MODULES,
           enableModules: ENABLE_MODULES,
           quality: RUFFLE_QUALITY,
+          renderer: RUFFLE_RENDERER,
+          renderScale: RENDER_SCALE,
+          // JSON has no Infinity; null means unlimited.
+          maxRenderFps: Number.isFinite(MAX_RENDER_FPS) ? MAX_RENDER_FPS : null,
         }));
         return;
       }
