@@ -60,7 +60,11 @@ jobs:
           REGISTRY="${{ vars.PACKAGE_URL }}"
           IMAGE="${REGISTRY:-gitea.jenangmaker.cloud}/jenangmaker/vibeskua-web:${{ inputs.tag }}"
           echo "Building $IMAGE"
-          docker build -f docker/Dockerfile.kasm -t "$IMAGE" .
+          # Repo variable RUFFLE_WEB_URL, if set, swaps in a custom Ruffle build
+          # (a zip of web/packages/selfhosted/dist). Unset = official release.
+          docker build -f docker/Dockerfile.kasm \
+            --build-arg RUFFLE_WEB_URL="${{ vars.RUFFLE_WEB_URL }}" \
+            -t "$IMAGE" .
           docker image inspect "$IMAGE" --format 'built {{.Id}} ({{.Size}} bytes)'
 
       - name: Push image

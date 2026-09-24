@@ -15,7 +15,15 @@ const SWF_DST = path.join(PUBLIC, 'skua.swf');
 // Pin the version the findings were produced against; bump deliberately.
 const RUFFLE_VERSION = process.env.RUFFLE_VERSION || 'v0.6.0';
 const ZIP_NAME = `ruffle-${RUFFLE_VERSION.replace(/^v/, '')}-web-selfhosted.zip`;
-const URL = `https://github.com/ruffle-rs/ruffle/releases/download/${RUFFLE_VERSION}/${ZIP_NAME}`;
+
+// Use a custom Ruffle build instead of the official release -- e.g. one with
+// the Loader.unloadAndStop / Loader.close fixes, which AQW hits on every room
+// change and every time a player leaves.
+//   RUFFLE_WEB_DIR  a local self-hosted build (web/packages/selfhosted/dist)
+//   RUFFLE_WEB_URL  a zip of one, e.g. a Gitea release asset
+const RUFFLE_WEB_DIR = process.env.RUFFLE_WEB_DIR || '';
+const URL = process.env.RUFFLE_WEB_URL
+  || `https://github.com/ruffle-rs/ruffle/releases/download/${RUFFLE_VERSION}/${ZIP_NAME}`;
 
 function get(url, dest) {
   return new Promise((resolve, reject) => {
@@ -49,6 +57,18 @@ function get(url, dest) {
     console.error(`skua.swf not found at ${SWF_SRC} and none staged at ${SWF_DST}`);
     console.error('It is committed in the repo — check your clone.');
     process.exit(1);
+  }
+
+  if (RUFFLE_WEB_DIR) {
+    if (!fs.existsSync(path.join(RUFFLE_WEB_DIR, 'ruffle.js'))) {
+      console.error(`RUFFLE_WEB_DIR has no ruffle.js: ${RUFFLE_WEB_DIR}`);
+      process.exit(1);
+    }
+    // Always refresh: the point of a local build is that it changes.
+    fs.rmSync(RUFFLE_DIR, { recursive: true, force: true });
+    fs.cpSync(RUFFLE_WEB_DIR, RUFFLE_DIR, { recursive: true });
+    console.log(`ruffle web build copied from ${RUFFLE_WEB_DIR}`);
+    return;
   }
 
   if (fs.existsSync(path.join(RUFFLE_DIR, 'ruffle.js'))) {

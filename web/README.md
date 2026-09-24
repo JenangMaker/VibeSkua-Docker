@@ -106,7 +106,36 @@ is a known, upstream gap, and it is corroborated: Artix cite a Ruffle memory
 leak as the blocker for putting their bigger games on it, and the aquastar
 launcher reports poor FPS in crowded rooms, "mostly limited by Ruffle itself".
 
-Nothing in this repo fixes that. It gets better as Ruffle does.
+The JIT gap is upstream. But two AQW-specific leaks were Ruffle bugs, and
+are fixed on the `aqw-loader-fixes` branch of the Ruffle clone:
+
+- **`Loader.unloadAndStop()` was a stub** that only called `unload()`. AQW
+  calls it on the map loader at every room change, and on every equipment
+  slot when a player leaves (`World.closeLoader` → `ldr.unloadAndStop(true)`).
+  `enterFrame` is a broadcast event, so the "unloaded" content kept running
+  its per-frame code. Proven by test: unpatched Ruffle ran 4 frames of the
+  unloaded content's handlers; patched runs 0.
+- **`Loader.close()` was a no-op.** AQW calls it just before each of those
+  `unloadAndStop`s. A player who left before their gear finished downloading
+  still had it instantiated afterwards.
+
+Both help most in crowded rooms and long sessions — the cases that were
+slowest. One larger leak remains: weak-keyed `Dictionary` is treated as
+strong, and AQW's `Game._colorCache` is keyed by avatar MovieClips whose
+values reference the whole avatar, so departed players are never collected.
+Fixing that needs ephemeron support in Ruffle's GC.
+
+To run the patched Ruffle, build its web package
+(`web/packages/selfhosted/dist`) and point at it:
+
+```bash
+# outside Docker
+RUFFLE_WEB_DIR=/path/to/ruffle/web/packages/selfhosted/dist npm run setup
+
+# in the image: zip that dist/, host it (e.g. a Gitea release asset), then
+docker build -f docker/Dockerfile.kasm --build-arg RUFFLE_WEB_URL=<zip url> .
+# or set the RUFFLE_WEB_URL repo variable for the Publish image workflow
+```
 
 ### Knobs
 
