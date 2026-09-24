@@ -22,15 +22,29 @@ const ZIP_NAME = `ruffle-${RUFFLE_VERSION.replace(/^v/, '')}-web-selfhosted.zip`
 //   RUFFLE_WEB_DIR  a local self-hosted build (web/packages/selfhosted/dist)
 //   RUFFLE_WEB_URL  a zip of one, e.g. a Gitea release asset
 const RUFFLE_WEB_DIR = process.env.RUFFLE_WEB_DIR || '';
-const URL = process.env.RUFFLE_WEB_URL
+const ZIP_URL = process.env.RUFFLE_WEB_URL
   || `https://github.com/ruffle-rs/ruffle/releases/download/${RUFFLE_VERSION}/${ZIP_NAME}`;
 
-function get(url, dest) {
+// Optional "user:token" for RUFFLE_WEB_URL on a private Gitea (repo release
+// assets, or the generic package registry). Sent as HTTP Basic auth, and only
+// to the host RUFFLE_WEB_URL names -- never to a redirect target elsewhere.
+const RUFFLE_WEB_AUTH = (process.env.RUFFLE_WEB_AUTH || '').trim();
+
+function get(url, dest, authHost = null) {
   return new Promise((resolve, reject) => {
-    https.get(url, { headers: { 'User-Agent': 'vibeskua-ruffle-test' } }, res => {
+    const headers = { 'User-Agent': 'vibeskua-ruffle-test' };
+    const { host } = new URL(url);
+    if (RUFFLE_WEB_AUTH && authHost && host === authHost) {
+      headers.Authorization = 'Basic ' + Buffer.from(RUFFLE_WEB_AUTH).toString('base64');
+    }
+    https.get(url, { headers }, res => {
       if ([301, 302, 307, 308].includes(res.statusCode)) {
         res.resume();
-        return resolve(get(res.headers.location, dest));
+        return resolve(get(new URL(res.headers.location, url).href, dest, authHost));
+      }
+      if ([401, 403, 404].includes(res.statusCode) && RUFFLE_WEB_AUTH === '' && process.env.RUFFLE_WEB_URL) {
+        console.error(`HTTP ${res.statusCode}: a private Gitea answers 404 to anonymous requests.`);
+        console.error('Provide RUFFLE_WEB_AUTH="user:token" (see web/README.md).');
       }
       if (res.statusCode !== 200) {
         res.resume();
@@ -77,8 +91,8 @@ function get(url, dest) {
   }
 
   const zip = path.join(ROOT, ZIP_NAME);
-  console.log(`downloading ${URL}`);
-  await get(URL, zip);
+  console.log(`downloading ${ZIP_URL}`);
+  await get(ZIP_URL, zip, new URL(ZIP_URL).host);
   console.log(`downloaded ${fs.statSync(zip).size} bytes, extracting`);
 
   fs.mkdirSync(RUFFLE_DIR, { recursive: true });

@@ -72,8 +72,16 @@ COPY Skua.AS3/skua/bin/skua.swf ./public/skua.swf
 # Optional: a zip of a custom Ruffle self-hosted build instead of the pinned
 # official release -- e.g. one carrying the Loader.unloadAndStop / close
 # fixes. Empty means the official release.
+#
+# On a private Gitea, anonymous downloads get 404. Supply "user:token" as a
+# BuildKit secret -- never a build arg, which would persist in the image
+# history:
+#   docker build --secret id=ruffle_web_auth,env=RUFFLE_WEB_AUTH ...
 ARG RUFFLE_WEB_URL=""
-RUN RUFFLE_WEB_URL="$RUFFLE_WEB_URL" "$NODE_HOME/bin/node" setup.js
+RUN --mount=type=secret,id=ruffle_web_auth \
+    RUFFLE_WEB_AUTH="$(cat /run/secrets/ruffle_web_auth 2>/dev/null || true)" \
+    RUFFLE_WEB_URL="$RUFFLE_WEB_URL" \
+    "$NODE_HOME/bin/node" setup.js
 
 # LinuxServer's init runs this to launch the session's application.
 COPY docker/kasm-root/ /

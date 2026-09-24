@@ -62,8 +62,13 @@ jobs:
           echo "Building $IMAGE"
           # Repo variable RUFFLE_WEB_URL, if set, swaps in a custom Ruffle build
           # (a zip of web/packages/selfhosted/dist). Unset = official release.
+          # The repo is private, so the download authenticates with the same
+          # registry credentials used to push. Passed as a BuildKit secret so
+          # the token never lands in an image layer or the build log.
+          export RUFFLE_WEB_AUTH="${{ vars.PACKAGE_USERNAME }}:${{ secrets.PACKAGE_TOKEN }}"
           docker build -f docker/Dockerfile.kasm \
             --build-arg RUFFLE_WEB_URL="${{ vars.RUFFLE_WEB_URL }}" \
+            --secret id=ruffle_web_auth,env=RUFFLE_WEB_AUTH \
             -t "$IMAGE" .
           docker image inspect "$IMAGE" --format 'built {{.Id}} ({{.Size}} bytes)'
 
