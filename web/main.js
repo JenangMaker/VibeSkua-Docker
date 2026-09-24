@@ -54,7 +54,8 @@ const RUFFLE_QUALITY = process.env.RUFFLE_QUALITY || 'low';
 // rasterisation is nearly all of the CPU cost:
 //
 //   wgpu-webgl, scale 1.0, unlimited  -> 1.89 cores, ~15 ticks/s, 500ms+ stalls
-//   webgl,      scale 0.5, 15 fps     -> ~1 core,    full-speed game logic
+//   webgl,      scale 0.75, 15 fps    -> 1.35 cores, full-speed game logic
+//   webgl,      scale 0.5,  10 fps    -> 0.74 cores, full-speed game logic
 //   render paused (0 fps)             -> 0.17 cores, full-speed game logic
 //
 // The game keeps running at full speed whatever these are set to; they only
@@ -65,7 +66,8 @@ const RUFFLE_QUALITY = process.env.RUFFLE_QUALITY || 'low';
 // not draw filters (GlowFilter, drop shadows). Use wgpu-webgl for full visuals.
 const RUFFLE_RENDERER = process.env.RUFFLE_RENDERER || 'webgl';
 // Fraction of display resolution to render at; the browser upscales.
-const RENDER_SCALE = Number(process.env.RENDER_SCALE || '0.5');
+// 0.5 halves CPU again but is noticeably blurry; 0.75 is the default.
+const RENDER_SCALE = Number(process.env.RENDER_SCALE || '0.75');
 // Most renders per second. 0 = headless (nothing drawn), Infinity = unlimited.
 const MAX_RENDER_FPS = Number(process.env.MAX_RENDER_FPS ?? '15');
 

@@ -162,7 +162,7 @@ function initControls(renderScale, maxRenderFps) {
 
 async function main() {
   let servers = [], proxyPort = 8181, disableModules = [], enableModules = [], quality = 'low';
-  let renderer = 'webgl', renderScale = 0.5, maxRenderFps = 15;
+  let renderer = 'webgl', renderScale = 0.75, maxRenderFps = 15;
   try {
     const r = await (await fetch('/servers')).json();
     servers = r.servers || [];
