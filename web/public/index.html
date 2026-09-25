@@ -127,11 +127,10 @@ async function applySmoothBg() {
     say('webgl: Smooth Background on (map rasteriser needs offscreen drawing)', 'ok');
   } catch (e) {
     say('could not enable Smooth Background: ' + e, 'err');
-    return;
   }
-  // Only matters if a map is already up. Before login there is no world yet,
-  // and the flag alone stops the first map from being rasterised.
-  try { player.callGameFunction0('world.applySmoothBG'); } catch (e) {}
+  // No need to call world.applySmoothBG(): this runs at the title screen,
+  // before any map exists, and the flag alone keeps the first map from being
+  // rasterised. (Calling it there only logs a null-reference error.)
 }
 
 // --- Rendering controls (patched Ruffle only) -------------------------------

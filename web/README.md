@@ -186,7 +186,12 @@ bitmaps and hides the originals. The page now turns on the game's own
 webgl, which skips that rasteriser and shows the vector layers directly. The
 setting is saved in the game's local storage, so it stays on if you later
 switch back to wgpu-webgl; toggle it there if you want the rasteriser back.
-Not yet tested in-game.
+Tested in-game: backgrounds load and combat works.
+
+Still blank on webgl: the dark overlay on skill icons during cooldown
+(`World.coolDownAct` draws it with `BitmapData.draw`), and the equivalent
+fade on aura icons. Cosmetic; the "not ready yet" message still shows. Fixing
+it needs offscreen drawing in Ruffle's webgl backend.
 
 Recommended for lower CPU today: **wgpu-webgl with Draw 15** (tested), and
 Draw Off while farming.
