@@ -274,6 +274,29 @@ npm start
 Opens the same window on your desktop. Useful for debugging the bridge without
 rebuilding the image.
 
+## Remote control over the DevTools protocol
+
+For scripted testing (Puppeteer: screenshots, input, calling the Skua bridge
+and `window.vibeskua`). Off by default.
+
+```yaml
+    ports:
+      - "3000:3000"
+      - "192.168.2.20:9222:9222"   # the Docker host's LAN IP, not 0.0.0.0
+    environment:
+      REMOTE_DEBUG_PORT: "9222"
+```
+
+Check from another machine: `http://192.168.2.20:9222/json/version` should
+return JSON. Use the IP, not a hostname: Chrome refuses DevTools requests whose
+Host header is a name other than localhost. The `webSocketDebuggerUrl` it
+returns points at the internal `127.0.0.1:19222`; replace the host with
+`192.168.2.20:9222` before connecting.
+
+**No authentication.** Anyone who can reach the port can drive the logged-in
+session and read everything the page can. Keep it on the LAN, don't route it
+through Caddy or any other reverse proxy, and remove it when you're not testing.
+
 ## Before exposing it
 
 `CUSTOM_USER` / `PASSWORD` in `docker-compose.yml` are `vibeskua` / `changeme`.

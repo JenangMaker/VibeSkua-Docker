@@ -13,6 +13,7 @@
 const { app, BrowserWindow, session } = require('electron');
 const http = require('http');
 const https = require('https');
+const net = require('net');
 const fs = require('fs');
 const path = require('path');
 const socketProxy = require('./socket-proxy');
@@ -55,9 +56,9 @@ const RUFFLE_QUALITY = process.env.RUFFLE_QUALITY || 'low';
 // page URL.
 //
 // Tested in a logged-in Battleon: wgpu-webgl loads fully at both Max and a
-// 15 fps cap. webgl did not -- its BitmapData.draw() raised an error that
-// aborted AQW's room setup (fixed in Ruffle 560f6f6f3, not yet re-tested
-// in-game), so it stays opt-in.
+// 15 fps cap. webgl works with Ruffle 560f6f6f3 and is much lighter, but
+// anything AQW draws into a BitmapData stays blank (cooldown overlays; map
+// backgrounds are worked around in index.html), so it stays opt-in.
 //
 // RUFFLE_RENDERER: wgpu-webgl (full visuals) or webgl (lighter, no filters,
 // less complete).
@@ -66,6 +67,34 @@ const RUFFLE_RENDERER = process.env.RUFFLE_RENDERER || 'wgpu-webgl';
 const RENDER_SCALE = Number(process.env.RENDER_SCALE || '1');
 // Most renders per second. 0 = headless (nothing drawn), Infinity = unlimited.
 const MAX_RENDER_FPS = Number(process.env.MAX_RENDER_FPS || 'Infinity');
+
+// Chrome DevTools Protocol, for driving the game remotely (screenshots, input,
+// calling the Skua bridge from Puppeteer). Off unless REMOTE_DEBUG_PORT is set.
+//
+// There is NO authentication: anyone who can reach the port controls the
+// session, logged-in account included. Publish it on a LAN address only, never
+// through a reverse proxy or to the internet.
+//
+// Electron binds the debugger to 127.0.0.1 only, so it listens on an internal
+// port and a plain TCP relay republishes it on REMOTE_DEBUG_PORT for Docker to
+// map. Connect by IP address: Chrome rejects DevTools HTTP requests whose Host
+// header is a hostname other than localhost.
+const REMOTE_DEBUG_PORT = Number(process.env.REMOTE_DEBUG_PORT || 0);
+const INTERNAL_DEBUG_PORT = 19222;
+if (REMOTE_DEBUG_PORT) {
+  app.commandLine.appendSwitch('remote-debugging-port', String(INTERNAL_DEBUG_PORT));
+}
+
+function startDebugRelay() {
+  net.createServer(client => {
+    const upstream = net.connect(INTERNAL_DEBUG_PORT, '127.0.0.1');
+    client.pipe(upstream).pipe(client);
+    client.on('error', () => upstream.destroy());
+    upstream.on('error', () => client.destroy());
+  }).listen(REMOTE_DEBUG_PORT, '0.0.0.0', () => {
+    console.log(`[host] DevTools protocol on :${REMOTE_DEBUG_PORT} (no auth - LAN only)`);
+  });
+}
 
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm',
@@ -157,6 +186,7 @@ app.whenReady().then(async () => {
     allow: host => discoveredHosts.has(host.toLowerCase()),
   });
   console.log(`[host] serving http://127.0.0.1:${PORT}`);
+  if (REMOTE_DEBUG_PORT) startDebugRelay();
 
   const win = new BrowserWindow({
     width: 1000,

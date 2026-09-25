@@ -86,6 +86,8 @@ services:
     image: gitea.jenangmaker.cloud/jenangmaker/vibeskua-web:latest
     ports:
       - "3000:3000"
+      # With REMOTE_DEBUG_PORT below. Bind to the host's LAN IP, not 0.0.0.0.
+      # - "192.168.2.20:9222:9222"
     environment:
       CUSTOM_USER: vibeskua
       PASSWORD: changeme
@@ -111,6 +113,10 @@ services:
       # Frames drawn per second. The game always runs at full speed.
       # 0 = headless (nothing drawn). Infinity = unlimited.
       MAX_RENDER_FPS: "Infinity"
+      # Chrome DevTools Protocol for remote testing (Puppeteer). NO AUTH:
+      # whoever reaches it controls the session. Uncomment together with the
+      # port mapping below, bound to the host's LAN IP -- see web/README.md.
+      # REMOTE_DEBUG_PORT: "9222"
     # Chromium needs syscalls Docker's default seccomp profile blocks.
     security_opt:
       - seccomp=unconfined
