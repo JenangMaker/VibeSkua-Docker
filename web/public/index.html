@@ -86,27 +86,52 @@ function buildSocketProxy(servers, proxyPort) {
   return out;
 }
 
-// Modules.disable() is a no-op until Modules.init() has run, which happens in
-// Main.as onComplete -- i.e. only after the game SWF loads. Retry until the
-// game is up, then apply once.
-async function applyModules(disable, enable) {
-  if (!disable.length && !enable.length) return;
+// Resolves true once the game SWF has loaded (params.sURL is set), false if it
+// never does within ~60s.
+async function waitForGame() {
   for (let i = 0; i < 40; i++) {
     await new Promise(r => setTimeout(r, 1500));
-    let loaded = false;
-    try { loaded = player.getGameObject('params.sURL') != null; } catch (e) {}
-    if (!loaded) continue;
-    for (const n of disable) {
-      try { player.modDisable(n); say('disabled module: ' + n, 'ok'); }
-      catch (e) { say('could not disable ' + n + ': ' + e, 'err'); }
-    }
-    for (const n of enable) {
-      try { player.modEnable(n); say('enabled module: ' + n, 'ok'); }
-      catch (e) { say('could not enable ' + n + ': ' + e, 'err'); }
-    }
+    try { if (player.getGameObject('params.sURL') != null) return true; } catch (e) {}
+  }
+  return false;
+}
+
+// Modules.disable() is a no-op until Modules.init() has run, which happens in
+// Main.as onComplete -- i.e. only after the game SWF loads. Wait for that,
+// then apply once.
+async function applyModules(disable, enable) {
+  if (!disable.length && !enable.length) return;
+  if (!await waitForGame()) {
+    say('game never finished loading; modules left as-is', 'err');
     return;
   }
-  say('game never finished loading; modules left as-is', 'err');
+  for (const n of disable) {
+    try { player.modDisable(n); say('disabled module: ' + n, 'ok'); }
+    catch (e) { say('could not disable ' + n + ': ' + e, 'err'); }
+  }
+  for (const n of enable) {
+    try { player.modEnable(n); say('enabled module: ' + n, 'ok'); }
+    catch (e) { say('could not enable ' + n + ': ' + e, 'err'); }
+  }
+}
+
+// AQW rasterises each map's background layers into bitmaps with
+// BitmapData.draw (World.rebuildMapBMP), then hides the originals. The webgl
+// renderer cannot draw offscreen, so those bitmaps come out blank and the
+// background vanishes. The game's own "Smooth Background" option skips the
+// rasteriser and shows the vector layers as-is, so turn it on for webgl.
+async function applySmoothBg() {
+  if (!await waitForGame()) return;
+  try {
+    player.setGameObject('litePreference.data.bSmoothBG', true);
+    say('webgl: Smooth Background on (map rasteriser needs offscreen drawing)', 'ok');
+  } catch (e) {
+    say('could not enable Smooth Background: ' + e, 'err');
+    return;
+  }
+  // Only matters if a map is already up. Before login there is no world yet,
+  // and the flag alone stops the first map from being rasterised.
+  try { player.callGameFunction0('world.applySmoothBG'); } catch (e) {}
 }
 
 // --- Rendering controls (patched Ruffle only) -------------------------------
@@ -229,6 +254,7 @@ async function main() {
     currentRenderer = renderer;
     initControls(renderScale, maxRenderFps);
     applyModules(disableModules, enableModules);
+    if (renderer === 'webgl') applySmoothBg();
   } catch (e) {
     say('failed to load skua.swf: ' + e, 'err');
   }

@@ -171,14 +171,22 @@ With the official Ruffle release these do nothing and the bar stays hidden.
 | wgpu-webgl | Max | 100% | Loads fully |
 | wgpu-webgl | **15** | 100% | Loads fully -- the frame cap is safe |
 | **webgl** | Max | 100% | Avatars, HUD and player data missing |
+| webgl + Ruffle `560f6f6f3` | Max | 100% | Loads and runs well; map background blank |
 
 webgl failed because Ruffle's `BitmapData.draw()` raised an internal error on
 backends that cannot render offscreen, and AQW calls it while setting up a
 room: `RustError("Render backend does not support BitmapData.draw")`, then
 `Error #1009 at Game/userTreeWrite()`. Fixed in Ruffle `560f6f6f3` (draw now
-leaves the bitmap unchanged instead of aborting the script). webgl stays
-off by default until that build is tested in-game: whatever AQW draws there
-will still be blank on webgl.
+leaves the bitmap unchanged instead of aborting the script).
+
+Whatever AQW draws is still blank on webgl. The visible case is the map
+background: `World.rebuildMapBMP` rasterises the background layers into
+bitmaps and hides the originals. The page now turns on the game's own
+**Smooth Background** option (Options > Game Settings) when the renderer is
+webgl, which skips that rasteriser and shows the vector layers directly. The
+setting is saved in the game's local storage, so it stays on if you later
+switch back to wgpu-webgl; toggle it there if you want the rasteriser back.
+Not yet tested in-game.
 
 Recommended for lower CPU today: **wgpu-webgl with Draw 15** (tested), and
 Draw Off while farming.
