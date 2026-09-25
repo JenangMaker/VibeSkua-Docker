@@ -69,11 +69,12 @@ Run remotely over the DevTools port (see README), logged in, 2026-09-26.
 | :- | :- | :- |
 | A3/A4 | Pass: Smooth Background on, battleon/battleontown backgrounds full | — |
 | B1/B2 | Pass: 60 s combat, 50 skill presses, 6 kills | — |
-| B3 | Known gap: icons never darken | pending |
-| B4 | Pass: `10.0 → 5.5 → 2.8`, clears at 0 | — |
-| B5 | 9 `sp_ssorc*` frame-script errors / 60 s (Scarlet Sorceress skill FX) | pending |
-| C2 | No effect: 8/8 players `isRasterized`, still animating | pending |
+| B3 | Known gap: icons never darken | Pass: icons darken, sweep clears; global CD dims the rest |
+| B4 | Pass: `10.0 → 5.5 → 2.8`, clears at 0 | Pass: `10.0 → 5.3 → 2.5` |
+| B5 | 9 `sp_ssorc*` frame-script errors / 60 s (Scarlet Sorceress skill FX) | 10 / 60 s -- same on both, not the renderer |
+| C2 | No effect: 8/8 players `isRasterized`, still animating | Pass: players freeze |
 | C3 | Pass: inventory list, item preview | — |
+| E2 | — | Pass: Smooth Background and Visual Skill CDs carried over from webgl |
 
 ## Known noise
 
