@@ -10,10 +10,16 @@ cd /app
 # --no-sandbox: Chromium's setuid sandbox does not work in this container
 #   without extra privileges. The window is already confined to the container.
 # --disable-dev-shm-usage: survive a small /dev/shm if shm_size is not raised.
-# --enable-unsafe-swiftshader: there is no GPU here, and Chromium now refuses
-#   the silent software-WebGL fallback Ruffle's wgpu renderer depends on.
+# --enable-unsafe-swiftshader: with no GPU passed in, Chromium otherwise refuses
+#   the silent software-WebGL fallback Ruffle's wgpu renderer depends on. With
+#   /dev/dri passed in, the real GPU is used and this is inert.
+#
+# CHROMIUM_FLAGS: extra switches, space-separated, appended as-is. For GPU
+# experiments without rebuilding the image, e.g. "--use-angle=gl-egl".
+# shellcheck disable=SC2086
 exec /app/node_modules/electron/dist/electron . \
   --no-sandbox \
   --disable-dev-shm-usage \
   --disable-gpu-sandbox \
-  --enable-unsafe-swiftshader
+  --enable-unsafe-swiftshader \
+  $CHROMIUM_FLAGS
