@@ -79,8 +79,14 @@ const MAX_RENDER_FPS = Number(process.env.MAX_RENDER_FPS || 'Infinity');
 // port and a plain TCP relay republishes it on REMOTE_DEBUG_PORT for Docker to
 // map. Connect by IP address: Chrome rejects DevTools HTTP requests whose Host
 // header is a hostname other than localhost.
-const REMOTE_DEBUG_PORT = Number(process.env.REMOTE_DEBUG_PORT || 0);
+// Tolerates stray quotes/spaces: in compose's list form, `- VAR= "9222"` passes
+// the value as ` "9222"` verbatim.
+const REMOTE_DEBUG_RAW = (process.env.REMOTE_DEBUG_PORT || '').replace(/["'\s]/g, '');
+const REMOTE_DEBUG_PORT = Number(REMOTE_DEBUG_RAW) || 0;
 const INTERNAL_DEBUG_PORT = 19222;
+if (REMOTE_DEBUG_RAW && !REMOTE_DEBUG_PORT) {
+  console.error(`[host] REMOTE_DEBUG_PORT=${JSON.stringify(process.env.REMOTE_DEBUG_PORT)} is not a port number; DevTools stays off`);
+}
 if (REMOTE_DEBUG_PORT) {
   app.commandLine.appendSwitch('remote-debugging-port', String(INTERNAL_DEBUG_PORT));
 }
