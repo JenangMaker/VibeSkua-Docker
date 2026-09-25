@@ -79,6 +79,11 @@ Run remotely over the DevTools port (see README), logged in, 2026-09-26.
 
 | D4 | — | 30 min idle in battleon (wgpu, Max): page process 1017 → 1137 MB (+120 MB, ~240 MB/h), GPU process 471 → 516 MB, container 5.44 → 5.78 GiB. Growth comes in steps (flat for 5-10 min, then +15-35 MB), not a steady climb. CPU flat at 122-136% |
 
+`CHROMIUM_FLAGS=--use-angle=gl-egl` (tried to stop the GLX log spam): renders
+on the Intel GPU via EGL, but logs `No suitable EGL configs` at start and every
+presented frame then stalls ~516 ms -- 60 fps with Draw Off, ~1.5 fps with any
+drawing. Rejected; the spam is filtered in `autostart` instead.
+
 CPU per Chromium process comes from CDP `SystemInfo.getProcessInfo`; container
 totals from Komodo (`ListDockerContainers` stats, refreshed ~every 30 s).
 

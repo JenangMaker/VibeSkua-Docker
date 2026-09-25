@@ -117,9 +117,9 @@ services:
       # whoever reaches it controls the session. Uncomment together with the
       # port mapping below, bound to the host's LAN IP -- see web/README.md.
       # REMOTE_DEBUG_PORT: "9222"
-      # Extra Chromium switches, space-separated. With a GPU passed in, the
-      # default GLX path logs "glXGetMscRateOML failed" ~35x/s under KasmVNC;
-      # "--use-angle=gl-egl" is the first thing to try.
+      # Extra Chromium switches, space-separated, for GPU experiments. Not
+      # "--use-angle=gl-egl": with an Intel GPU every frame stalls ~500 ms.
+      # (The glXGetMscRateOML log spam is filtered in the autostart script.)
       # CHROMIUM_FLAGS: ""
     # Chromium needs syscalls Docker's default seccomp profile blocks.
     security_opt:

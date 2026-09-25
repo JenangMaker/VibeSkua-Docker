@@ -14,12 +14,19 @@ cd /app
 #   the silent software-WebGL fallback Ruffle's wgpu renderer depends on. With
 #   /dev/dri passed in, the real GPU is used and this is inert.
 #
-# CHROMIUM_FLAGS: extra switches, space-separated, appended as-is. For GPU
-# experiments without rebuilding the image, e.g. "--use-angle=gl-egl".
+# CHROMIUM_FLAGS: extra switches, space-separated, appended as-is, for GPU
+# experiments without rebuilding the image. Do not use --use-angle=gl-egl with
+# an Intel GPU under KasmVNC: every presented frame stalls ~500 ms (tested).
+#
+# With a GPU passed in, Chromium's ANGLE-on-GLX path asks the X server for the
+# display refresh rate every frame. KasmVNC's Xvnc has no VidMode extension,
+# so each attempt prints two harmless lines, ~35 pairs a second. Drop exactly
+# those two from stderr; everything else passes through.
 # shellcheck disable=SC2086
 exec /app/node_modules/electron/dist/electron . \
   --no-sandbox \
   --disable-dev-shm-usage \
   --disable-gpu-sandbox \
   --enable-unsafe-swiftshader \
-  $CHROMIUM_FLAGS
+  $CHROMIUM_FLAGS \
+  2> >(grep --line-buffered -v -e 'glXGetMscRateOML failed' -e 'extension "XFree86-VidModeExtension" missing' >&2)
