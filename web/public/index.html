@@ -26,6 +26,10 @@
     <button data-fps="30">30</button>
     <button data-fps="Infinity">Max</button> fps
   </div>
+  <div class="group">Renderer:
+    <button data-renderer="wgpu-webgl" title="Full visuals (filters, glows). Reloads the page.">wgpu</button>
+    <button data-renderer="webgl" title="Lighter, but no filters and less complete. Reloads the page.">webgl</button>
+  </div>
   <div class="group">Resolution:
     <button data-scale="0.5">50%</button>
     <button data-scale="0.75">75%</button>
@@ -141,6 +145,7 @@ window.vibeskua = {
   },
 };
 
+let currentRenderer = null;
 function initControls(renderScale, maxRenderFps) {
   if (!renderControlsSupported()) {
     say('this Ruffle build has no render controls (need the aqw-loader-fixes build)', 'err');
@@ -149,9 +154,19 @@ function initControls(renderScale, maxRenderFps) {
   window.vibeskua.setRender({ fps: maxRenderFps, scale: renderScale });
   const bar = document.getElementById('controls');
   bar.hidden = false;
+  for (const b of bar.querySelectorAll('[data-renderer]')) {
+    b.classList.toggle('on', b.dataset.renderer === currentRenderer);
+  }
   bar.addEventListener('click', e => {
     const b = e.target.closest('button');
     if (!b) return;
+    if (b.dataset.renderer !== undefined) {
+      if (b.dataset.renderer === currentRenderer) return;
+      const q = new URLSearchParams(location.search);
+      q.set('renderer', b.dataset.renderer);
+      location.search = q.toString();   // reload; Ruffle picks its renderer at startup
+      return;
+    }
     if (b.dataset.fps !== undefined) window.vibeskua.setRender({ fps: Number(b.dataset.fps) });
     if (b.dataset.scale !== undefined) window.vibeskua.setRender({ scale: Number(b.dataset.scale) });
   });
@@ -162,7 +177,7 @@ function initControls(renderScale, maxRenderFps) {
 
 async function main() {
   let servers = [], proxyPort = 8181, disableModules = [], enableModules = [], quality = 'low';
-  let renderer = 'webgl', renderScale = 0.75, maxRenderFps = 15;
+  let renderer = 'wgpu-webgl', renderScale = 1, maxRenderFps = Infinity;
   try {
     const r = await (await fetch('/servers')).json();
     servers = r.servers || [];
@@ -176,6 +191,13 @@ async function main() {
   } catch (e) {
     say('could not fetch server list: ' + e, 'err');
   }
+
+  // URL overrides beat the container defaults, so a choice survives the reload
+  // a renderer switch needs:  ?renderer=webgl&scale=0.75&fps=15  (fps=max ok)
+  const qp = new URLSearchParams(location.search);
+  if (qp.get('renderer')) renderer = qp.get('renderer');
+  if (qp.has('scale')) renderScale = Number(qp.get('scale'));
+  if (qp.has('fps')) maxRenderFps = qp.get('fps') === 'max' ? Infinity : Number(qp.get('fps'));
 
   const socketProxy = buildSocketProxy(servers, proxyPort);
   say(`${servers.length} servers, ${socketProxy.length} socketProxy entries`);
@@ -204,6 +226,7 @@ async function main() {
     });
     say('skua.swf loaded', 'ok');
     say(`renderer: ${renderer}, quality: ${quality}`);
+    currentRenderer = renderer;
     initControls(renderScale, maxRenderFps);
     applyModules(disableModules, enableModules);
   } catch (e) {

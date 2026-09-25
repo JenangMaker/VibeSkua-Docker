@@ -156,7 +156,7 @@ Ruffle adds two controls to do that -- `maxRenderFps` and `renderScale` -- and
 the page exposes them three ways:
 
 - env vars `RUFFLE_RENDERER`, `RENDER_SCALE`, `MAX_RENDER_FPS`
-  (defaults: webgl, 0.75, 15; 0.5 halves CPU again but is blurry)
+  (defaults: wgpu-webgl, 1.0, unlimited -- see the warning below)
 - a control bar under the game: **Draw** Off/5/15/30/Max, **Resolution**
   50/75/100%
 - `window.vibeskua.setRender({ fps, scale })` for automation, e.g.
@@ -164,10 +164,17 @@ the page exposes them three ways:
 
 With the official Ruffle release these do nothing and the bar stays hidden.
 
-`webgl` is chosen over `wgpu-webgl` because its worst frame stayed around
-20 ms where wgpu-webgl stalled for 500-2000 ms. Its trade-off: it does not
-draw filters, so glows and drop shadows disappear. Set
-`RUFFLE_RENDERER=wgpu-webgl` for full visuals.
+**Warning: the cheap settings are experimental.** They were benchmarked on the
+login screen, where webgl at 75% and 15 fps used ~1.35 cores against 1.89.
+But in a logged-in Battleon they coincided with player avatars and some assets
+not appearing, and a hidden "Report" dialog showing. Defaults are therefore
+back to the last configuration seen working -- wgpu-webgl, 100%, unlimited --
+until the cause is isolated. The control bar has a **Renderer** switch (it
+reloads the page, since Ruffle picks its renderer at startup) so each change
+can be tested on its own.
+
+webgl's worst frame stayed near 20 ms where wgpu-webgl stalled for 500-2000 ms,
+but webgl draws no filters and is the less complete backend.
 
 ### Knobs
 
@@ -176,9 +183,9 @@ draw filters, so glows and drop shadows disappear. Set
 | `DISABLE_MODULES` | `QuestRequirementWiki,QuestItemRates` | Stops ~60 exceptions/sec |
 | `ENABLE_MODULES` | empty | `DisableFX,HidePlayers` is the biggest in-game lever; changes what you see |
 | `RUFFLE_QUALITY` | `low` | `low`/`medium`/`high` — AA costs CPU in software |
-| `RUFFLE_RENDERER` | `webgl` | `wgpu-webgl` for filters, at the cost of long stalls |
-| `RENDER_SCALE` | `0.75` | Render resolution; 0.5 is cheaper but blurry |
-| `MAX_RENDER_FPS` | `15` | `0` = headless, `Infinity` = unlimited |
+| `RUFFLE_RENDERER` | `wgpu-webgl` | `webgl` is lighter but experimental (see above) |
+| `RENDER_SCALE` | `1` | Render resolution; 0.75 / 0.5 are cheaper |
+| `MAX_RENDER_FPS` | `Infinity` | `0` = headless, e.g. `15` to cap |
 | `cpus:` | `2.0` | Caps the burn so the host cannot thermal throttle |
 | `devices: /dev/dri` | commented out | Real GPU rendering — the largest win by far |
 

@@ -50,26 +50,23 @@ const ENABLE_MODULES = (process.env.ENABLE_MODULES ?? '')
 const RUFFLE_QUALITY = process.env.RUFFLE_QUALITY || 'low';
 
 // Rendering controls. These need the patched Ruffle (branch aqw-loader-fixes);
-// the official release ignores them. Measured on 2 cores with no GPU, where
-// rasterisation is nearly all of the CPU cost:
+// the official release ignores them. All three can be changed live from the
+// control bar under the game, or per-load with ?renderer=&scale=&fps= in the
+// page URL.
 //
-//   wgpu-webgl, scale 1.0, unlimited  -> 1.89 cores, ~15 ticks/s, 500ms+ stalls
-//   webgl,      scale 0.75, 15 fps    -> 1.35 cores, full-speed game logic
-//   webgl,      scale 0.5,  10 fps    -> 0.74 cores, full-speed game logic
-//   render paused (0 fps)             -> 0.17 cores, full-speed game logic
+// Defaults are the configuration last seen working in a logged-in Battleon:
+// wgpu-webgl, full resolution, no frame limit. The cheaper settings measured
+// well on the login screen (webgl at 75%, 15 fps: ~1.35 cores vs 1.89 on 2
+// cores with no GPU) but coincided with player avatars and assets not
+// appearing in Battleon, so they are opt-in until that is understood.
 //
-// The game keeps running at full speed whatever these are set to; they only
-// decide how much of it gets drawn. They can also be changed live from the
-// control bar under the game.
-//
-// RUFFLE_RENDERER: webgl is much steadier than wgpu-webgl in software, but does
-// not draw filters (GlowFilter, drop shadows). Use wgpu-webgl for full visuals.
-const RUFFLE_RENDERER = process.env.RUFFLE_RENDERER || 'webgl';
+// RUFFLE_RENDERER: wgpu-webgl (full visuals) or webgl (lighter, no filters,
+// less complete).
+const RUFFLE_RENDERER = process.env.RUFFLE_RENDERER || 'wgpu-webgl';
 // Fraction of display resolution to render at; the browser upscales.
-// 0.5 halves CPU again but is noticeably blurry; 0.75 is the default.
-const RENDER_SCALE = Number(process.env.RENDER_SCALE || '0.75');
+const RENDER_SCALE = Number(process.env.RENDER_SCALE || '1');
 // Most renders per second. 0 = headless (nothing drawn), Infinity = unlimited.
-const MAX_RENDER_FPS = Number(process.env.MAX_RENDER_FPS ?? '15');
+const MAX_RENDER_FPS = Number(process.env.MAX_RENDER_FPS || 'Infinity');
 
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm',

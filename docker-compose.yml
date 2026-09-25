@@ -100,18 +100,17 @@ services:
       # Software rasterisation charges anti-aliasing to the CPU. low|medium|high
       RUFFLE_QUALITY: low
       # The next three need the patched Ruffle (RUFFLE_WEB_URL build arg); the
-      # official release ignores them. All three can also be changed live from
-      # the control bar under the game.
+      # official release ignores them. All can also be changed from the control
+      # bar under the game.
       #
-      # webgl is far steadier than wgpu-webgl without a GPU (worst frame ~20ms
-      # vs 500-2000ms) but does not draw filters (glows, drop shadows).
-      RUFFLE_RENDERER: webgl
-      # Fraction of display resolution to render at. 0.5 = a quarter of the
-      # pixels and the least CPU, but blurry; 0.75 is sharper at ~1.35 cores.
-      RENDER_SCALE: "0.75"
-      # Most frames drawn per second. The game itself always runs at full speed.
-      # 0 = headless (nothing drawn): ~0.17 cores. Infinity = unlimited.
-      MAX_RENDER_FPS: "15"
+      # Defaults are the configuration last seen working in a logged-in
+      # Battleon. webgl / 0.75 / 15 costs much less CPU but coincided with
+      # player avatars not appearing, so treat it as experimental.
+      RUFFLE_RENDERER: wgpu-webgl
+      RENDER_SCALE: "1"
+      # Frames drawn per second. The game always runs at full speed.
+      # 0 = headless (nothing drawn). Infinity = unlimited.
+      MAX_RENDER_FPS: "Infinity"
     # Chromium needs syscalls Docker's default seccomp profile blocks.
     security_opt:
       - seccomp=unconfined
