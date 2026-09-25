@@ -77,6 +77,8 @@ Run remotely over the DevTools port (see README), logged in, 2026-09-26.
 | E2 | — | Pass: Smooth Background and Visual Skill CDs carried over from webgl |
 | D1 | — | Intel HD P530 via `/dev/dri` (ANGLE/Mesa GL, not SwiftShader). Battleon, 10 players: Draw Max = renderer 98% + GPU process 25% (Komodo: 125-139%); Draw Off = renderer 63% + GPU 1%. The game logic alone holds ~0.6 core |
 
+| D4 | — | 30 min idle in battleon (wgpu, Max): page process 1017 → 1137 MB (+120 MB, ~240 MB/h), GPU process 471 → 516 MB, container 5.44 → 5.78 GiB. Growth comes in steps (flat for 5-10 min, then +15-35 MB), not a steady climb. CPU flat at 122-136% |
+
 CPU per Chromium process comes from CDP `SystemInfo.getProcessInfo`; container
 totals from Komodo (`ListDockerContainers` stats, refreshed ~every 30 s).
 
