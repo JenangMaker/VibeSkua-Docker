@@ -79,10 +79,21 @@ Run remotely over the DevTools port (see README), logged in, 2026-09-26.
 
 | D4 | — | 30 min idle in battleon (wgpu, Max): page process 1017 → 1137 MB (+120 MB, ~240 MB/h), GPU process 471 → 516 MB, container 5.44 → 5.78 GiB. Growth comes in steps (flat for 5-10 min, then +15-35 MB), not a steady climb. CPU flat at 122-136% |
 
-`CHROMIUM_FLAGS=--use-angle=gl-egl` (tried to stop the GLX log spam): renders
-on the Intel GPU via EGL, but logs `No suitable EGL configs` at start and every
-presented frame then stalls ~516 ms -- 60 fps with Draw Off, ~1.5 fps with any
-drawing. Rejected; the spam is filtered in `autostart` instead.
+Frame rate (page `requestAnimationFrame`/s over 5 s; Ruffle draws on these),
+battleon, 10 players, Intel HD P530, 2026-09-26:
+
+| Renderer | Draw Off | Draw 15 | Draw Max | CPU at Max (page + GPU proc) | CPU at 15 |
+| :- | :- | :- | :- | :- | :- |
+| wgpu-webgl | 61.6 | 2.2 (gaps 568 ms) | 2.2 (gaps 575 ms) | 65% + 28% | — |
+| webgl | 75.8 | 49.6 | 36 (worst gap 68 ms) | 92% + 96% | 51% + 36% |
+
+wgpu's stall is CPU in wgpu-core, not the GPU: a 5 s profile at Draw Max put
+~40% of the page's main thread in `UsageScope` drop / `BufferUsageScope::set_size`
+(wgpu-core 30.0.1 resets per-pass tables sized to every buffer ever allocated).
+
+`CHROMIUM_FLAGS=--use-angle=gl-egl` (tried to stop the GLX log spam) logs
+`No suitable EGL configs` at start and shows the same ~2 fps as GLX on wgpu,
+so it fixes nothing; the spam is filtered in `/app/launch.sh` instead.
 
 CPU per Chromium process comes from CDP `SystemInfo.getProcessInfo`; container
 totals from Komodo (`ListDockerContainers` stats, refreshed ~every 30 s).
