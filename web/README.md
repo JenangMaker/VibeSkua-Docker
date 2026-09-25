@@ -190,8 +190,12 @@ Tested in-game: backgrounds load and combat works.
 
 Still blank on webgl: the dark overlay on skill icons during cooldown
 (`World.coolDownAct` draws it with `BitmapData.draw`), and the equivalent
-fade on aura icons. Cosmetic; the "not ready yet" message still shows. Fixing
-it needs offscreen drawing in Ruffle's webgl backend.
+fade on aura icons. The cooldown still works and the "not ready yet" message
+still shows. The countdown numbers are a separate game option, **Visual Skill
+CDs**, and don't need `draw`. Don't turn on **Static Player Art** on webgl:
+it freezes other players with `draw`, so they would disappear. Fixing these
+needs offscreen drawing in Ruffle's webgl backend. Test cases:
+[TESTING.md](TESTING.md).
 
 Recommended for lower CPU today: **wgpu-webgl with Draw 15** (tested), and
 Draw Off while farming.
