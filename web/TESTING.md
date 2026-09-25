@@ -75,6 +75,10 @@ Run remotely over the DevTools port (see README), logged in, 2026-09-26.
 | C2 | No effect: 8/8 players `isRasterized`, still animating | Pass: players freeze |
 | C3 | Pass: inventory list, item preview | — |
 | E2 | — | Pass: Smooth Background and Visual Skill CDs carried over from webgl |
+| D1 | — | Intel HD P530 via `/dev/dri` (ANGLE/Mesa GL, not SwiftShader). Battleon, 10 players: Draw Max = renderer 98% + GPU process 25% (Komodo: 125-139%); Draw Off = renderer 63% + GPU 1%. The game logic alone holds ~0.6 core |
+
+CPU per Chromium process comes from CDP `SystemInfo.getProcessInfo`; container
+totals from Komodo (`ListDockerContainers` stats, refreshed ~every 30 s).
 
 ## Known noise
 
