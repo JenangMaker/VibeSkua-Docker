@@ -1,32 +1,8 @@
-#!/bin/bash
 # Launched by the KasmVNC base image once the X session is up.
-cd /app
-
-# The real Electron ELF binary, not node_modules/.bin/electron. That wrapper is
-# a Node script, and Node 22 is deliberately kept off the global PATH so the
-# base image's Node 18 stays intact for its /kclient audio component. Electron
-# bundles its own Node runtime, so the binary needs nothing on PATH.
 #
-# --no-sandbox: Chromium's setuid sandbox does not work in this container
-#   without extra privileges. The window is already confined to the container.
-# --disable-dev-shm-usage: survive a small /dev/shm if shm_size is not raised.
-# --enable-unsafe-swiftshader: with no GPU passed in, Chromium otherwise refuses
-#   the silent software-WebGL fallback Ruffle's wgpu renderer depends on. With
-#   /dev/dri passed in, the real GPU is used and this is inert.
-#
-# CHROMIUM_FLAGS: extra switches, space-separated, appended as-is, for GPU
-# experiments without rebuilding the image. Do not use --use-angle=gl-egl with
-# an Intel GPU under KasmVNC: every presented frame stalls ~500 ms (tested).
-#
-# With a GPU passed in, Chromium's ANGLE-on-GLX path asks the X server for the
-# display refresh rate every frame. KasmVNC's Xvnc has no VidMode extension,
-# so each attempt prints two harmless lines, ~35 pairs a second. Drop exactly
-# those two from stderr; everything else passes through.
-# shellcheck disable=SC2086
-exec /app/node_modules/electron/dist/electron . \
-  --no-sandbox \
-  --disable-dev-shm-usage \
-  --disable-gpu-sandbox \
-  --enable-unsafe-swiftshader \
-  $CHROMIUM_FLAGS \
-  2> >(grep --line-buffered -v -e 'glXGetMscRateOML failed' -e 'extension "XFree86-VidModeExtension" missing' >&2)
+# Keep this file trivial and POSIX: openbox-autostart sources it with /bin/sh
+# (dash), ignoring any shebang. And the base image copies it into /config only
+# when no copy exists yet, so with /config on a volume an edited version would
+# never arrive (custom-cont-init.d/10-vibeskua-autostart now refreshes it).
+# The real launcher is /app/launch.sh, which ships in the image.
+exec /bin/bash /app/launch.sh

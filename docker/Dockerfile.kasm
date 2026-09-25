@@ -83,9 +83,13 @@ RUN --mount=type=secret,id=ruffle_web_auth \
     RUFFLE_WEB_URL="$RUFFLE_WEB_URL" \
     "$NODE_HOME/bin/node" setup.js
 
-# LinuxServer's init runs this to launch the session's application.
+# LinuxServer's init runs /defaults/autostart (via openbox, with /bin/sh) to
+# launch the session's application; it hands off to /app/launch.sh. The
+# custom-cont-init.d script re-copies the autostart into /config each start.
 COPY docker/kasm-root/ /
-RUN chmod +x /defaults/autostart
+RUN chmod +x /defaults/autostart /app/launch.sh \
+ && chmod 755 /custom-cont-init.d/10-vibeskua-autostart \
+ && chown root:root /custom-cont-init.d/10-vibeskua-autostart
 
 ENV TITLE="VibeSkua Web" \
     PORT=8770 \
