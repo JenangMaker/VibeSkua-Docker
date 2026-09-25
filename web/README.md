@@ -192,10 +192,10 @@ Still blank on webgl: the dark overlay on skill icons during cooldown
 (`World.coolDownAct` draws it with `BitmapData.draw`), and the equivalent
 fade on aura icons. The cooldown still works and the "not ready yet" message
 still shows. The countdown numbers are a separate game option, **Visual Skill
-CDs**, and don't need `draw`. Don't turn on **Static Player Art** on webgl:
-it freezes other players with `draw`, so they would disappear. Fixing these
-needs offscreen drawing in Ruffle's webgl backend. Test cases:
-[TESTING.md](TESTING.md).
+CDs**, and don't need `draw`; tested working on webgl. **Static Player Art**
+does nothing visible on webgl (AQW marks players frozen, but they keep
+animating), so it saves no CPU there. Fixing these needs offscreen drawing in
+Ruffle's webgl backend. Test cases: [TESTING.md](TESTING.md).
 
 Recommended for lower CPU today: **wgpu-webgl with Draw 15** (tested), and
 Draw Off while farming.
@@ -290,8 +290,8 @@ and `window.vibeskua`). Off by default.
 Check from another machine: `http://192.168.2.20:9222/json/version` should
 return JSON. Use the IP, not a hostname: Chrome refuses DevTools requests whose
 Host header is a name other than localhost. The `webSocketDebuggerUrl` it
-returns points at the internal `127.0.0.1:19222`; replace the host with
-`192.168.2.20:9222` before connecting.
+returns already uses the address you asked on, so Puppeteer can connect with
+it directly (`puppeteer.connect({ browserWSEndpoint })`).
 
 **No authentication.** Anyone who can reach the port can drive the logged-in
 session and read everything the page can. Keep it on the LAN, don't route it

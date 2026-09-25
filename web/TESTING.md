@@ -40,7 +40,7 @@ bottom are expected and don't fail a case.
 | # | Steps | Expected | Log check |
 | :- | :- | :- | :- |
 | C1 | Stand in a busy battleon (5+ players) | All players visible with correct colours and gear | none |
-| C2 | Compare: Options → **Static Player Art** on, wait 5 s | **wgpu:** players freeze but stay visible. **webgl (expected to fail):** other players disappear. Turn it back off after | — |
+| C2 | Compare: Options → **Static Player Art** on, wait 5 s | **wgpu:** players freeze but stay visible. **webgl:** players keep animating (no effect; tested 2026-09-26). Turn it back off after | — |
 | C3 | Open Inventory, Bank, a Shop, the Quest list | Each opens, item previews render, closes cleanly | none |
 | C4 | Open character customise (hair/colour) and the armour colour picker | Picker shows its colour gradient. webgl: the gradient/eyedropper may be blank | none |
 | C5 | Open the Travel menu and travel from it | Map changes, background correct (see A4) | none |
@@ -60,6 +60,20 @@ bottom are expected and don't fail a case.
 | :- | :- | :- | :- |
 | E1 | Click wgpu while on webgl | Page reloads on wgpu (panel `renderer: wgpu-webgl`) | — |
 | E2 | After E1, check Options → **Smooth Background** | Still on (the webgl run saved it). Turning it off on wgpu brings the rasterised background back without gaps | none |
+
+## Results
+
+Run remotely over the DevTools port (see README), logged in, 2026-09-26.
+
+| # | webgl | wgpu |
+| :- | :- | :- |
+| A3/A4 | Pass: Smooth Background on, battleon/battleontown backgrounds full | — |
+| B1/B2 | Pass: 60 s combat, 50 skill presses, 6 kills | — |
+| B3 | Known gap: icons never darken | pending |
+| B4 | Pass: `10.0 → 5.5 → 2.8`, clears at 0 | — |
+| B5 | 9 `sp_ssorc*` frame-script errors / 60 s (Scarlet Sorceress skill FX) | pending |
+| C2 | No effect: 8/8 players `isRasterized`, still animating | pending |
+| C3 | Pass: inventory list, item preview | — |
 
 ## Known noise
 
