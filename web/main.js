@@ -54,11 +54,10 @@ const RUFFLE_QUALITY = process.env.RUFFLE_QUALITY || 'low';
 // control bar under the game, or per-load with ?renderer=&scale=&fps= in the
 // page URL.
 //
-// Defaults are the configuration last seen working in a logged-in Battleon:
-// wgpu-webgl, full resolution, no frame limit. The cheaper settings measured
-// well on the login screen (webgl at 75%, 15 fps: ~1.35 cores vs 1.89 on 2
-// cores with no GPU) but coincided with player avatars and assets not
-// appearing in Battleon, so they are opt-in until that is understood.
+// Tested in a logged-in Battleon: wgpu-webgl loads fully at both Max and a
+// 15 fps cap. webgl did not -- its BitmapData.draw() raised an error that
+// aborted AQW's room setup (fixed in Ruffle 560f6f6f3, not yet re-tested
+// in-game), so it stays opt-in.
 //
 // RUFFLE_RENDERER: wgpu-webgl (full visuals) or webgl (lighter, no filters,
 // less complete).

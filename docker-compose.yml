@@ -103,9 +103,9 @@ services:
       # official release ignores them. All can also be changed from the control
       # bar under the game.
       #
-      # Defaults are the configuration last seen working in a logged-in
-      # Battleon. webgl / 0.75 / 15 costs much less CPU but coincided with
-      # player avatars not appearing, so treat it as experimental.
+      # Tested in-game: wgpu-webgl loads fully at Max and at a 15 fps cap
+      # (MAX_RENDER_FPS: "15" is the tested lower-CPU option). webgl broke
+      # room setup -- see web/README.md -- so leave it off for now.
       RUFFLE_RENDERER: wgpu-webgl
       RENDER_SCALE: "1"
       # Frames drawn per second. The game always runs at full speed.

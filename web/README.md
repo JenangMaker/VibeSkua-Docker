@@ -164,14 +164,24 @@ the page exposes them three ways:
 
 With the official Ruffle release these do nothing and the bar stays hidden.
 
-**Warning: the cheap settings are experimental.** They were benchmarked on the
-login screen, where webgl at 75% and 15 fps used ~1.35 cores against 1.89.
-But in a logged-in Battleon they coincided with player avatars and some assets
-not appearing, and a hidden "Report" dialog showing. Defaults are therefore
-back to the last configuration seen working -- wgpu-webgl, 100%, unlimited --
-until the cause is isolated. The control bar has a **Renderer** switch (it
-reloads the page, since Ruffle picks its renderer at startup) so each change
-can be tested on its own.
+**What was tested in a logged-in Battleon** (2026-09-26, 7-10 players):
+
+| Renderer | Draw | Resolution | Result |
+| :--- | :--- | :--- | :--- |
+| wgpu-webgl | Max | 100% | Loads fully |
+| wgpu-webgl | **15** | 100% | Loads fully -- the frame cap is safe |
+| **webgl** | Max | 100% | Avatars, HUD and player data missing |
+
+webgl failed because Ruffle's `BitmapData.draw()` raised an internal error on
+backends that cannot render offscreen, and AQW calls it while setting up a
+room: `RustError("Render backend does not support BitmapData.draw")`, then
+`Error #1009 at Game/userTreeWrite()`. Fixed in Ruffle `560f6f6f3` (draw now
+leaves the bitmap unchanged instead of aborting the script). webgl stays
+off by default until that build is tested in-game: whatever AQW draws there
+will still be blank on webgl.
+
+Recommended for lower CPU today: **wgpu-webgl with Draw 15** (tested), and
+Draw Off while farming.
 
 webgl's worst frame stayed near 20 ms where wgpu-webgl stalled for 500-2000 ms,
 but webgl draws no filters and is the less complete backend.
