@@ -44,6 +44,9 @@ public sealed class SkuaRuntime
 
     public static string Env(string name, string fallback) => EnvRaw(name) ?? fallback;
 
+    // Each startup step, so a startup that hangs shows where.
+    private static void Step(string what) => Console.Error.WriteLine($"[host] start: {what}");
+
     /// <summary>
     /// Builds the service provider. <paramref name="platformServices"/> runs
     /// after the headless stand-ins are registered, so whatever it registers
@@ -80,9 +83,13 @@ public sealed class SkuaRuntime
     public void Start(string? script = null)
     {
         var provider = Services;
+        Step("settings");
         provider.GetRequiredService<ISettingsService>().SetApplicationVersion();
+        Step("logs");
         _ = provider.GetRequiredService<ILogService>();
+        Step("script interface");
         _ = provider.GetRequiredService<IScriptInterface>();   // hooks the SWF's events
+        Step("client files");
         try
         {
             provider.GetRequiredService<IClientFilesService>().CreateDirectories();
@@ -97,7 +104,9 @@ public sealed class SkuaRuntime
             try { await provider.GetRequiredService<IScriptServers>().GetServers(); }
             catch (Exception e) { Console.Error.WriteLine($"[host] server list: {e.Message}"); }
         });
+        Step("plugins");
         provider.GetRequiredService<IPluginManager>().Initialize();
+        Step("script sync, bridge, API");
         _ = Task.Run(Scripts.StartupAsync);
 
         Bridge.ConnectionChanged += up => Console.WriteLine(up ? "[host] page connected" : "[host] page disconnected");
