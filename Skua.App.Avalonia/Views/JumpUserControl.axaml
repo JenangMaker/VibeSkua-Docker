@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.JumpUserControl">
+    <Grid Margin="6,0,6,6" ColumnDefinitions="1.5*,*" RowDefinitions="Auto,Auto">
+        <ComboBox x:Name="Cells" Grid.Column="0" Margin="3,0,4,3" MinWidth="120" HorizontalAlignment="Stretch"
+                  ItemsSource="{Binding Cells}" SelectedItem="{Binding SelectedCell}" />
+        <Button Grid.Row="1" Grid.Column="0" Margin="0,3,3,0" HorizontalAlignment="Stretch"
+                Command="{Binding GetCurrentCommand}" Content="Current" />
+        <ComboBox Grid.Row="0" Grid.Column="1" Margin="3,0,0,3" MinWidth="120" HorizontalAlignment="Stretch"
+                  ItemsSource="{Binding Pads}" SelectedItem="{Binding SelectedPad}" />
+        <Button Grid.Row="1" Grid.Column="1" Margin="3,3,0,0" HorizontalAlignment="Stretch"
+                Command="{Binding JumpToCommand}" Content="Jump" />
+    </Grid>
+</UserControl>

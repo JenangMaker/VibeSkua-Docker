@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.MessageBoxDialog">
+    <StackPanel>
+        <ScrollViewer MaxHeight="700" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <SelectableTextBlock Margin="6" Text="{Binding Message}" TextWrapping="Wrap" />
+        </ScrollViewer>
+        <Button Margin="6" HorizontalAlignment="Stretch" Content="OK" IsDefault="True" IsCancel="True"
+                Click="No_Click" IsVisible="{Binding !YesAndNo}" />
+        <Grid ColumnDefinitions="*,*" IsVisible="{Binding YesAndNo}">
+            <Button Grid.Column="0" Margin="6" HorizontalAlignment="Stretch" Content="Yes" IsDefault="True" Click="Yes_Click" />
+            <Button Grid.Column="1" Margin="6" HorizontalAlignment="Stretch" Content="No" IsCancel="True" Click="No_Click" />
+        </Grid>
+    </StackPanel>
+</UserControl>

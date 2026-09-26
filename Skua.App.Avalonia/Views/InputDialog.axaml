@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.InputDialog">
+    <StackPanel>
+        <TextBlock Margin="6" Classes="caption" Text="{Binding DialogHint}" TextWrapping="Wrap"
+                   IsVisible="{Binding DialogHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <TextBox Margin="6" Watermark="{Binding TextBoxHint}" UseFloatingWatermark="True"
+                 Text="{Binding DialogTextInput}" IsVisible="{Binding NumberOnly}" b:Behave.OnlyNumbers="True" />
+        <TextBox Margin="6" Watermark="{Binding TextBoxHint}" UseFloatingWatermark="True"
+                 Text="{Binding DialogTextInput}" IsVisible="{Binding !NumberOnly}" />
+        <TextBox Margin="6" Watermark="{Binding SecondTextBoxHint}" UseFloatingWatermark="True"
+                 Text="{Binding SecondTextInput}" IsVisible="{Binding ShowSecondInput}" />
+        <Grid ColumnDefinitions="*,*">
+            <Button Grid.Column="0" Margin="6" HorizontalAlignment="Stretch" Content="Confirm" IsDefault="True" Click="Confirm_Click" />
+            <Button Grid.Column="1" Margin="6" HorizontalAlignment="Stretch" Content="Cancel" IsCancel="True" Click="Cancel_Click" />
+        </Grid>
+    </StackPanel>
+</UserControl>

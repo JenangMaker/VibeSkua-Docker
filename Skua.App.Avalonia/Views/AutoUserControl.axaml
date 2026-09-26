@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.AutoUserControl">
+    <Grid Margin="6" ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto">
+        <Button Grid.Column="0" Margin="0,0,3,3" HorizontalAlignment="Stretch"
+                Command="{Binding StartAutoAttackCommand}" Content="Auto Attack"
+                IsVisible="{Binding !Auto.IsRunning}" />
+        <Button Grid.Column="1" Margin="3,0,0,3" HorizontalAlignment="Stretch"
+                Command="{Binding StartAutoHuntCommand}" Content="Auto Hunt"
+                IsVisible="{Binding !Auto.IsRunning}" />
+        <Button Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,3" HorizontalAlignment="Stretch"
+                Command="{Binding StopAutoAsyncCommand}" Content="Stop"
+                IsVisible="{Binding Auto.IsRunning}" />
+        <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="*,*">
+            <ComboBox x:Name="ClassBox" Grid.Column="0" Margin="0,0,3,0" HorizontalAlignment="Stretch"
+                      PlaceholderText="Class"
+                      ItemsSource="{Binding PlayerClasses}" SelectedItem="{Binding SelectedClass}" />
+            <ComboBox Grid.Column="1" Margin="3,0,0,0" HorizontalAlignment="Stretch"
+                      PlaceholderText="Mode"
+                      ItemsSource="{Binding CurrentClassModeStrings}" SelectedItem="{Binding SelectedClassModeString}" />
+        </Grid>
+        <TextBox Grid.Row="2" Grid.ColumnSpan="2" Margin="0,6,0,0"
+                 Watermark="Manual MapIDs (optional)" UseFloatingWatermark="True"
+                 Text="{Binding ManualMapIDs}"
+                 ToolTip.Tip="Enter MapIDs separated by commas for priority targeting (e.g., 12345, 67890). First available monster in the list will be attacked. If it dies, switches to next available, but returns to first when it respawns." />
+    </Grid>
+</UserControl>

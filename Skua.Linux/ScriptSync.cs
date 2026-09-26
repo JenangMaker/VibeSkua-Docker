@@ -3,7 +3,7 @@ using Skua.Core.Interfaces;
 using Skua.Core.Models;
 using Skua.Core.Models.GitHub;
 
-namespace Skua.Host;
+namespace Skua.Linux;
 
 /// <summary>
 /// Skua's script repository (auqw/Scripts, branch Skua), as the WPF app uses

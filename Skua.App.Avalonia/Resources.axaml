@@ -1,0 +1,25 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:conv="clr-namespace:Skua.App.Avalonia.Converters"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+    <!-- MaterialDesign BlueGrey / Red, dark. -->
+    <Color x:Key="SystemAccentColor">#607D8B</Color>
+    <SolidColorBrush x:Key="SkuaPrimaryBrush" Color="#90A4AE" />
+    <SolidColorBrush x:Key="SkuaSecondaryBrush" Color="#F44336" />
+    <SolidColorBrush x:Key="SkuaPaperBrush" Color="#303030" />
+    <SolidColorBrush x:Key="SkuaBarBrush" Color="#263238" />
+    <SolidColorBrush x:Key="SkuaDividerBrush" Color="#1FFFFFFF" />
+
+    <sys:Boolean x:Key="TrueValue">True</sys:Boolean>
+    <sys:Boolean x:Key="FalseValue">False</sys:Boolean>
+
+    <!-- Skua.WPF/XAML/Converters.xaml -->
+    <conv:EnumConverter x:Key="EnumConverter" />
+    <conv:IntToBooleanConverter x:Key="IntToBooleanConverter" />
+    <conv:StringToFloatConverter x:Key="StringToFloatConverter" />
+    <conv:StringToIntConverter x:Key="StringToIntConverter" />
+    <conv:StringToBoolConverter x:Key="StringToBoolConverter" />
+    <conv:EqualToConverter x:Key="EqualToConverter" />
+    <conv:GreaterThanConverter x:Key="GreaterThanConverter" />
+    <conv:MultiValueEqualityConverter x:Key="MultiValueEqualityConverter" />
+</ResourceDictionary>

@@ -6,7 +6,7 @@ using Skua.Core.Interfaces;
 using Skua.Core.Models;
 using Skua.Ruffle;
 
-namespace Skua.Host;
+namespace Skua.Linux;
 
 /// <summary>
 /// The control API: start/stop scripts, read status and logs. Binds to a

@@ -1,0 +1,50 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        x:Class="Skua.App.Avalonia.BotWindow"
+        Title="{Binding SelectedItem.Title}"
+        Width="800"
+        Height="450"
+        WindowStartupLocation="CenterScreen"
+        Icon="avares://Skua.App.Avalonia/Assets/SkuaIcon.ico">
+    <!-- Skua.WPF's BotWindow: a drawer listing every bot control, the
+         selected one's view beside it. -->
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Padding="2" Background="{DynamicResource SkuaBarBrush}">
+            <StackPanel Orientation="Horizontal" Spacing="14">
+                <ToggleButton x:Name="MenuToggle" Classes="flat" ToolTip.Tip="Menu"
+                              IsChecked="{Binding #Split.IsPaneOpen}">
+                    <icons:MaterialIcon Kind="Menu" Width="22" Height="22" />
+                </ToggleButton>
+                <Button Classes="flat" Command="{Binding MovePrevCommand}" ToolTip.Tip="Previous Item">
+                    <icons:MaterialIcon Kind="ArrowLeft" Width="22" Height="22" />
+                </Button>
+                <Button Classes="flat" Command="{Binding MoveNextCommand}" ToolTip.Tip="Next Item">
+                    <icons:MaterialIcon Kind="ArrowRight" Width="22" Height="22" />
+                </Button>
+                <Button Classes="flat" Command="{Binding HomeCommand}" ToolTip.Tip="Home">
+                    <icons:MaterialIcon Kind="Home" Width="22" Height="22" />
+                </Button>
+            </StackPanel>
+        </Border>
+        <SplitView x:Name="Split" DisplayMode="Overlay" OpenPaneLength="240"
+                   PaneBackground="{DynamicResource SkuaPaperBrush}">
+            <SplitView.Pane>
+                <DockPanel>
+                    <TextBox x:Name="SearchBox" DockPanel.Dock="Top" Margin="16,12"
+                             Watermark="Search" />
+                    <ListBox x:Name="ViewsList"
+                             SelectedItem="{Binding SelectedItem}"
+                             SelectionChanged="ViewsList_SelectionChanged">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Margin="12,2,0,2" Text="{Binding Title}" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </SplitView.Pane>
+            <ContentControl Content="{Binding SelectedItem}" />
+        </SplitView>
+    </DockPanel>
+</Window>

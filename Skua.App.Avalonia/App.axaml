@@ -1,0 +1,28 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Skua.App.Avalonia"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.App"
+             RequestedThemeVariant="Dark"
+             Name="VibeSkua">
+    <!-- Skua.App.WPF used MaterialDesign, dark, primary BlueGrey, secondary
+         Red; this is Fluent in those colours. -->
+    <Application.DataTemplates>
+        <local:ViewLocator />
+    </Application.DataTemplates>
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://Skua.App.Avalonia/Resources.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme DensityStyle="Compact" />
+        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+        <icons:MaterialIconStyles />
+        <StyleInclude Source="avares://Skua.App.Avalonia/Styles.axaml" />
+    </Application.Styles>
+</Application>

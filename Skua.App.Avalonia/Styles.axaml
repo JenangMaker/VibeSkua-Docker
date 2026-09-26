@@ -1,0 +1,83 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Skua.WPF/XAML/Styles.xaml and the MaterialDesign styles its views
+         name (MaterialDesignFlatButton -> Classes="flat", and so on). -->
+
+    <Style Selector="Window">
+        <Setter Property="Background" Value="{DynamicResource SkuaPaperBrush}" />
+        <Setter Property="FontSize" Value="13" />
+    </Style>
+
+    <!-- MaterialDesignFlatButton / MaterialDesignToolButton -->
+    <Style Selector="Button.flat, ToggleButton.flat">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaPrimaryBrush}" />
+        <Setter Property="Padding" Value="8,2" />
+    </Style>
+    <Style Selector="ToggleButton.flat:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#33FFFFFF" />
+    </Style>
+
+    <!-- MaterialDesignOutlinedButton -->
+    <Style Selector="Button.outlined">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaPrimaryBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaPrimaryBrush}" />
+    </Style>
+
+    <Style Selector="Button">
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+
+    <!-- Styles.xaml: list boxes outlined in the primary colour -->
+    <Style Selector="ListBox">
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaPrimaryBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ListBox.plain">
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="ListBoxItem">
+        <Setter Property="Padding" Value="6,3" />
+        <Setter Property="MinHeight" Value="0" />
+    </Style>
+
+    <!-- MaterialDesign headline text -->
+    <Style Selector="TextBlock.h6">
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="TextBlock.subtitle">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="TextBlock.caption">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Opacity" Value="0.7" />
+    </Style>
+
+    <Style Selector="Menu > MenuItem">
+        <Setter Property="Foreground" Value="{DynamicResource SkuaPrimaryBrush}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Padding" Value="8,2" />
+    </Style>
+
+    <!-- MaterialDesignCardGroupBox -->
+    <Style Selector="HeaderedContentControl.card">
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border BorderBrush="{DynamicResource SkuaDividerBrush}" BorderThickness="1" CornerRadius="4">
+                    <DockPanel>
+                        <Border DockPanel.Dock="Top" Background="{DynamicResource SkuaBarBrush}" Padding="8,4" CornerRadius="4,4,0,0">
+                            <ContentPresenter Content="{TemplateBinding Header}" TextElement.FontWeight="Medium" />
+                        </Border>
+                        <ContentPresenter Content="{TemplateBinding Content}" Margin="4" />
+                    </DockPanel>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+</Styles>

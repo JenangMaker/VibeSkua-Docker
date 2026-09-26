@@ -1,0 +1,61 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        xmlns:views="clr-namespace:Skua.App.Avalonia.Views"
+        x:Class="Skua.App.Avalonia.MainWindow"
+        Title="{Binding Title}"
+        Width="948"
+        SizeToContent="Height"
+        Icon="avares://Skua.App.Avalonia/Assets/SkuaIcon.ico">
+    <!-- Skua.App.WPF's MainWindow is the main menu over the game. The game is
+         in the vibeskua-web page here, so this is the menu over a status line. -->
+    <DockPanel>
+        <DockPanel x:Name="MenuBar" DockPanel.Dock="Top" Height="28" Background="{DynamicResource SkuaPaperBrush}"
+                   >
+            <Button DockPanel.Dock="Right" Classes="flat" Command="{Binding ShowBotWindowCommand}" ToolTip.Tip="Bot window">
+                <icons:MaterialIcon Kind="Plus" />
+            </Button>
+            <Button DockPanel.Dock="Right" Classes="flat" Content="Jump">
+                <Button.Flyout>
+                    <Flyout Placement="BottomEdgeAlignedRight">
+                        <views:JumpUserControl Width="300" DataContext="{Binding JumpViewModel}" />
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
+            <Button DockPanel.Dock="Right" Classes="flat">
+                <StackPanel Orientation="Horizontal" Spacing="3">
+                    <icons:MaterialIcon Kind="ProgressCheck" IsVisible="{Binding AutoViewModel.Auto.IsRunning}" />
+                    <TextBlock Text="Auto" />
+                </StackPanel>
+                <Button.Flyout>
+                    <Flyout Placement="BottomEdgeAlignedRight">
+                        <views:AutoUserControl Width="400" DataContext="{Binding AutoViewModel}" />
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
+            <Menu DockPanel.Dock="Left" ItemsSource="{Binding MainMenuItems}">
+                <Menu.Styles>
+                    <Style Selector="MenuItem">
+                        <Setter Property="Header" Value="{Binding Header}" />
+                        <Setter Property="ItemsSource" Value="{Binding SubItems}" />
+                        <Setter Property="Command" Value="{Binding Command}" />
+                    </Style>
+                </Menu.Styles>
+            </Menu>
+            <Menu DockPanel.Dock="Left">
+                <MenuItem Header="Plugins" ItemsSource="{Binding Plugins}">
+                    <MenuItem.Styles>
+                        <Style Selector="MenuItem > MenuItem">
+                            <Setter Property="Header" Value="{Binding Header}" />
+                            <Setter Property="Command" Value="{Binding Command}" />
+                        </Style>
+                    </MenuItem.Styles>
+                </MenuItem>
+            </Menu>
+            <Panel />
+        </DockPanel>
+        <Border Padding="10,6" Background="{DynamicResource SkuaBarBrush}">
+            <TextBlock x:Name="StatusText" Classes="caption" Text="Waiting for the game page..." />
+        </Border>
+    </DockPanel>
+</Window>

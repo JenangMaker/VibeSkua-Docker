@@ -3,7 +3,7 @@ using Skua.Core.Interfaces;
 using Skua.Core.Models;
 using Skua.Core.Services;
 
-namespace Skua.Host;
+namespace Skua.Linux;
 
 // Stand-ins for the services Skua.WPF implements with windows, dialogs and
 // Win32 calls. There is no user at the other end, so anything that would ask

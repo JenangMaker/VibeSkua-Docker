@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.CustomMessageBoxDialog">
+    <StackPanel>
+        <SelectableTextBlock Margin="6,6,6,3" Text="{Binding Message}" TextWrapping="Wrap" />
+        <ItemsControl Margin="3,0" ItemsSource="{Binding Buttons}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Button Margin="3" Click="Button_Click" Content="{Binding}" ToolTip.Tip="{Binding}" />
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+        </ItemsControl>
+    </StackPanel>
+</UserControl>
