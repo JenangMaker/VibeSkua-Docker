@@ -35,6 +35,7 @@ public static class ViewRegistry
         ViewLocator.Register<CBOOtherOptionsViewModel, CBOOtherOptionsUserControl>();
         ViewLocator.Register<CBOClassEquipmentViewModel, CBOClassEquipmentUserControl>();
         ViewLocator.Register<CBOLoadoutViewModel, CBOLoadoutUserControl>();
+        ViewLocator.Register<ApplicationThemesViewModel, ApplicationThemesView>();
 
         // Tools & Helpers
         ViewLocator.Register<LoaderViewModel, LoaderView>();

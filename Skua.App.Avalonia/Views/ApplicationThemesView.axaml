@@ -1,0 +1,74 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.ApplicationThemesView">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="6" Spacing="6">
+            <HeaderedContentControl Classes="card" Header="Colours">
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
+                    <ToggleSwitch Grid.Row="0" Grid.ColumnSpan="2" Margin="3" OnContent="Dark" OffContent="Light"
+                                  IsChecked="{Binding ThemeService.IsDarkTheme}" />
+                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="3" Spacing="3">
+                        <RadioButton GroupName="scheme" Content="Primary" IsChecked="True" Tag="Primary" Click="Scheme_Click" />
+                        <RadioButton GroupName="scheme" Content="Secondary" Tag="Secondary" Click="Scheme_Click" />
+                        <RadioButton GroupName="scheme" Content="Primary text" Tag="PrimaryForeground" Click="Scheme_Click" />
+                        <RadioButton GroupName="scheme" Content="Secondary text" Tag="SecondaryForeground" Click="Scheme_Click" />
+                    </StackPanel>
+                    <ColorView x:Name="Picker" Grid.Row="1" Grid.Column="1" Margin="3" IsAlphaEnabled="False"
+                               IsAccentColorsVisible="False" ColorChanged="Picker_ColorChanged" />
+                    <DockPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="3">
+                        <Button DockPanel.Dock="Right" Margin="3,0,0,0" Content="Save Theme" Click="SaveTheme_Click" />
+                        <TextBox x:Name="ThemeName" Watermark="Theme name" />
+                    </DockPanel>
+                </Grid>
+            </HeaderedContentControl>
+            <Expander Header="Defined Themes" HorizontalAlignment="Stretch" IsExpanded="True">
+                <StackPanel>
+                    <ItemsControl Margin="3,0" ItemsSource="{Binding ThemeService.Presets}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="3" ColumnDefinitions="*,Auto">
+                            <Button Grid.Column="0" HorizontalAlignment="Stretch" CornerRadius="2"
+                                    Background="{Binding PrimaryBrush}" Foreground="{Binding PrimaryForegroundBrush}" Content="{Binding Name}"
+                                    Command="{Binding $parent[v:ApplicationThemesView].DataContext.SetCurrentThemeCommand}" CommandParameter="{Binding}" />
+                        </Grid>
+                    </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <ItemsControl Margin="3,0" ItemsSource="{Binding ThemeService.UserThemes}">
+                        <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="3" ColumnDefinitions="*,Auto">
+                            <Button Grid.Column="0" HorizontalAlignment="Stretch" CornerRadius="2,0,0,2"
+                                    Background="{Binding PrimaryBrush}" Foreground="{Binding PrimaryForegroundBrush}" Content="{Binding Name}"
+                                    Command="{Binding $parent[v:ApplicationThemesView].DataContext.SetCurrentThemeCommand}" CommandParameter="{Binding}" />
+                            <Button Grid.Column="1" Margin="1,0,0,0" CornerRadius="0,2,2,0"
+                                    Background="{Binding PrimaryBrush}" Foreground="{Binding PrimaryForegroundBrush}"
+                                    Command="{Binding $parent[v:ApplicationThemesView].DataContext.RemoveThemeCommand}" CommandParameter="{Binding}">
+                                <icons:MaterialIcon Kind="Minus" />
+                            </Button>
+                        </Grid>
+                    </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Expander>
+            <Expander Header="Backgrounds" HorizontalAlignment="Stretch">
+                <Grid DataContext="{Binding BackgroundTheme}" ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto">
+                    <ComboBox Grid.Row="0" Grid.Column="0" Margin="3" HorizontalAlignment="Stretch" PlaceholderText="Select Background"
+                              ItemsSource="{Binding AvailableBackgrounds}" SelectedItem="{Binding SelectedBackground}" />
+                    <Button Grid.Row="0" Grid.Column="1" Margin="3" Command="{Binding BrowseBackgroundCommand}" Content="Browse" ToolTip.Tip="Browse for local SWF file" />
+                    <Button Grid.Row="0" Grid.Column="2" Margin="3" Command="{Binding RefreshBackgroundsCommand}" Content="Refresh" ToolTip.Tip="Refresh background list" />
+                    <Button Grid.Row="1" Grid.Column="0" Margin="3" HorizontalAlignment="Stretch" Command="{Binding OpenThemesFolderCommand}" Content="Open Themes Folder" ToolTip.Tip="Open the themes folder" />
+                    <Button Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="3" HorizontalAlignment="Stretch" Command="{Binding GetBackgroundsCommand}" Content="Get Backgrounds"
+                            ToolTip.Tip="Open GitHub repository with more backgrounds" />
+                </Grid>
+            </Expander>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
