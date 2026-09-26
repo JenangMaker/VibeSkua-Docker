@@ -12,6 +12,13 @@ ActiveX control.
   cautious answer (No / Cancel) and logs it.
 - Settings are Skua's own (`UnifiedSettingsService`), in the same files.
 
+## In the container
+
+`docker/Dockerfile.kasm` publishes it self-contained to `/opt/skua-host`
+(not single-file: the script compiler needs the assemblies on disk), and
+`web/main.js` starts it when `SKUA_HOST=1`; the page then connects on its own.
+See `web/README.md` ("Skua").
+
 ## Control API
 
 Local only (`SKUA_API_PREFIX`, default `http://127.0.0.1:8791/`). There is no
@@ -36,4 +43,5 @@ is connected and logged in.
 Built and run on Linux (.NET 10) against a logged-in session: `Skua.Core`
 reads player, map, cell and HP through the bridge, and a script compiled by
 Roslyn on Linux joined battleontown and killed three Frogzards with the skill
-rotation running (`Kill.Monster`, `Skills.Start`).
+rotation running (`Kill.Monster`, `Skills.Start`). The self-contained
+linux-x64 publish the image uses ran the same script.

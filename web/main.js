@@ -14,6 +14,8 @@ const { app, BrowserWindow, session } = require('electron');
 const http = require('http');
 const https = require('https');
 const net = require('net');
+const { spawn } = require('child_process');
+const readline = require('readline');
 const fs = require('fs');
 const path = require('path');
 const socketProxy = require('./socket-proxy');
@@ -109,6 +111,54 @@ const AQW_SERVER = process.env.AQW_SERVER || '';
 const RECYCLE_AFTER_MINUTES = Number(process.env.RECYCLE_AFTER_MINUTES || 0) || 0;
 const RECYCLE_AFTER_MAP_CHANGES = Number(process.env.RECYCLE_AFTER_MAP_CHANGES || 0) || 0;
 
+// Skua.Host: Skua itself (scripts, combat, quests, options) running headless
+// next to the page and driving skua.swf through the bridge in
+// public/skua-bridge.js. Off unless SKUA_HOST=1. Restarted if it exits.
+//
+// Its control API (start/stop scripts, status, logs) has NO authentication:
+// whatever reaches it can run arbitrary code as the bot. It binds to
+// 127.0.0.1 by default (use `docker exec`); SKUA_API_PREFIX=http://+:8791/
+// opens it to wherever the port is published - a LAN address only.
+const SKUA_HOST = /^(1|true|yes)$/i.test((process.env.SKUA_HOST || '').trim());
+const SKUA_HOST_BIN = process.env.SKUA_HOST_BIN || '/opt/skua-host/Skua.Host';
+const SKUA_BRIDGE_PREFIX = process.env.SKUA_BRIDGE_PREFIX || 'http://127.0.0.1:8790/';
+const SKUA_BRIDGE_URL = SKUA_BRIDGE_PREFIX.replace(/^http/, 'ws').replace('://+:', '://127.0.0.1:').replace('://*:', '://127.0.0.1:');
+
+let skuaChild = null;
+
+function startSkuaHost() {
+  if (!fs.existsSync(SKUA_HOST_BIN)) {
+    console.error(`[host] SKUA_HOST=1 but ${SKUA_HOST_BIN} does not exist; Skua stays off`);
+    return;
+  }
+  let delay = 2000;
+  const run = () => {
+    const started = Date.now();
+    const child = spawn(SKUA_HOST_BIN, [], {
+      env: {
+        ...process.env,
+        SKUA_BRIDGE_PREFIX,
+        SKUA_BRIDGE_ORIGINS: process.env.SKUA_BRIDGE_ORIGINS || `http://127.0.0.1:${PORT}`,
+        DOTNET_CLI_TELEMETRY_OPTOUT: '1',
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    skuaChild = child;
+    readline.createInterface({ input: child.stdout }).on('line', l => console.log(`[skua] ${l.slice(0, 500)}`));
+    readline.createInterface({ input: child.stderr }).on('line', l => console.error(`[skua] ${l.slice(0, 500)}`));
+    child.on('error', e => console.error(`[host] Skua.Host: ${e.message}`));
+    child.on('exit', (code, signal) => {
+      skuaChild = null;
+      // Back off only if it keeps dying young.
+      delay = Date.now() - started > 60000 ? 2000 : Math.min(delay * 2, 60000);
+      console.error(`[host] Skua.Host exited (${signal || code}); restarting in ${delay / 1000}s`);
+      setTimeout(run, delay);
+    });
+  };
+  app.on('will-quit', () => skuaChild?.kill());
+  run();
+}
+
 function startDebugRelay() {
   net.createServer(client => {
     const upstream = net.connect(INTERNAL_DEBUG_PORT, '127.0.0.1');
@@ -168,6 +218,7 @@ function serve() {
           autoLogin: Boolean(AQW_USER && AQW_PASS),
           recycleAfterMinutes: RECYCLE_AFTER_MINUTES,
           recycleAfterMapChanges: RECYCLE_AFTER_MAP_CHANGES,
+          skuaBridgeUrl: SKUA_HOST ? SKUA_BRIDGE_URL : null,
         }));
         return;
       }
@@ -225,6 +276,7 @@ app.whenReady().then(async () => {
   });
   console.log(`[host] serving http://127.0.0.1:${PORT}`);
   if (REMOTE_DEBUG_PORT) startDebugRelay();
+  if (SKUA_HOST) startSkuaHost();
 
   const win = new BrowserWindow({
     width: 1000,

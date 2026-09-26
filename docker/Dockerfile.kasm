@@ -6,10 +6,9 @@
 #   docker compose up -d vibeskua-web
 #   open http://<host>:3000
 #
-# WHAT THIS IS NOT: it is not the bot. It runs the AQW client on Ruffle with
-# the Skua ExternalInterface bridge live, which is the foundation VibeSkua's
-# automation would sit on — but Skua.Core still has no IFlashUtil pointing at
-# it. See web/README.md.
+# The bot: with SKUA_HOST=1, Skua.Host (Skua.Core without a UI) runs beside
+# the page and drives the game through the bridge; scripts are started through
+# its local control API. See Skua.Host/README.md.
 #
 # UNTESTED. No Docker on the machine where this was written; the image has
 # never been built. The pieces it wraps (Ruffle + skua.swf + the live AQW
@@ -17,6 +16,23 @@
 
 ARG BASE_IMAGE=ghcr.io/linuxserver/baseimage-kasmvnc:debianbookworm
 ARG NODE_VERSION=22.11.0
+
+# Skua.Host: Skua.Core running headless against the page (SKUA_HOST=1; see
+# Skua.Host/README.md). Self-contained, so the runtime image needs no .NET.
+# Not single-file: the script compiler (Roslyn) resolves references from
+# assembly paths on disk.
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS skua-host
+WORKDIR /src
+COPY Directory.Build.props ./
+COPY Shared/ Shared/
+COPY Skua.Core/ Skua.Core/
+COPY Skua.Core.Generators/ Skua.Core.Generators/
+COPY Skua.Core.Interfaces/ Skua.Core.Interfaces/
+COPY Skua.Core.Models/ Skua.Core.Models/
+COPY Skua.Core.Utils/ Skua.Core.Utils/
+COPY Skua.Ruffle/ Skua.Ruffle/
+COPY Skua.Host/ Skua.Host/
+RUN dotnet publish Skua.Host/Skua.Host.csproj -c Release -r linux-x64       --self-contained true -p:PublishSingleFile=false -o /out  && test -x /out/Skua.Host
 
 FROM ${BASE_IMAGE}
 
@@ -86,6 +102,8 @@ RUN --mount=type=secret,id=ruffle_web_auth \
 # LinuxServer's init runs /defaults/autostart (via openbox, with /bin/sh) to
 # launch the session's application; it hands off to /app/launch.sh. The
 # custom-cont-init.d script re-copies the autostart into /config each start.
+COPY --from=skua-host /out/ /opt/skua-host/
+
 COPY docker/kasm-root/ /
 RUN chmod +x /defaults/autostart /app/launch.sh \
  && chmod 755 /custom-cont-init.d/10-vibeskua-autostart \

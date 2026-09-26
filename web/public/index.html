@@ -41,6 +41,7 @@
 
 <script src="/ruffle/ruffle.js"></script>
 <script src="/session.js"></script>
+<script src="/skua-bridge.js"></script>
 <script>
 const statusEl = document.getElementById('status');
 function say(msg, cls) {
@@ -185,7 +186,7 @@ function initControls(renderScale, maxRenderFps) {
 async function main() {
   let servers = [], proxyPort = 8181, disableModules = [], enableModules = [], quality = 'low';
   let renderer = 'wgpu-webgl', renderScale = 1, maxRenderFps = Infinity;
-  let sessionCfg = {};
+  let sessionCfg = {}, skuaBridgeUrl = null;
   try {
     const r = await (await fetch('/servers')).json();
     servers = r.servers || [];
@@ -201,6 +202,7 @@ async function main() {
       recycleAfterMinutes: r.recycleAfterMinutes || 0,
       recycleAfterMapChanges: r.recycleAfterMapChanges || 0,
     };
+    skuaBridgeUrl = r.skuaBridgeUrl || null;
   } catch (e) {
     say('could not fetch server list: ' + e, 'err');
   }
@@ -222,6 +224,14 @@ async function main() {
   player.style.height = '550px';
   player.style.display = 'block';
   document.getElementById('stage').appendChild(player);
+
+  // Skua.Host (SKUA_HOST=1): forward the SWF's calls to it and let it drive
+  // the SWF. Installed before the load so requestLoadGame is forwarded too.
+  if (skuaBridgeUrl) {
+    window.skuaBridge.attach(player);
+    window.skuaBridge.install();
+    window.skuaBridge.connect(skuaBridgeUrl, say);
+  }
 
   try {
     await player.load({

@@ -131,6 +131,16 @@ services:
       # Needs AQW_USER/AQW_PASS.
       # RECYCLE_AFTER_MINUTES: "120"
       # RECYCLE_AFTER_MAP_CHANGES: "60"
+      # Skua itself, headless (Skua.Host): the page connects to it and it
+      # drives the game. Scripts start through its control API, which has NO
+      # AUTH (it runs code as the bot) and listens inside the container only:
+      #   docker exec vibeskua-web curl -s localhost:8791/status
+      # See Skua.Host/README.md.
+      # SKUA_HOST: "1"
+      # SKUA_SCRIPT: "/config/scripts/MyScript.cs"   # started once logged in
+      # To reach the API from the LAN instead, add a LAN-IP port mapping
+      # ("192.168.2.20:8791:8791") and:
+      # SKUA_API_PREFIX: "http://+:8791/"
     # Chromium needs syscalls Docker's default seccomp profile blocks.
     security_opt:
       - seccomp=unconfined

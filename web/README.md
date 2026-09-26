@@ -17,11 +17,11 @@ It runs the **client**, not VibeSkua. Three layers, and only the first is done:
 | :--- | :--- |
 | AQW client renders on Ruffle, bridge callbacks live | ✅ verified (Gitea run #698, 28/28) |
 | You can log in and play | ⚠️ implemented here, **never tested** |
-| The bot automates it | ❌ not started |
+| The bot automates it | ⚠️ `Skua.Host` (`SKUA_HOST=1`), phase 1: scripts via an API, no UI |
 
-`Skua.Core` — the actual bot brain, 191 files of scripts, combat, quests and
-scheduling — still has no `IFlashUtil` implementation pointing at this host.
-Until it does, this is a way to play AQW in a browser, not to automate it.
+`Skua.Core` — the actual bot brain: scripts, combat, quests and scheduling —
+runs headless next to the page with `SKUA_HOST=1` (see "Skua" below). There
+is no Skua UI yet; scripts are started through a local API.
 
 See `docs/ruffle-test/README.md` for what has actually been proven, and
 `DOCKER.md` for why the real client cannot be containerised as written.
@@ -317,6 +317,34 @@ cannot read it) and are never logged.
 Tested 2026-09-26: auto-login onto Twilly, then a recycle after 2 map changes
 reloaded, logged back in and returned to yulgar (Enter); live GC objects went
 from ~536k to ~198k and loaded SWFs from 384 to 32.
+
+## Skua (SKUA_HOST=1)
+
+With `SKUA_HOST=1` the image runs `Skua.Host` (`/opt/skua-host`) beside the
+page: Skua.Core with no UI, driving `skua.swf` through `public/skua-bridge.js`
+over a local WebSocket (`127.0.0.1:8790`). `main.js` starts it, restarts it if
+it exits, and prefixes its output with `[skua]` in the container log.
+
+Scripts are started through its control API (see `Skua.Host/README.md`),
+which by default listens inside the container only:
+
+```sh
+docker exec vibeskua-web curl -s localhost:8791/status
+docker exec vibeskua-web curl -s -X POST -d '' 'localhost:8791/script/start?path=/config/scripts/X.cs'
+docker exec vibeskua-web curl -s -X POST -d '' localhost:8791/script/stop
+```
+
+or set `SKUA_SCRIPT` to start one as soon as the character is logged in.
+Skua's settings and files live in `/config/.config/Skua` (kept across
+recreates, like the rest of `/config`).
+
+The API has **no authentication** and runs arbitrary C# as the bot. To use it
+from the LAN, publish `8791` on a LAN IP only and set
+`SKUA_API_PREFIX=http://+:8791/`; never route it through a reverse proxy.
+
+A recycle (above) reloads the page, which drops the bridge for a few seconds;
+a script running at that moment sees its calls fail. Leave recycling off while
+running long scripts, or set it with that in mind.
 
 ## Before exposing it
 
