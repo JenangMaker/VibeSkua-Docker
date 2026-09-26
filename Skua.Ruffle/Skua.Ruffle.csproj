@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Skua's Flash bridge for Ruffle: talks to skua.swf running in a browser page
+    (web/public/skua-bridge.js) over a WebSocket, in place of the Flash ActiveX
+    control. Plain net10.0, so it runs on Linux.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+</Project>
