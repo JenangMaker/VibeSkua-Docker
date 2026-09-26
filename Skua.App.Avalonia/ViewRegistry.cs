@@ -43,6 +43,8 @@ public static class ViewRegistry
         ViewLocator.Register<FastTravelViewModel, FastTravelUserControl>();
         ViewLocator.Register<FastTravelEditorDialogViewModel, FastTravelEditorDialog>();
         ViewLocator.Register<LoadoutsViewModel, LoadoutsView>();
+        ViewLocator.Register<GrabberViewModel, GrabberView>();
+        ViewLocator.Register<GrabberListViewModel, GrabberListUserControl>();
 
         // Combat > Runtime
         ViewLocator.Register<RuntimeHelpersViewModel, RuntimeHelpersView>();

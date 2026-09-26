@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.GrabberView">
+    <DockPanel>
+        <ListBox DockPanel.Dock="Top" Classes="plain" Margin="3" ItemsSource="{Binding GrabberTabs}" SelectedItem="{Binding SelectedTab}">
+            <ListBox.ItemsPanel>
+                <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+            <ListBox.Styles>
+                <Style Selector="ListBoxItem">
+                    <Setter Property="BorderBrush" Value="{DynamicResource SkuaPrimaryBrush}" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="CornerRadius" Value="14" />
+                    <Setter Property="Padding" Value="12,4" />
+                    <Setter Property="Margin" Value="2" />
+                </Style>
+            </ListBox.Styles>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock FontWeight="Medium" Text="{Binding Title}" TextAlignment="Center" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <v:GrabberListUserControl DataContext="{Binding SelectedTab}" />
+    </DockPanel>
+</UserControl>

@@ -140,3 +140,28 @@ public sealed class PacketDirectionBrushConverter : IValueConverter
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => BindingOperations.DoNothing;
 }
+
+/// <summary>Grabber rows: the item, marked [Junk] when it is on the junk list.</summary>
+public sealed class GrabberItemDisplayConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is Skua.Core.Models.Items.ItemBase item)
+        {
+            var junk = CommunityToolkit.Mvvm.DependencyInjection.Ioc.Default.GetService<Skua.Core.Interfaces.IJunkService>();
+            return junk?.IsJunk(item.ID) == true ? item + " [Junk]" : item.ToString();
+        }
+        return value?.ToString() ?? string.Empty;
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => BindingOperations.DoNothing;
+}
+
+/// <summary>The grabber's int SelectionMode (0 single, else multiple) as Avalonia's.</summary>
+public sealed class IntToSelectionModeConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is int i && i != 0 ? global::Avalonia.Controls.SelectionMode.Multiple : global::Avalonia.Controls.SelectionMode.Single;
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => BindingOperations.DoNothing;
+}

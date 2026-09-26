@@ -1,0 +1,59 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.GrabberListUserControl">
+    <Grid>
+        <Grid Margin="6" RowDefinitions="Auto,*,Auto,Auto" ColumnDefinitions="*,5,*">
+            <DockPanel Grid.Row="0" Grid.ColumnSpan="3">
+                <CheckBox DockPanel.Dock="Right" Margin="3,0,0,3" VerticalAlignment="Center" Content="Select Multiple"
+                          IsChecked="{Binding SelectionMode, Converter={StaticResource IntToBooleanConverter}}"
+                          IsVisible="{Binding SelectMultiple}" />
+                <TextBox x:Name="SearchBox" Margin="0,0,3,3" Watermark="Search" UseFloatingWatermark="True"
+                         Text="{Binding SearchText}" b:Behave.SelectAll="True" />
+            </DockPanel>
+            <ListBox x:Name="GrabberListBox" Grid.Row="1" Grid.Column="0" Margin="0,3,3,3"
+                     SelectedItem="{Binding SelectedItem}"
+                     SelectionMode="{Binding SelectionMode, Converter={StaticResource IntToSelectionMode}}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Converter={StaticResource GrabberItemDisplay}}" />
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+                <ListBox.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Click="UnselectAll_Click" Header="Unselect All" />
+                    </ContextMenu>
+                </ListBox.ContextMenu>
+            </ListBox>
+            <GridSplitter Grid.Row="1" Grid.Column="1" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch" ResizeDirection="Columns" />
+            <Border Grid.Row="1" Grid.Column="2" Margin="3,3,0,3" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="1">
+                <b:PropertyInspector SelectedObject="{Binding SelectedItem}" />
+            </Border>
+            <WrapPanel Grid.Row="2" Grid.ColumnSpan="3" Orientation="Horizontal">
+                <Button Margin="0,3,3,3" Click="UnselectAll_Click" Content="Unselect All" IsEnabled="{Binding !IsBusy}" />
+                <ItemsControl IsEnabled="{Binding !IsBusy}" ItemsSource="{Binding GrabberCommands}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Margin="3" Click="Task_Click" Content="{Binding Content}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </WrapPanel>
+            <Button Grid.Row="3" Grid.ColumnSpan="3" Margin="0,3,0,0" HorizontalAlignment="Stretch" Command="{Binding GrabCommand}" Content="Grab" />
+        </Grid>
+        <Border VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,40" Padding="12,6" CornerRadius="4"
+                Background="#323232" BoxShadow="0 2 8 0 #80000000" IsVisible="{Binding ShowMessage}">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock VerticalAlignment="Center" Text="{Binding ProgressReportMessage, FallbackValue='Working...'}" />
+                <Button Classes="flat" Command="{Binding CancelTaskCommand}" ToolTip.Tip="Cancel">
+                    <icons:MaterialIcon Kind="Cancel" />
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

@@ -27,4 +27,6 @@
     <conv:BoolTextConverter x:Key="BoolText" />
     <conv:ScriptRowBrushConverter x:Key="ScriptRowBrush" />
     <conv:PacketDirectionBrushConverter x:Key="PacketDirectionBrush" />
+    <conv:GrabberItemDisplayConverter x:Key="GrabberItemDisplay" />
+    <conv:IntToSelectionModeConverter x:Key="IntToSelectionMode" />
 </ResourceDictionary>
