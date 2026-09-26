@@ -141,6 +141,9 @@ services:
       # See Skua.App.Avalonia/README.md and Skua.Host/README.md.
       # SKUA_HOST: "1"
       # SKUA_UI: "1"
+      # The game is embedded in Skua's main window under its menu, as in the
+      # Windows app; "0" keeps them separate (Skua a bar above the game).
+      # SKUA_EMBED_GAME: "1"
       # Script to start once logged in: a repository path (scripts are synced
       # from auqw/Scripts at startup) or an absolute path.
       # SKUA_SCRIPT: "Farm/GoldFarm"

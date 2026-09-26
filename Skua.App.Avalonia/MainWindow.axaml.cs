@@ -23,6 +23,11 @@ public partial class MainWindow : Window
             _status.Start();
             // The game goes under the menu, as in the WPF app; without one to
             // embed, this becomes a bar above the game window instead.
+            if (Skua.Linux.SkuaRuntime.EnvRaw("SKUA_EMBED_GAME") is "0" or "false" or "no")
+            {
+                WindowPlacement.ToTopBar(this, GameArea);
+                return;
+            }
             _embed = new GameEmbed(this, GameArea);
             _embed.Embedded += () => GameAreaText.IsVisible = false;
             _embed.Failed += () => WindowPlacement.ToTopBar(this, GameArea);
