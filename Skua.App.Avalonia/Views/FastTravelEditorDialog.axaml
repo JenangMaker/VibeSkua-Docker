@@ -1,0 +1,14 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.FastTravelEditorDialog">
+    <StackPanel>
+        <v:FastTravelEditorUserControl Margin="6,6,6,3" DataContext="{Binding Editor}" />
+        <Grid ColumnDefinitions="*,*">
+            <Button Margin="6,3,3,6" HorizontalAlignment="Stretch" Click="Confirm_Click" Content="Confirm" IsDefault="True" />
+            <Button Grid.Column="1" Margin="3,3,6,6" HorizontalAlignment="Stretch" Click="Cancel_Click" Content="Cancel" IsCancel="True" />
+        </Grid>
+    </StackPanel>
+</UserControl>

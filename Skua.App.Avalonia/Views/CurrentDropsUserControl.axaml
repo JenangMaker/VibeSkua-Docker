@@ -1,0 +1,16 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.CurrentDropsUserControl">
+    <Grid Margin="6" RowDefinitions="Auto,*,Auto">
+        <TextBox x:Name="SearchBox" Grid.Row="0" Margin="0,0,0,6" Watermark="Search" UseFloatingWatermark="True" />
+        <ListBox x:Name="CurrentDropsListBox" Grid.Row="1" SelectionMode="Multiple" SelectedItem="{Binding SelectedDrop}" />
+        <Grid Grid.Row="2" Margin="0,6,0,0" ColumnDefinitions="*,*,*">
+            <Button Grid.Column="0" Margin="0,0,3,0" HorizontalAlignment="Stretch" Click="PickupSelected_Click" Content="Pickup Selected" />
+            <Button Grid.Column="1" Margin="3,0" HorizontalAlignment="Stretch" Command="{Binding PickupAllCommand}" Content="Pickup All" />
+            <Button Grid.Column="2" Margin="3,0,0,0" HorizontalAlignment="Stretch" Command="{Binding PickupACCommand}" Content="Pickup AC" />
+        </Grid>
+    </Grid>
+</UserControl>

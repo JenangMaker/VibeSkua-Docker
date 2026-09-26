@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.FastTravelEditorUserControl">
+    <StackPanel>
+        <TextBox Watermark="Description Name" UseFloatingWatermark="True" Text="{Binding Travel.DescriptionName}" b:Behave.SelectAll="True" />
+        <TextBox Margin="0,3" Watermark="Map Name" UseFloatingWatermark="True" Text="{Binding Travel.MapName}" b:Behave.SelectAll="True" />
+        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+            <TextBox Grid.Row="0" Grid.Column="0" MinWidth="120" Margin="0,3,3,3" Watermark="Cell" UseFloatingWatermark="True"
+                     Text="{Binding Travel.Cell}" b:Behave.SelectAll="True" />
+            <TextBox Grid.Row="0" Grid.Column="1" MinWidth="120" Margin="3,3,0,3" Watermark="Pad" UseFloatingWatermark="True"
+                     Text="{Binding Travel.Pad}" b:Behave.SelectAll="True" />
+            <Button Grid.Row="1" Grid.ColumnSpan="2" Margin="0,3" HorizontalAlignment="Stretch" Command="{Binding GetCurrentCommand}" Content="Current" />
+        </Grid>
+    </StackPanel>
+</UserControl>

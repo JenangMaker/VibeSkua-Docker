@@ -35,5 +35,13 @@ public static class ViewRegistry
         ViewLocator.Register<CBOOtherOptionsViewModel, CBOOtherOptionsUserControl>();
         ViewLocator.Register<CBOClassEquipmentViewModel, CBOClassEquipmentUserControl>();
         ViewLocator.Register<CBOLoadoutViewModel, CBOLoadoutUserControl>();
+
+        // Tools & Helpers
+        ViewLocator.Register<LoaderViewModel, LoaderView>();
+        ViewLocator.Register<CurrentDropsViewModel, CurrentDropsUserControl>();
+        ViewLocator.Register<JunkItemsViewModel, JunkItemsUserControl>();
+        ViewLocator.Register<FastTravelViewModel, FastTravelUserControl>();
+        ViewLocator.Register<FastTravelEditorDialogViewModel, FastTravelEditorDialog>();
+        ViewLocator.Register<LoadoutsViewModel, LoadoutsView>();
     }
 }

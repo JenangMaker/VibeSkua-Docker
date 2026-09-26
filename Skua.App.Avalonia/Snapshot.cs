@@ -67,7 +67,10 @@ public static class Snapshot
 
         foreach (Type type in ViewLocator.RegisteredViewModels.OrderBy(t => t.Name))
         {
-            if (provider.GetService(type) is not { } vm)
+            object? vm;
+            try { vm = provider.GetService(type); }
+            catch { vm = null; }   // needs arguments only its caller has (dialogs)
+            if (vm is null)
                 continue;
             Shot(type.Name, () => new HostWindow { DataContext = vm, Width = 800, Height = 500 });
         }

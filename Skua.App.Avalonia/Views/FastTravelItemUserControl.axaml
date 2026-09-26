@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.FastTravelItemUserControl">
+    <DockPanel Width="300" Margin="3">
+        <Button DockPanel.Dock="Right" Classes="outlined" CornerRadius="0,2,2,0" Command="{Binding RemoveCommand}">
+            <icons:MaterialIcon Kind="Close" />
+        </Button>
+        <Button DockPanel.Dock="Right" Classes="outlined" CornerRadius="0" Command="{Binding EditCommand}">
+            <icons:MaterialIcon Kind="Edit" />
+        </Button>
+        <Button MinWidth="70" HorizontalAlignment="Stretch" CornerRadius="2,0,0,2"
+                Command="{Binding TravelCommand}" CommandParameter="{Binding}" Content="{Binding DescriptionName}" />
+    </DockPanel>
+</UserControl>

@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.LoadoutsView">
+    <Grid Margin="15" RowDefinitions="Auto,Auto,*">
+        <TextBlock Grid.Row="0" Text="Loadouts Manager" FontSize="24" FontWeight="Bold" Margin="0,0,0,15" Foreground="{DynamicResource SkuaPrimaryBrush}" />
+        <Grid Grid.Row="1" Margin="0,0,0,15" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+            <Button Grid.Column="0" Content="Save" Command="{Binding SaveCurrentCommand}" Margin="0,0,10,0" />
+            <Button Grid.Column="1" Content="Show Current" Command="{Binding ShowCurrentCommand}" Margin="0,0,10,0" />
+            <Button Grid.Column="2" Classes="flat" Command="{Binding RefreshCommand}" Margin="0,0,10,0" ToolTip.Tip="Refresh Loadouts">
+                <icons:MaterialIcon Kind="Refresh" />
+            </Button>
+            <ComboBox Grid.Column="3" HorizontalAlignment="Stretch" ItemsSource="{Binding Loadouts}" SelectedItem="{Binding SelectedLoadout}"
+                      DisplayMemberBinding="{Binding Name}" PlaceholderText="Select Loadout" Margin="0,0,10,0" VerticalAlignment="Center" />
+            <Button Grid.Column="4" Content="Equip Selected" Command="{Binding EquipLoadoutCommand}" Margin="0,0,10,0" />
+            <Button Grid.Column="5" Content="Delete" Command="{Binding DeleteLoadoutCommand}" Background="#F44336" />
+        </Grid>
+        <Border Grid.Row="2" Background="{DynamicResource SkuaBarBrush}" CornerRadius="5" Padding="15">
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                <Grid.Styles>
+                    <Style Selector="TextBlock.label">
+                        <Setter Property="FontWeight" Value="Bold" />
+                        <Setter Property="Margin" Value="0,10,10,10" />
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                    </Style>
+                    <Style Selector="TextBlock.value">
+                        <Setter Property="Margin" Value="0,10,0,10" />
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                    </Style>
+                    <Style Selector="Run.enh">
+                        <Setter Property="Foreground" Value="Gray" />
+                    </Style>
+                </Grid.Styles>
+                <TextBlock Grid.Row="0" Classes="label" Text="Name:" />
+                <TextBox Grid.Row="0" Grid.Column="1" Margin="0,10" VerticalAlignment="Center" Text="{Binding SelectedLoadoutName, UpdateSourceTrigger=LostFocus}" />
+                <TextBlock Grid.Row="1" Classes="label" Text="Class:" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Classes="value"><Run Text="{Binding SelectedLoadout.Class}" /><Run Classes="enh" Text=" [" /><Run Classes="enh" Text="{Binding SelectedLoadout.ClassEnhancement}" /><Run Classes="enh" Text="]" /></TextBlock>
+                <TextBlock Grid.Row="2" Classes="label" Text="Armor:" />
+                <TextBlock Grid.Row="2" Grid.Column="1" Classes="value" Text="{Binding SelectedLoadout.Armor}" />
+                <TextBlock Grid.Row="3" Classes="label" Text="Weapon:" />
+                <TextBlock Grid.Row="3" Grid.Column="1" Classes="value"><Run Text="{Binding SelectedLoadout.Weapon}" /><Run Classes="enh" Text=" [" /><Run Classes="enh" Text="{Binding SelectedLoadout.WeaponEnhancement}" /><Run Classes="enh" Text="]" /></TextBlock>
+                <TextBlock Grid.Row="4" Classes="label" Text="Helm:" />
+                <TextBlock Grid.Row="4" Grid.Column="1" Classes="value"><Run Text="{Binding SelectedLoadout.Helm}" /><Run Classes="enh" Text=" [" /><Run Classes="enh" Text="{Binding SelectedLoadout.HelmEnhancement}" /><Run Classes="enh" Text="]" /></TextBlock>
+                <TextBlock Grid.Row="5" Classes="label" Text="Cape:" />
+                <TextBlock Grid.Row="5" Grid.Column="1" Classes="value"><Run Text="{Binding SelectedLoadout.Cape}" /><Run Classes="enh" Text=" [" /><Run Classes="enh" Text="{Binding SelectedLoadout.CapeEnhancement}" /><Run Classes="enh" Text="]" /></TextBlock>
+                <TextBlock Grid.Row="6" Classes="label" Text="Pet:" />
+                <TextBlock Grid.Row="6" Grid.Column="1" Classes="value" Text="{Binding SelectedLoadout.Pet}" />
+                <TextBlock Grid.Row="7" Classes="label" Text="Amulet:" />
+                <TextBlock Grid.Row="7" Grid.Column="1" Classes="value" Text="{Binding SelectedLoadout.Amulet}" />
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

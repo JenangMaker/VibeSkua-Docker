@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.FastTravelUserControl">
+    <Grid RowDefinitions="Auto,*,Auto">
+        <Grid Grid.Row="0" Margin="6,6,6,3" ColumnDefinitions="*,Auto,Auto,Auto,Auto">
+            <TextBox x:Name="SearchBox" Margin="0,0,3,0" Watermark="Search" Classes="clearButton" />
+            <Button Grid.Column="1" Margin="3,0" Command="{Binding SaveFastTravelsCommand}" Content="Save" />
+            <Button Grid.Column="2" Margin="3,0" Command="{Binding ClearFastTravelsCommand}" Content="Clear" />
+            <CheckBox Grid.Column="3" Margin="6,0,0,0" IsChecked="{Binding MapService.UsePrivateRoom}" ToolTip.Tip="Join private rooms with specified number." />
+            <TextBox Grid.Column="4" Width="110" Margin="3,0,0,0" Watermark="Private Number" MaxLength="6"
+                     Text="{Binding MapService.PrivateRoomNumber}" b:Behave.OnlyNumbers="True" />
+        </Grid>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="FastTravelControl" Margin="3">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <v:FastTravelItemUserControl />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+        <Expander Grid.Row="2" Margin="6,3,6,6" Header="Add Fast Travel" HorizontalAlignment="Stretch">
+            <StackPanel>
+                <v:FastTravelEditorUserControl Margin="6,6,6,3" DataContext="{Binding Editor}" />
+                <Button Margin="6,3,6,6" HorizontalAlignment="Stretch" Command="{Binding AddFastTravelCommand}" Content="Add" />
+            </StackPanel>
+        </Expander>
+    </Grid>
+</UserControl>
