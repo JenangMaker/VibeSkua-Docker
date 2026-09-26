@@ -120,6 +120,17 @@ services:
       # Extra Chromium switches, space-separated, for GPU experiments.
       # (The glXGetMscRateOML log spam is filtered in /app/launch.sh.)
       # CHROMIUM_FLAGS: ""
+      # Auto-login (as Skua does), again after a disconnect or a recycle.
+      # Give the password as a secret (Komodo secret / env file), not inline.
+      # AQW_USER: ""
+      # AQW_PASS: ""
+      # AQW_SERVER: "Twilly"          # first online server if unset
+      # Reload the client when either is reached, out of combat, then log back
+      # in and return to the same map. Ruffle keeps every SWF it loads for the
+      # whole session (~45 MB per room change), so long sessions need this.
+      # Needs AQW_USER/AQW_PASS.
+      # RECYCLE_AFTER_MINUTES: "120"
+      # RECYCLE_AFTER_MAP_CHANGES: "60"
     # Chromium needs syscalls Docker's default seccomp profile blocks.
     security_opt:
       - seccomp=unconfined

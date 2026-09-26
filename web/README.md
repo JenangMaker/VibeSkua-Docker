@@ -290,6 +290,34 @@ it directly (`puppeteer.connect({ browserWSEndpoint })`).
 session and read everything the page can. Keep it on the LAN, don't route it
 through Caddy or any other reverse proxy, and remove it when you're not testing.
 
+## Auto-login and recycling
+
+Ruffle keeps every SWF it loads for the whole session. AQW loads the map and
+every player's gear again on each room change, so memory grows ~45 MB per
+change and frames slow down with it (measured with the patched Ruffle's
+`player.debugStats()`: one more copy of the map SWF alive after every join).
+Until that is fixed in Ruffle, the page can recycle itself:
+
+| Env | Effect |
+| :- | :- |
+| `AQW_USER`, `AQW_PASS` | Log in automatically (`game.login`, then `clickServer`, as Skua does), and again after a disconnect or recycle. Pass the password as a secret. |
+| `AQW_SERVER` | Server name to pick; the first online one if unset. |
+| `RECYCLE_AFTER_MINUTES` | Reload the client after this long (0 = off). |
+| `RECYCLE_AFTER_MAP_CHANGES` | ...or after this many map/room changes (0 = off). |
+
+A recycle waits until the character is out of combat, reloads the page (which
+frees all of Ruffle's memory), logs back in and returns to the same map and
+cell. Recycling needs the credentials. `window.vibeskuaSession.status()` and
+`.recycle()` are there for checking or forcing it.
+
+The credentials are served only to the page itself (`/autologin`: the Host
+must be `127.0.0.1:8770` and a custom header is required, so other origins
+cannot read it) and are never logged.
+
+Tested 2026-09-26: auto-login onto Twilly, then a recycle after 2 map changes
+reloaded, logged back in and returned to yulgar (Enter); live GC objects went
+from ~536k to ~198k and loaded SWFs from 384 to 32.
+
 ## Before exposing it
 
 `CUSTOM_USER` / `PASSWORD` in `docker-compose.yml` are `vibeskua` / `changeme`.

@@ -91,6 +91,24 @@ if (REMOTE_DEBUG_PORT) {
   app.commandLine.appendSwitch('remote-debugging-port', String(INTERNAL_DEBUG_PORT));
 }
 
+// Auto-login and recycling (all optional).
+//
+// AQW_USER / AQW_PASS: log in automatically, the way Skua does, and again
+// after a disconnect or a recycle. AQW_SERVER picks the server by name (first
+// online one otherwise). Pass the password as a secret; it is only ever served
+// to this page (see /autologin below), never logged.
+//
+// RECYCLE_AFTER_MINUTES / RECYCLE_AFTER_MAP_CHANGES: reload the game client
+// once either is reached, at a moment the character is not in combat, then log
+// back in and return to the same map and cell. Ruffle keeps every SWF it ever
+// loads for the whole session (maps and each player's gear, ~45 MB per room
+// change), so a long session only gets bigger and slower; a reload resets it.
+const AQW_USER = process.env.AQW_USER || '';
+const AQW_PASS = process.env.AQW_PASS || '';
+const AQW_SERVER = process.env.AQW_SERVER || '';
+const RECYCLE_AFTER_MINUTES = Number(process.env.RECYCLE_AFTER_MINUTES || 0) || 0;
+const RECYCLE_AFTER_MAP_CHANGES = Number(process.env.RECYCLE_AFTER_MAP_CHANGES || 0) || 0;
+
 function startDebugRelay() {
   net.createServer(client => {
     const upstream = net.connect(INTERNAL_DEBUG_PORT, '127.0.0.1');
@@ -147,7 +165,21 @@ function serve() {
           renderScale: RENDER_SCALE,
           // JSON has no Infinity; null means unlimited.
           maxRenderFps: Number.isFinite(MAX_RENDER_FPS) ? MAX_RENDER_FPS : null,
+          autoLogin: Boolean(AQW_USER && AQW_PASS),
+          recycleAfterMinutes: RECYCLE_AFTER_MINUTES,
+          recycleAfterMapChanges: RECYCLE_AFTER_MAP_CHANGES,
         }));
+        return;
+      }
+      // Credentials for auto-login, for this page only. Other pages loaded in
+      // the browser could request 127.0.0.1 too, so: the Host must be ours
+      // (defeats DNS rebinding), and the custom header forces a CORS preflight
+      // on any cross-origin request, which this server never approves.
+      if (req.url === '/autologin') {
+        const own = req.headers.host === `127.0.0.1:${PORT}` && req.headers['x-vibeskua'] === '1';
+        if (!own || !AQW_USER || !AQW_PASS) { res.writeHead(404); res.end(); return; }
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ user: AQW_USER, pass: AQW_PASS, server: AQW_SERVER }));
         return;
       }
       const rel = decodeURIComponent(req.url.split('?')[0]).replace(/^\/+/, '') || 'index.html';

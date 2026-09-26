@@ -40,6 +40,7 @@
 <div id="status"></div>
 
 <script src="/ruffle/ruffle.js"></script>
+<script src="/session.js"></script>
 <script>
 const statusEl = document.getElementById('status');
 function say(msg, cls) {
@@ -184,6 +185,7 @@ function initControls(renderScale, maxRenderFps) {
 async function main() {
   let servers = [], proxyPort = 8181, disableModules = [], enableModules = [], quality = 'low';
   let renderer = 'wgpu-webgl', renderScale = 1, maxRenderFps = Infinity;
+  let sessionCfg = {};
   try {
     const r = await (await fetch('/servers')).json();
     servers = r.servers || [];
@@ -194,6 +196,11 @@ async function main() {
     renderer = r.renderer || renderer;
     renderScale = r.renderScale ?? renderScale;
     maxRenderFps = r.maxRenderFps === null ? Infinity : (r.maxRenderFps ?? maxRenderFps);
+    sessionCfg = {
+      autoLogin: !!r.autoLogin,
+      recycleAfterMinutes: r.recycleAfterMinutes || 0,
+      recycleAfterMapChanges: r.recycleAfterMapChanges || 0,
+    };
   } catch (e) {
     say('could not fetch server list: ' + e, 'err');
   }
@@ -235,6 +242,8 @@ async function main() {
     currentRenderer = renderer;
     initControls(renderScale, maxRenderFps);
     applyModules(disableModules, enableModules);
+    // Auto-login / re-login / recycling; see web/public/session.js.
+    if (await waitForGame()) window.vibeskuaSession.start(sessionCfg, player, say);
   } catch (e) {
     say('failed to load skua.swf: ' + e, 'err');
   }
