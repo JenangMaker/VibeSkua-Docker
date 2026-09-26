@@ -31,6 +31,8 @@ public partial class App : Application
             if (StartRuntime)
                 Runtime.Start();
             desktop.MainWindow = new MainWindow { DataContext = Service<MainViewModel>() };
+            // As Skua.App.WPF at startup: hotkeys bind to the main window.
+            Service<Skua.Core.Interfaces.IHotKeyService>().Reload();
         }
         base.OnFrameworkInitializationCompleted();
     }

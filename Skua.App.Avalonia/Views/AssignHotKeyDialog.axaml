@@ -1,0 +1,20 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.AssignHotKeyDialog">
+    <StackPanel Margin="6" Spacing="6">
+        <Button HorizontalAlignment="Stretch" Click="AssignKey" Content="{Binding KeyInput}" />
+        <TextBlock Foreground="OrangeRed" Text="{Binding InputHint}" TextWrapping="Wrap" />
+        <Grid ColumnDefinitions="*,*,*">
+            <ToggleButton Grid.Column="0" Margin="0,0,3,0" HorizontalAlignment="Stretch" Content="Ctrl" IsChecked="{Binding CtrlCheck}" />
+            <ToggleButton Grid.Column="1" Margin="3,0" HorizontalAlignment="Stretch" Content="Alt" IsChecked="{Binding AltCheck}" />
+            <ToggleButton Grid.Column="2" Margin="3,0,0,0" HorizontalAlignment="Stretch" Content="Shift" IsChecked="{Binding ShiftCheck}" />
+        </Grid>
+        <Grid ColumnDefinitions="*,*">
+            <Button Grid.Column="0" Margin="0,0,3,0" HorizontalAlignment="Stretch" Click="Save_Click" Content="Save" />
+            <Button Grid.Column="1" Margin="3,0,0,0" HorizontalAlignment="Stretch" Click="Cancel_Click" Content="Cancel" />
+        </Grid>
+    </StackPanel>
+</UserControl>

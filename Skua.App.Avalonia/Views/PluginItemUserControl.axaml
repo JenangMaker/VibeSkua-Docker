@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.PluginItemUserControl">
+    <Grid Margin="3" ToolTip.Tip="{Binding Container.Plugin.Description}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" SharedSizeGroup="Author" />
+            <ColumnDefinition />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Text="{Binding Container.Plugin.Author}" />
+        <TextBlock Grid.Column="1" VerticalAlignment="Center" Margin="10,0,3,0" FontSize="14" Text="{Binding Container.Plugin.Name}" />
+        <Button Grid.Column="2" Margin="3,0" Command="{Binding EditPluginOptionsCommand}" Content="Options" IsEnabled="{Binding HasOptions}" />
+        <Button Grid.Column="3" Command="{Binding UnloadCommand}"><icons:MaterialIcon Kind="Close" /></Button>
+    </Grid>
+</UserControl>

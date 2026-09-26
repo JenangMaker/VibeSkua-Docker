@@ -62,5 +62,17 @@ public static class ViewRegistry
         ViewLocator.Register<PacketSpammerViewModel, PacketSpammerView>();
         ViewLocator.Register<PacketLoggerViewModel, PacketLoggerView>();
         ViewLocator.Register<PacketInterceptorViewModel, PacketInterceptorView>();
+
+        // Plugins, hotkeys, about
+        ViewLocator.Register<PluginsViewModel, PluginsView>();
+        ViewLocator.Register<PluginItemViewModel, PluginItemUserControl>();
+        ViewLocator.Register<HotKeysViewModel, HotKeysView>();
+        ViewLocator.Register<HotKeyItemViewModel, HotKeyItemUserControl>();
+        ViewLocator.Register<AssignHotKeyDialogViewModel, AssignHotKeyDialog>();
+        ViewLocator.Register<GitHubAuthViewModel, GitHubAuthView>();
+        ViewLocator.Register<ChangeLogsViewModel, ChangeLogsView>();
+        ViewLocator.Register<AboutViewModel, AboutView>();
+        // Any other bot control falls back to About, as in DataTemplates.xaml.
+        ViewLocator.Register<BotControlViewModelBase, AboutView>();
     }
 }

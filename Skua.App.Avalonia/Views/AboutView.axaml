@@ -1,0 +1,10 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.AboutView" xmlns:md="https://github.com/whistyun/Markdown.Avalonia.Tight">
+    <Grid RowDefinitions="*,Auto">
+        <md:MarkdownScrollViewer x:Name="Markdownview" Grid.Row="0" Margin="20,10,0,20" Markdown="{Binding MarkdownDoc}" />
+    </Grid>
+</UserControl>

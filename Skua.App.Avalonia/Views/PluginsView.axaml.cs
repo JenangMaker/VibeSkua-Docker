@@ -1,0 +1,12 @@
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+
+namespace Skua.App.Avalonia.Views;
+
+public partial class PluginsView : UserControl
+{
+    public PluginsView()
+    {
+        InitializeComponent();
+    }
+}

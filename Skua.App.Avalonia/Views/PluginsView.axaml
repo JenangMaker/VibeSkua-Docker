@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.PluginsView">
+    <Grid RowDefinitions="Auto,*">
+        <DockPanel Grid.Row="0" Margin="6,6,6,0">
+            <Button DockPanel.Dock="Right" Margin="3,0,0,0" Command="{Binding UnloadAllPluginsCommand}" Content="Unload All"
+                    ToolTip.Tip="Loads all plugins from the plugin folder if they weren't loaded yet." />
+            <Button DockPanel.Dock="Right" Margin="3,0" Command="{Binding LoadPluginCommand}" Content="Load"
+                    ToolTip.Tip="Load the selected plugin .dll file." />
+            <TextBox x:Name="SearchBox" Margin="0,0,3,0" />
+        </DockPanel>
+        <ScrollViewer Grid.Row="1" Margin="0,6" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <ItemsControl Grid.IsSharedSizeScope="True" ItemsSource="{Binding Plugins}" />
+        </ScrollViewer>
+    </Grid>
+</UserControl>

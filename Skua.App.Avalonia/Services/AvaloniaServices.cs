@@ -12,7 +12,7 @@ using Skua.Core.ViewModels;
 namespace Skua.App.Avalonia.Services;
 
 // Skua.WPF's services (Skua.WPF/Services) on Avalonia. Registered over
-// Skua.Linux's headless stand-ins; hotkeys, themes, sounds and screenshots
+// Skua.Linux's headless stand-ins; themes, sounds and screenshots
 // keep the stand-ins for now.
 
 public static class AvaloniaServiceCollection
@@ -24,6 +24,7 @@ public static class AvaloniaServiceCollection
         services.AddSingleton<IDialogService, AvaloniaDialogService>();
         services.AddSingleton<IWindowService, AvaloniaWindowService>();
         services.AddSingleton<IFileDialogService, AvaloniaFileDialogService>();
+        services.AddSingleton<IHotKeyService, AvaloniaHotKeyService>();
         return services;
     }
 

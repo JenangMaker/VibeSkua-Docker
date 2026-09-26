@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.HotKeyItemUserControl">
+    <Grid Margin="3" ToolTip.Tip="{Binding Description}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" SharedSizeGroup="Title" />
+            <ColumnDefinition />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Grid.Column="0" Margin="3,0,6,0" VerticalAlignment="Center" FontSize="16" FontWeight="Bold"
+                   Text="{Binding Title, FallbackValue=HotKey, StringFormat='{}{0}:'}" />
+        <Button Grid.Column="1" HorizontalAlignment="Stretch" Command="{Binding EditHotKeyCommand}" Content="{Binding KeyGesture}" />
+        <Button Grid.Column="2" Margin="3,0,0,0" Classes="flat" Command="{Binding RemoveHotKeyCommand}" Content="✕" Foreground="Red"
+                FontWeight="Bold" ToolTip.Tip="Remove Custom Hotkey" />
+    </Grid>
+</UserControl>

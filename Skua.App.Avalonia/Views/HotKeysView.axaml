@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.HotKeysView">
+    <Grid RowDefinitions="Auto,*">
+        <Grid Grid.Row="0" Margin="5" ColumnDefinitions="*,Auto">
+            <AutoCompleteBox Grid.Column="0" FilterMode="None" MinimumPrefixLength="0" Watermark="Search actions"
+                             ItemsSource="{Binding FilteredCustomActions}" SelectedItem="{Binding SelectedCustomAction}"
+                             Text="{Binding SearchText}" ValueMemberBinding="{Binding Title}">
+                <AutoCompleteBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Title}" ToolTip.Tip="{Binding Description}" />
+                    </DataTemplate>
+                </AutoCompleteBox.ItemTemplate>
+            </AutoCompleteBox>
+            <Button Grid.Column="1" Margin="5,0,0,0" Padding="10,2" Content="Add Custom Hotkey" Command="{Binding AddCustomCommand}" />
+        </Grid>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+            <ItemsControl Margin="3" Grid.IsSharedSizeScope="True" ItemsSource="{Binding HotKeys}" />
+        </ScrollViewer>
+    </Grid>
+</UserControl>
