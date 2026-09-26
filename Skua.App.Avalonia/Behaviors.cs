@@ -32,6 +32,44 @@ public static class Behave
     public static readonly AttachedProperty<bool> ScrollToSelectedProperty =
         AvaloniaProperty.RegisterAttached<ListBox, bool>("ScrollToSelected", typeof(Behave));
 
+    /// <summary>
+    /// WPF's &lt;KeyBinding Key="Delete" Command="..." CommandParameter="{SelectedItems}"/&gt;:
+    /// Delete runs this with the selected items.
+    /// </summary>
+    public static readonly AttachedProperty<System.Windows.Input.ICommand?> DeleteSelectedProperty =
+        AvaloniaProperty.RegisterAttached<ListBox, System.Windows.Input.ICommand?>("DeleteSelected", typeof(Behave));
+    /// <summary>Alt+Delete runs this (the "remove all" bindings).</summary>
+    public static readonly AttachedProperty<System.Windows.Input.ICommand?> AltDeleteProperty =
+        AvaloniaProperty.RegisterAttached<ListBox, System.Windows.Input.ICommand?>("AltDelete", typeof(Behave));
+
+    public static System.Windows.Input.ICommand? GetDeleteSelected(ListBox l) => l.GetValue(DeleteSelectedProperty);
+    public static void SetDeleteSelected(ListBox l, System.Windows.Input.ICommand? v) => l.SetValue(DeleteSelectedProperty, v);
+    public static System.Windows.Input.ICommand? GetAltDelete(ListBox l) => l.GetValue(AltDeleteProperty);
+    public static void SetAltDelete(ListBox l, System.Windows.Input.ICommand? v) => l.SetValue(AltDeleteProperty, v);
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ListBox, object> DeleteHooked = new();
+
+    private static void HookDelete(ListBox l)
+    {
+        if (!DeleteHooked.TryAdd(l, true))
+            return;
+        l.KeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Delete)
+                return;
+            if (e.KeyModifiers.HasFlag(KeyModifiers.Alt))
+            {
+                if (GetAltDelete(l) is { } all && all.CanExecute(null))
+                    all.Execute(null);
+            }
+            else
+            {
+                Selection.Run(GetDeleteSelected(l), l);
+            }
+            e.Handled = true;
+        };
+    }
+
     public static bool GetOnlyNumbers(TextBox t) => t.GetValue(OnlyNumbersProperty);
     public static void SetOnlyNumbers(TextBox t, bool v) => t.SetValue(OnlyNumbersProperty, v);
     public static bool GetOnlyFloatingPoint(TextBox t) => t.GetValue(OnlyFloatingPointProperty);
@@ -49,6 +87,8 @@ public static class Behave
 
     static Behave()
     {
+        DeleteSelectedProperty.Changed.AddClassHandler<ListBox>((l, _) => HookDelete(l));
+        AltDeleteProperty.Changed.AddClassHandler<ListBox>((l, _) => HookDelete(l));
         OnlyNumbersProperty.Changed.AddClassHandler<TextBox>((t, e) =>
         {
             if (e.NewValue is true)

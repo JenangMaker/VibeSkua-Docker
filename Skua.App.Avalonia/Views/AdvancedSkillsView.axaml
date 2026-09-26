@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.AdvancedSkillsView">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <Expander Margin="6,6,6,3" Header="Create/Edit Skill" IsExpanded="{Binding EditExpanded}" HorizontalAlignment="Stretch">
+                <v:AdvancedSkillEditorUserControl DataContext="{Binding EditViewModel}" />
+            </Expander>
+            <Expander Margin="6,3,6,6" Header="Saved Skills" IsExpanded="True" HorizontalAlignment="Stretch">
+                <v:SavedAdvancedSkillsUserControl DataContext="{Binding SavedViewModel}" />
+            </Expander>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

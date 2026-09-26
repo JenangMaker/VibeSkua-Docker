@@ -1,0 +1,34 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.DropNotifyUserControl">
+    <Grid Margin="6" ColumnDefinitions="*,Auto" RowDefinitions="*,Auto,Auto">
+        <ListBox Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,3" ItemsSource="{Binding NotifyDropList}" SelectionMode="Multiple"
+                 b:Behave.DeleteSelected="{Binding RemoveDropsCommand}" b:Behave.AltDelete="{Binding RemoveAllDropsCommand}"
+                 b:Behave.UnselectAllMenu="True">
+            <ToolTip.Tip>
+                <TextBlock>A list of all items the bot will make a sound when dropped.<LineBreak /><Bold>Delete:</Bold> Removes all selected items from the list.<LineBreak /><Bold>Alt + Delete:</Bold> Removes all items from the list.<LineBreak /></TextBlock>
+            </ToolTip.Tip>
+            <ListBox.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Command="{Binding RemoveAllDropsCommand}" Header="Remove All" />
+                </ContextMenu>
+            </ListBox.ContextMenu>
+        </ListBox>
+        <TextBox Grid.Row="1" Grid.Column="0" Margin="0,3,3,3" Watermark="Drop Name" UseFloatingWatermark="True" Text="{Binding AddDropInput}">
+            <TextBox.KeyBindings>
+                <KeyBinding Gesture="Enter" Command="{Binding AddDropCommand}" />
+            </TextBox.KeyBindings>
+        </TextBox>
+        <Button Grid.Row="1" Grid.Column="1" Margin="3,3,0,3" VerticalAlignment="Stretch" Command="{Binding AddDropCommand}" Content="Add" />
+        <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnDefinitions="*,*,*">
+            <TextBox Grid.Column="0" Margin="0,3,3,0" Watermark="Beep Count" UseFloatingWatermark="True" Text="{Binding SoundCount}"
+                     ToolTip.Tip="Amount of times to beep." b:Behave.OnlyNumbers="True" />
+            <TextBox Grid.Column="1" Margin="3,3,3,0" Watermark="Beep Delay" UseFloatingWatermark="True" Text="{Binding SoundDelay}" InnerRightContent="ms"
+                     ToolTip.Tip="Delay between beeps in milliseconds." b:Behave.OnlyNumbers="True" />
+            <Button Grid.Column="2" Margin="3,3,0,0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Command="{Binding TestBeepCommand}" Content="Test Beep" />
+        </Grid>
+    </Grid>
+</UserControl>

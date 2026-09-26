@@ -1,0 +1,33 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.BoostsUserControl">
+    <Grid ColumnDefinitions="*,70" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+        <Grid.Styles>
+            <Style Selector="CheckBox"><Setter Property="Margin" Value="0,3,3,3" /></Style>
+            <Style Selector="TextBlock.boostId">
+                <Setter Property="Margin" Value="3,3,0,3" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="ToolTip.Tip" Value="ID of the Boost." />
+            </Style>
+        </Grid.Styles>
+        <DockPanel Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,3">
+            <Button DockPanel.Dock="Right" CornerRadius="0,2,2,0" Command="{Binding SetBoostIDsCommand}" CommandParameter="{StaticResource TrueValue}"
+                    Content="Bank" ToolTip.Tip="Search the inventory and bank for all available boosts, unbanks if found." />
+            <Button Margin="0,0,2,0" CornerRadius="2,0,0,2" HorizontalAlignment="Stretch" Command="{Binding SetBoostIDsCommand}" CommandParameter="{StaticResource FalseValue}"
+                    Content="Search Boosts in Inventory" ToolTip.Tip="Search the inventory for all available boosts." />
+        </DockPanel>
+        <CheckBox Grid.Row="1" Content="Class Boost" IsChecked="{Binding Boosts.UseClassBoost}" />
+        <TextBlock Grid.Row="1" Grid.Column="1" Classes="boostId" Text="{Binding Boosts.ClassBoostID}" />
+        <CheckBox Grid.Row="2" Content="Gold Boost" IsChecked="{Binding Boosts.UseGoldBoost}" />
+        <TextBlock Grid.Row="2" Grid.Column="1" Classes="boostId" Text="{Binding Boosts.GoldBoostID}" />
+        <CheckBox Grid.Row="3" Content="Experience Boost" IsChecked="{Binding Boosts.UseExperienceBoost}" />
+        <TextBlock Grid.Row="3" Grid.Column="1" Classes="boostId" Text="{Binding Boosts.ExperienceBoostID}" />
+        <CheckBox Grid.Row="4" Content="Reputation Boost" IsChecked="{Binding Boosts.UseReputationBoost}" />
+        <TextBlock Grid.Row="4" Grid.Column="1" Classes="boostId" Text="{Binding Boosts.ReputationBoostID}" />
+        <ToggleButton Grid.Row="5" Grid.ColumnSpan="2" Margin="0,3,0,0" HorizontalAlignment="Stretch"
+                      Command="{Binding ToggleBoostsCommand}" Content="Use Boosts" IsChecked="{Binding Boosts.Enabled, Mode=OneWay}" />
+    </Grid>
+</UserControl>

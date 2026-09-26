@@ -1,0 +1,12 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.RuntimeHelpersView">
+    <Grid ColumnDefinitions="*,*" RowDefinitions="*,Auto">
+        <v:ToPickupDropsUserControl Grid.RowSpan="2" Grid.Column="0" Margin="6,6,3,6" DataContext="{Binding ToPickupDropsViewModel}" />
+        <v:RegisteredQuestsUserControl Grid.Row="0" Grid.Column="1" Margin="3,6,6,3" DataContext="{Binding RegisteredQuestsViewModel}" />
+        <v:BoostsUserControl Grid.Row="1" Grid.Column="1" Margin="3,3,6,6" DataContext="{Binding BoostsViewModel}" />
+    </Grid>
+</UserControl>

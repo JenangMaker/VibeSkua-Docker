@@ -43,5 +43,19 @@ public static class ViewRegistry
         ViewLocator.Register<FastTravelViewModel, FastTravelUserControl>();
         ViewLocator.Register<FastTravelEditorDialogViewModel, FastTravelEditorDialog>();
         ViewLocator.Register<LoadoutsViewModel, LoadoutsView>();
+
+        // Combat > Runtime
+        ViewLocator.Register<RuntimeHelpersViewModel, RuntimeHelpersView>();
+        ViewLocator.Register<NotifyDropViewModel, DropNotifyUserControl>();
+        ViewLocator.Register<BoostsViewModel, BoostsUserControl>();
+        ViewLocator.Register<ToPickupDropsViewModel, ToPickupDropsUserControl>();
+        ViewLocator.Register<RegisteredQuestsViewModel, RegisteredQuestsUserControl>();
+
+        // Combat > Skills
+        ViewLocator.Register<AdvancedSkillsViewModel, AdvancedSkillsView>();
+        ViewLocator.Register<AdvancedSkillEditorViewModel, AdvancedSkillEditorUserControl>();
+        ViewLocator.Register<SavedAdvancedSkillsViewModel, SavedAdvancedSkillsUserControl>();
+        ViewLocator.Register<SkillRulesViewModel, SkillRuleUserControl>();
+        ViewLocator.Register<SkillRuleEditorDialogViewModel, SkillRuleEditorDialog>();
     }
 }

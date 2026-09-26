@@ -1,0 +1,115 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.SkillRuleUserControl">
+    <DockPanel>
+        <Grid DockPanel.Dock="Bottom" Margin="0,10,0,0" ColumnDefinitions="150,*">
+            <CheckBox Grid.Column="0" Content="Skip if not available." IsChecked="{Binding SkipUseBool}">
+                <ToolTip.Tip>
+                    <TextBlock>Will skip skill if it is not available.<LineBreak />Note: If the skill has a Wait Use Rule, it will wait for the specified time and then check if it should be skipped.</TextBlock>
+                </ToolTip.Tip>
+            </CheckBox>
+            <TextBox Grid.Column="1" Margin="0,3" Watermark="Wait (ms)" UseFloatingWatermark="True" Text="{Binding WaitUseValue}" />
+        </Grid>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Orientation="Horizontal">
+                    <CheckBox Margin="0,0,15,0" Content="Use Rule?" IsChecked="{Binding UseRuleBool}"
+                              ToolTip.Tip="Whether to use the specified rule values when adding a skill." />
+                    <CheckBox Content="Multi Aura" IsChecked="{Binding MultiAuraBool}"
+                              ToolTip.Tip="Use multiple aura checks instead of single aura rule." />
+                </StackPanel>
+                <Button Grid.Row="0" Grid.Column="1" Margin="1" HorizontalAlignment="Right" Command="{Binding ResetUseRulesCommand}" Content="Reset" />
+
+                <ToggleButton Classes="flat" Grid.Row="1" Grid.Column="0" Margin="0,3" IsChecked="{Binding HealthGreaterThanBool}">
+                    <Panel>
+                        <icons:MaterialIcon Kind="GreaterThanOrEqual" IsVisible="{Binding HealthGreaterThanBool}" />
+                        <icons:MaterialIcon Kind="LessThanOrEqual" IsVisible="{Binding !HealthGreaterThanBool}" />
+                    </Panel>
+                </ToggleButton>
+                <Grid Grid.Row="1" Grid.Column="1" Margin="0,3" ColumnDefinitions="*,Auto">
+                    <TextBox Grid.Column="0" Margin="0,0,3,0" Watermark="Health" UseFloatingWatermark="True"
+                             Text="{Binding HealthUseValue}" b:Behave.OnlyNumbers="True" />
+                    <ToggleButton Grid.Column="1" Classes="flat" Margin="0,0,3,0" IsChecked="{Binding HealthIsPercentage}"
+                                  Content="{Binding HealthIsPercentage, Converter={StaticResource BoolText}, ConverterParameter='%|#'}" />
+                </Grid>
+
+                <ToggleButton Classes="flat" Grid.Row="2" Grid.Column="0" Margin="0,3" IsChecked="{Binding ManaGreaterThanBool}">
+                    <Panel>
+                        <icons:MaterialIcon Kind="GreaterThanOrEqual" IsVisible="{Binding ManaGreaterThanBool}" />
+                        <icons:MaterialIcon Kind="LessThanOrEqual" IsVisible="{Binding !ManaGreaterThanBool}" />
+                    </Panel>
+                </ToggleButton>
+                <Grid Grid.Row="2" Grid.Column="1" Margin="0,3" ColumnDefinitions="*,Auto">
+                    <TextBox Grid.Column="0" Margin="0,0,3,0" Watermark="Mana" UseFloatingWatermark="True"
+                             Text="{Binding ManaUseValue}" b:Behave.OnlyNumbers="True" />
+                    <ToggleButton Grid.Column="1" Classes="flat" Margin="0,0,3,0" IsChecked="{Binding ManaIsPercentage}"
+                                  Content="{Binding ManaIsPercentage, Converter={StaticResource BoolText}, ConverterParameter='%|#'}" />
+                </Grid>
+
+                <ToggleButton Classes="flat" Grid.Row="3" Grid.Column="0" Margin="0,3" IsChecked="{Binding PartyMemberHealthGreaterThanBool}">
+                    <Panel>
+                        <icons:MaterialIcon Kind="GreaterThanOrEqual" IsVisible="{Binding PartyMemberHealthGreaterThanBool}" />
+                        <icons:MaterialIcon Kind="LessThanOrEqual" IsVisible="{Binding !PartyMemberHealthGreaterThanBool}" />
+                    </Panel>
+                </ToggleButton>
+                <Grid Grid.Row="3" Grid.Column="1" Margin="0,3" ColumnDefinitions="*,Auto">
+                    <TextBox Grid.Column="0" Margin="0,0,3,0" Watermark="Party Member HP (any player)" UseFloatingWatermark="True"
+                             Text="{Binding PartyMemberHealthUseValue}" b:Behave.OnlyNumbers="True" />
+                    <ToggleButton Grid.Column="1" Classes="flat" Margin="0,0,3,0" IsChecked="{Binding PartyMemberHealthIsPercentage}"
+                                  Content="{Binding PartyMemberHealthIsPercentage, Converter={StaticResource BoolText}, ConverterParameter='%|#'}" />
+                </Grid>
+                <ToggleButton Classes="flat" Grid.Row="4" Grid.Column="0" Margin="0,3" IsVisible="{Binding !MultiAuraBool}" IsChecked="{Binding AuraGreaterThanBool}">
+                    <Panel>
+                        <icons:MaterialIcon Kind="GreaterThanOrEqual" IsVisible="{Binding AuraGreaterThanBool}" />
+                        <icons:MaterialIcon Kind="LessThanOrEqual" IsVisible="{Binding !AuraGreaterThanBool}" />
+                    </Panel>
+                </ToggleButton>
+                <Grid Grid.Row="4" Grid.Column="1" Margin="0,0,3,0" ColumnDefinitions="150,*,*" IsVisible="{Binding !MultiAuraBool}">
+                    <TextBox Grid.Column="0" Watermark="Aura Name" UseFloatingWatermark="True" Text="{Binding AuraName}" />
+                    <TextBox Grid.Column="1" Margin="3,0" Watermark="Stacks" UseFloatingWatermark="True" b:Behave.OnlyFloatingPoint="True"
+                             Text="{Binding AuraUseValue, UpdateSourceTrigger=LostFocus, Converter={StaticResource StringToFloatConverter}}" />
+                    <ComboBox Grid.Column="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" SelectedIndex="{Binding AuraTargetIndex}">
+                        <ComboBoxItem Content="Self" />
+                        <ComboBoxItem Content="Target" />
+                    </ComboBox>
+                </Grid>
+                <Grid Grid.Row="6" Grid.ColumnSpan="2" Margin="0,0,0,8" ColumnDefinitions="Auto,*,*,Auto" IsVisible="{Binding MultiAuraBool}">
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,5,0" Text="Operator:" />
+                    <ComboBox Grid.Column="1" Margin="0,0,10,0" SelectedIndex="{Binding MultiAuraOperatorIndex}">
+                        <ComboBoxItem Content="AND" />
+                        <ComboBoxItem Content="OR" />
+                    </ComboBox>
+                    <Button Grid.Column="3" Margin="20,0,0,0" Padding="15,0" Command="{Binding AddAuraCheckCommand}" Content="+ Add Aura" />
+                </Grid>
+                <ItemsControl Grid.Row="7" Grid.ColumnSpan="2" ItemsSource="{Binding MultiAuraChecks}" IsVisible="{Binding MultiAuraBool}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,2" ColumnDefinitions="Auto,*,60,80,Auto">
+                                <ToggleButton Classes="flat" Grid.Column="0" IsChecked="{Binding IsGreater}">
+                    <Panel>
+                        <icons:MaterialIcon Kind="GreaterThanOrEqual" IsVisible="{Binding IsGreater}" />
+                        <icons:MaterialIcon Kind="LessThanOrEqual" IsVisible="{Binding !IsGreater}" />
+                    </Panel>
+                </ToggleButton>
+                                <TextBox Grid.Column="1" Margin="0,0,2,0" Watermark="Aura Name" UseFloatingWatermark="True" Text="{Binding AuraName}" />
+                                <TextBox Grid.Column="2" Margin="2,0" Watermark="Stacks" UseFloatingWatermark="True" b:Behave.OnlyFloatingPoint="True"
+                                         Text="{Binding StackCount, UpdateSourceTrigger=LostFocus, Converter={StaticResource StringToFloatConverter}}" />
+                                <ComboBox Grid.Column="3" Margin="2,0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" SelectedIndex="{Binding AuraTargetIndex}">
+                                    <ComboBoxItem Content="Self" />
+                                    <ComboBoxItem Content="Target" />
+                                </ComboBox>
+                                <Button Grid.Column="4" Margin="4,0,0,0" Classes="flat"
+                                        Command="{Binding $parent[UserControl].DataContext.RemoveAuraCheckCommand}" CommandParameter="{Binding}">
+                                    <icons:MaterialIcon Kind="Minus" />
+                                </Button>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

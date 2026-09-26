@@ -1,0 +1,26 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.SavedAdvancedSkillsUserControl">
+    <Grid RowDefinitions="Auto,335">
+        <DockPanel Grid.Row="0">
+            <Button DockPanel.Dock="Right" Margin="3,6,3,3" Command="{Binding ResetSkillsSetCommand}" Content="Reset Skills" />
+            <Button DockPanel.Dock="Right" Margin="3,6,3,3" Command="{Binding RefreshSkillsCommand}"><icons:MaterialIcon Kind="Refresh" /></Button>
+            <TextBox x:Name="SearchBox" Margin="6,6,3,3" Watermark="Search" />
+        </DockPanel>
+        <ListBox x:Name="SkillsList" Grid.Row="1" Margin="6,3,6,6" SelectedItem="{Binding SelectedSkill}" SelectionMode="Multiple">
+            <ListBox.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Command="{Binding RemoveSelectedCommand}" Header="Remove Selected" />
+                </ContextMenu>
+            </ListBox.ContextMenu>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding}" DoubleTapped="Skill_DoubleTapped" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </Grid>
+</UserControl>

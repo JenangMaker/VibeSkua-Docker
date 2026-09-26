@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.RegisteredQuestsUserControl">
+    <Grid ColumnDefinitions="*,Auto" RowDefinitions="*,Auto">
+        <ListBox Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,3" ItemsSource="{Binding CurrentAutoQuests}" SelectionMode="Multiple"
+                 b:Behave.DeleteSelected="{Binding RemoveQuestsCommand}" b:Behave.AltDelete="{Binding RemoveAllQuestsCommand}"
+                 b:Behave.UnselectAllMenu="True">
+            <ToolTip.Tip>
+                <TextBlock>A list of all quests the bot will automatically try to complete.<LineBreak /><Bold>Delete:</Bold> Removes all selected quests from the registered quests list.<LineBreak /><Bold>Alt + Delete:</Bold> Removes all quests from the registered quests list.<LineBreak /></TextBlock>
+            </ToolTip.Tip>
+            <ListBox.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Command="{Binding RemoveAllQuestsCommand}" Header="Remove All" />
+                </ContextMenu>
+            </ListBox.ContextMenu>
+        </ListBox>
+        <Grid Grid.Row="1" Grid.Column="0" ColumnDefinitions="2*,*">
+            <TextBox Grid.Column="0" Margin="0,3,3,3" Watermark="Quest ID" UseFloatingWatermark="True" Text="{Binding AddQuestInput}" b:Behave.SelectAll="True">
+                <TextBox.KeyBindings>
+                    <KeyBinding Gesture="Enter" Command="{Binding AddQuestCommand}" />
+                </TextBox.KeyBindings>
+            </TextBox>
+            <TextBox Grid.Column="1" Margin="3,3,0,3" Watermark="Reward ID (optional)" UseFloatingWatermark="True" Text="{Binding RewardIdInput}" b:Behave.SelectAll="True"
+                     ToolTip.Tip="Item ID for quest reward choice. Leave empty or enter -1 for auto-select.">
+                <TextBox.KeyBindings>
+                    <KeyBinding Gesture="Enter" Command="{Binding AddQuestCommand}" />
+                </TextBox.KeyBindings>
+            </TextBox>
+        </Grid>
+        <Button Grid.Row="1" Grid.Column="1" Margin="3,3,0,3" VerticalAlignment="Stretch" Command="{Binding AddQuestCommand}" Content="Add" />
+    </Grid>
+</UserControl>
