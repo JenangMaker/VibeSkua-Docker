@@ -26,4 +26,5 @@
     <conv:MultiValueEqualityConverter x:Key="MultiValueEqualityConverter" />
     <conv:BoolTextConverter x:Key="BoolText" />
     <conv:ScriptRowBrushConverter x:Key="ScriptRowBrush" />
+    <conv:PacketDirectionBrushConverter x:Key="PacketDirectionBrush" />
 </ResourceDictionary>

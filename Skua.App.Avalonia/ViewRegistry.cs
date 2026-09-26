@@ -57,5 +57,10 @@ public static class ViewRegistry
         ViewLocator.Register<SavedAdvancedSkillsViewModel, SavedAdvancedSkillsUserControl>();
         ViewLocator.Register<SkillRulesViewModel, SkillRuleUserControl>();
         ViewLocator.Register<SkillRuleEditorDialogViewModel, SkillRuleEditorDialog>();
+
+        // Diagnostics > packets
+        ViewLocator.Register<PacketSpammerViewModel, PacketSpammerView>();
+        ViewLocator.Register<PacketLoggerViewModel, PacketLoggerView>();
+        ViewLocator.Register<PacketInterceptorViewModel, PacketInterceptorView>();
     }
 }

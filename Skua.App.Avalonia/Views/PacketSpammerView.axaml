@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.PacketSpammerView">
+    <Grid Margin="6" ColumnDefinitions="3*,*" RowDefinitions="*,Auto">
+        <ListBox x:Name="PacketsBox" Grid.Row="0" Grid.Column="0" Margin="0,0,3,3" ItemsSource="{Binding Packets}" SelectedIndex="{Binding SelectedIndex}"
+                 b:Behave.ScrollToSelected="True" />
+        <ScrollViewer Grid.Row="0" Grid.Column="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="6" Margin="3,0,0,0">
+                <Button HorizontalAlignment="Stretch" Command="{Binding AddPacketCommand}" Content="Add" IsEnabled="{Binding !SpammerCommand.IsRunning}" />
+                <Button HorizontalAlignment="Stretch" Command="{Binding RemovePacketCommand}" CommandParameter="{Binding #PacketsBox.SelectedItem}" Content="Remove" IsEnabled="{Binding !SpammerCommand.IsRunning}" />
+                <Button HorizontalAlignment="Stretch" Command="{Binding ClearPacketsCommand}" Content="Clear" IsEnabled="{Binding !SpammerCommand.IsRunning}" />
+                <Button HorizontalAlignment="Stretch" Command="{Binding LoadSpammerCommand}" Content="Load" IsEnabled="{Binding !SpammerCommand.IsRunning}" />
+                <Button HorizontalAlignment="Stretch" Command="{Binding SaveSpammerCommand}" Content="Save" IsEnabled="{Binding !SpammerCommand.IsRunning}" />
+                <TextBox Watermark="Delay" UseFloatingWatermark="True" IsEnabled="{Binding !SpammerCommand.IsRunning}" b:Behave.OnlyNumbers="True"
+                         Text="{Binding SpamDelay, Converter={StaticResource StringToIntConverter}}" />
+                <ToggleButton x:Name="StartToggle" HorizontalAlignment="Stretch" Classes="accent" Command="{Binding ToggleSpammerCommand}"
+                              IsChecked="{Binding SpammerCommand.IsRunning, Mode=OneWay}"
+                              Content="{Binding #StartToggle.IsChecked, Converter={StaticResource BoolText}, ConverterParameter='Stop|Start'}" />
+                <CheckBox HorizontalAlignment="Stretch" Content="Send to Client" IsChecked="{Binding SendToClient}" />
+            </StackPanel>
+        </ScrollViewer>
+        <TextBox Grid.Row="1" Grid.Column="0" Margin="0,3,3,0" Watermark="Packet" UseFloatingWatermark="True" Text="{Binding PacketText}" b:Behave.SelectAll="True" />
+        <Button Grid.Row="1" Grid.Column="1" Margin="3,3,0,0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                Command="{Binding SendPacketCommand}" Content="Send" IsEnabled="{Binding !SpammerCommand.IsRunning}" />
+    </Grid>
+</UserControl>

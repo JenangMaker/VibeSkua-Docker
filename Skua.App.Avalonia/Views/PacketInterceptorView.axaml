@@ -1,0 +1,59 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.PacketInterceptorView">
+    <Grid Margin="6" ColumnDefinitions="2*,*" RowDefinitions="Auto,Auto,Auto,*">
+        <Grid Grid.Row="0" Grid.Column="0" Margin="0,0,3,3" ColumnDefinitions="*,Auto">
+            <ComboBox Grid.Column="0" HorizontalAlignment="Stretch" PlaceholderText="Server" ItemsSource="{Binding ServerList}" SelectedItem="{Binding SelectedServer}" />
+            <Button Grid.Column="1" Width="110" Margin="6,0,0,0" Classes="accent" Command="{Binding ConnectInterceptorCommand}"
+                    Content="{Binding Running, Converter={StaticResource BoolText}, ConverterParameter='Disconnect|Connect'}" />
+        </Grid>
+        <TextBox x:Name="FilterSearchBox" Grid.Row="0" Grid.Column="1" Margin="3,0,0,3" Watermark="Search filters" />
+        <TextBox x:Name="SearchBox" Grid.Row="1" Grid.Column="0" Margin="0,0,3,3" Watermark="Search packets..." />
+        <ScrollViewer Grid.Row="1" Grid.RowSpan="3" Grid.Column="1" Margin="3,0,0,0" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="FiltersList">
+                <ItemsControl.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Command="{Binding ClearFiltersCommand}" Header="Clear Filters" />
+                    </ContextMenu>
+                </ItemsControl.ContextMenu>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <CheckBox HorizontalAlignment="Stretch" Margin="0,1" Content="{Binding Content}" IsChecked="{Binding IsChecked}" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+        <Grid Grid.Row="2" Grid.Column="0" Margin="0,3,3,3" ColumnDefinitions="Auto,*,Auto">
+            <ToggleButton Margin="3,0" Content="Log Packets" IsChecked="{Binding IsLogging}" />
+            <StackPanel Grid.Column="1" HorizontalAlignment="Center" Orientation="Horizontal">
+                <Border Height="30" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="2,2,1,2" CornerRadius="4,0,0,4" Background="#33FFFF00">
+                    <TextBlock Width="70" Margin="3,0" VerticalAlignment="Center" FontSize="14" Text="Outbound" TextAlignment="Center" />
+                </Border>
+                <Border Height="30" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="1,2,1,2" Background="#330000FF">
+                    <TextBlock Width="70" Margin="3,0" VerticalAlignment="Center" FontSize="14" Text="Inbound" TextAlignment="Center" />
+                </Border>
+                <Border Height="30" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="1,2,2,2" CornerRadius="0,4,4,0" Background="#33FF0000">
+                    <TextBlock Width="70" Margin="3,0" VerticalAlignment="Center" FontSize="14" Text="Blocked" TextAlignment="Center" />
+                </Border>
+            </StackPanel>
+            <Button Grid.Column="2" Command="{Binding ClearPacketsCommand}" Content="Clear" />
+        </Grid>
+        <ListBox x:Name="PacketsList" Grid.Row="3" Grid.Column="0" Margin="0,3,3,0" SelectionMode="Multiple"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Visible"
+                 b:Behave.CopySelected="True" b:Behave.ScrollToEnd="True" b:Behave.UnselectAllMenu="True">
+            <ListBox.Styles>
+                <Style Selector="ListBoxItem">
+                    <Setter Property="Background" Value="{Binding Outbound, Converter={StaticResource PacketDirectionBrush}}" />
+                </Style>
+            </ListBox.Styles>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding}" TextWrapping="Wrap" FontFamily="{DynamicResource MonoFont}" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </Grid>
+</UserControl>

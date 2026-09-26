@@ -127,3 +127,16 @@ public sealed class ScriptRowBrushConverter : IMultiValueConverter
     public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture) =>
         values.ElementAtOrDefault(1) is true ? Outdated : values.ElementAtOrDefault(0) is true ? Downloaded : Missing;
 }
+
+/// <summary>Packet interceptor row tint: Outbound true/false/null -> yellow/blue/red, as its triggers.</summary>
+public sealed class PacketDirectionBrushConverter : IValueConverter
+{
+    private static readonly IBrush Out = new SolidColorBrush(Colors.Yellow, 0.2);
+    private static readonly IBrush In = new SolidColorBrush(Colors.Blue, 0.2);
+    private static readonly IBrush Blocked = new SolidColorBrush(Colors.Red, 0.2);
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value switch { true => Out, false => In, _ => Blocked };
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => BindingOperations.DoNothing;
+}

@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.PacketLoggerView">
+    <Grid Margin="6" ColumnDefinitions="2*,*" RowDefinitions="Auto,*,Auto,Auto">
+        <TextBox x:Name="LogSearchBox" Grid.Row="0" Grid.Column="0" Margin="0,0,3,3" Watermark="Search packets" />
+        <TextBox x:Name="FilterSearchBox" Grid.Row="0" Grid.Column="1" Margin="3,0,0,3" Watermark="Search filters" />
+        <ListBox x:Name="PacketsList" Grid.Row="1" Grid.Column="0" Margin="0,3,3,3" SelectionMode="Multiple"
+                 b:Behave.CopySelected="True" b:Behave.UnselectAllMenu="True" b:Behave.ScrollToEnd="True">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding}" TextWrapping="Wrap" FontFamily="{DynamicResource MonoFont}" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <ScrollViewer Grid.Row="1" Grid.RowSpan="2" Grid.Column="1" Margin="3,0,0,3" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="FiltersList">
+                <ItemsControl.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Command="{Binding ClearFiltersCommand}" Header="Clear Filters" />
+                    </ContextMenu>
+                </ItemsControl.ContextMenu>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <CheckBox HorizontalAlignment="Stretch" Margin="0,1" Content="{Binding Content}" IsChecked="{Binding IsChecked}" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+        <Grid Grid.Row="2" Grid.Column="0" ColumnDefinitions="*,*">
+            <Button Grid.Column="0" Margin="0,3,3,3" HorizontalAlignment="Stretch" Click="UnselectAllLogs_Click" Content="Unselect All Logs" />
+            <Button Grid.Column="1" Margin="3,3,0,3" HorizontalAlignment="Stretch" Command="{Binding ClearFiltersCommand}" Content="Clear Filters" />
+        </Grid>
+        <Grid Grid.Row="3" Grid.ColumnSpan="2" Margin="0,3,0,0" ColumnDefinitions="*,*,*">
+            <Button Grid.Column="0" Margin="0,0,3,0" HorizontalAlignment="Stretch" Command="{Binding ClearPacketLogsCommand}" Content="Clear" />
+            <Button Grid.Column="1" Margin="3,0" HorizontalAlignment="Stretch" Command="{Binding SavePacketLogsCommand}" Content="Save" />
+            <ToggleButton Grid.Column="2" Margin="3,0,0,0" HorizontalAlignment="Stretch" Content="Enabled" IsChecked="{Binding IsReceivingPackets}" />
+        </Grid>
+    </Grid>
+</UserControl>
