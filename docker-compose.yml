@@ -83,7 +83,8 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.kasm
-    image: gitea.jenangmaker.cloud/jenangmaker/vibeskua-web:latest
+    # avalonia-ui branch: Skua with its UI. :latest is the headless base.
+    image: gitea.jenangmaker.cloud/jenangmaker/vibeskua-web:avalonia-ui
     ports:
       - "3000:3000"
       # With REMOTE_DEBUG_PORT below. Bind to the host's LAN IP, not 0.0.0.0.
