@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Skua without a UI, for Linux: Skua.Core driving skua.swf in the
+    vibeskua-web container's Ruffle page through Skua.Ruffle's bridge.
+    Scripts are loaded and started through a small local HTTP API.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Skua.Core\Skua.Core.csproj" />
+    <ProjectReference Include="..\Skua.Ruffle\Skua.Ruffle.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -30,7 +30,7 @@ if (!bridge.WaitForConnection(TimeSpan.FromMinutes(3)))
     return 1;
 }
 
-var flash = new RuffleFlash(bridge);
+var flash = new RuffleFlashUtil(bridge);
 string? Get(string path) => flash.Call("getGameObject", path);
 
 Console.WriteLine("== reads");

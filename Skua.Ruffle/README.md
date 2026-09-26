@@ -7,9 +7,9 @@ control. Plain `net10.0`; runs on Linux.
 - `RuffleBridge` - WebSocket server the page connects to; synchronous
   `Invoke` like Flash's `CallFunction`; the SWF's `ExternalInterface.call`s
   arrive as `FlashCall` events, in order, off the receive loop.
-- `RuffleFlash` - Skua's call surface over it (`Call`, `Call<T>`,
-  `Call(Type)`, the 15 ms getGameObject cache), matching Skua.WPF's
-  `FlashUtil` conversions. Becomes the `IFlashUtil` in phase 1.
+- `RuffleFlashUtil` - Skua.Core's `IFlashUtil` over it (`Call`, `Call<T>`,
+  `Call(Type)`, the 15 ms getGameObject cache, `FlashObject`s), matching
+  Skua.WPF's `FlashUtil` conversions. Used by `Skua.Host`.
 - `FlashValue` - JSON <-> .NET values, same rules as `ToFlashXml` /
   `FromFlashXml`.
 - Page side: `web/public/skua-bridge.js`.

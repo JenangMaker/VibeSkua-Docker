@@ -299,7 +299,6 @@ public static class Services
             "System.Threading",
             "System.Threading.Tasks",
             "System.Timers",
-            "System.Windows.Forms",
             "Skua.Core",
             "Skua.Core.Interfaces",
             "Skua.Core.Models",
@@ -318,6 +317,10 @@ public static class Services
             "Newtonsoft.Json",
             "Newtonsoft.Json.Linq",
         });
+        // WinForms only exists on Windows; elsewhere the using would make
+        // every script fail to compile.
+        if (OperatingSystem.IsWindows())
+            compiler.AddNamespaces(new[] { "System.Windows.Forms" });
         compiler.SaveGeneratedCode = true;
         return compiler;
     }
