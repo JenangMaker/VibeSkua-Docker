@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.LogTabUserControl">
+    <Grid RowDefinitions="*,Auto">
+        <ListBox Grid.Row="0" ItemsSource="{Binding Logs}" SelectionMode="Multiple"
+                 b:Behave.CopySelected="True" b:Behave.ScrollToEnd="True">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding}" TextWrapping="Wrap" FontFamily="{DynamicResource MonoFont}" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <Grid Grid.Row="1" ColumnDefinitions="*,*,*">
+            <Button Grid.Column="0" Margin="0,6,3,0" HorizontalAlignment="Stretch" Command="{Binding ClearLogCommand}" Content="Clear" />
+            <Button Grid.Column="1" Margin="3,6,3,0" HorizontalAlignment="Stretch" Command="{Binding CopyLogCommand}" Content="Copy" />
+            <Button Grid.Column="2" Margin="3,6,0,0" HorizontalAlignment="Stretch" Command="{Binding SaveLogCommand}" Content="Save" />
+        </Grid>
+    </Grid>
+</UserControl>

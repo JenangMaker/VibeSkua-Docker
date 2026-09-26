@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.CoreBotsOptionsView">
+    <DockPanel>
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto,Auto">
+            <ListBox Grid.Column="0" Classes="plain" Margin="3"
+                     ItemsSource="{Binding CoreBotsTabs}" SelectedItem="{Binding SelectedTab}"
+                     ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="6" /></ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+                <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="BorderBrush" Value="{DynamicResource SkuaPrimaryBrush}" />
+                        <Setter Property="BorderThickness" Value="1" />
+                        <Setter Property="CornerRadius" Value="14" />
+                        <Setter Property="Padding" Value="12,4" />
+                    </Style>
+                </ListBox.Styles>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Margin="4,0" Text="{Binding Header}" TextAlignment="Center" />
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock Grid.Column="1" Margin="0,0,10,0" VerticalAlignment="Center" FontSize="16" Text="{Binding CurrentPlayer}" />
+            <Button Grid.Column="2" Margin="6,0" Command="{Binding LoadCommand}" Content="Load" />
+            <Button Grid.Column="3" Margin="0,0,6,0" Command="{Binding SaveCommand}" Content="Save" />
+        </Grid>
+        <ContentControl Content="{Binding SelectedTab.Content}" />
+    </DockPanel>
+</UserControl>

@@ -1,0 +1,50 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.OptionItemUserControl">
+    <ContentControl Content="{Binding}">
+        <ContentControl.ContentTemplate>
+            <b:OptionTemplateSelector>
+                <b:OptionTemplateSelector.BoolTemplate>
+                    <DataTemplate>
+                        <CheckBox x:Name="OptionCheckBox" HorizontalAlignment="Stretch" Margin="6,2"
+                                  Command="{Binding Command}" CommandParameter="{Binding #OptionCheckBox.IsChecked}"
+                                  Content="{Binding Content}" IsChecked="{Binding Value}" IsThreeState="False"
+                                  ToolTip.Tip="{Binding Content}" />
+                    </DataTemplate>
+                </b:OptionTemplateSelector.BoolTemplate>
+                <b:OptionTemplateSelector.IntTemplate>
+                    <DataTemplate>
+                        <DockPanel Height="32" Margin="6,3">
+                            <TextBox x:Name="NumberTextBox" DockPanel.Dock="Left" Width="110" CornerRadius="16,0,0,16"
+                                     InnerRightContent="{Binding SuffixText}"
+                                     Text="{Binding Value}" b:Behave.OnlyNumbers="True" b:Behave.SelectAll="True" />
+                            <Button Classes="outlined" CornerRadius="0,16,16,0" HorizontalAlignment="Stretch"
+                                    Command="{Binding Command}" CommandParameter="{Binding #NumberTextBox.Text}"
+                                    Content="{Binding Content}" ToolTip.Tip="{Binding Content}" />
+                        </DockPanel>
+                    </DataTemplate>
+                </b:OptionTemplateSelector.IntTemplate>
+                <b:OptionTemplateSelector.StringTemplate>
+                    <DataTemplate>
+                        <DockPanel Height="32" Margin="6,3">
+                            <Button DockPanel.Dock="Right" Classes="outlined" CornerRadius="0,16,16,0"
+                                    Command="{Binding Command}" CommandParameter="{Binding #OptionTextBox.Text}"
+                                    Content="Set" ToolTip.Tip="{Binding Content}" />
+                            <TextBox x:Name="OptionTextBox" CornerRadius="16,0,0,16" Watermark="{Binding Content}"
+                                     Text="{Binding Value}" b:Behave.SelectAll="True" />
+                        </DockPanel>
+                    </DataTemplate>
+                </b:OptionTemplateSelector.StringTemplate>
+                <b:OptionTemplateSelector.ActionTemplate>
+                    <DataTemplate>
+                        <Button Height="32" Margin="6,3" Classes="outlined" CornerRadius="16" HorizontalAlignment="Stretch"
+                                Command="{Binding Command}" Content="{Binding Content}" ToolTip.Tip="{Binding Content}" />
+                    </DataTemplate>
+                </b:OptionTemplateSelector.ActionTemplate>
+            </b:OptionTemplateSelector>
+        </ContentControl.ContentTemplate>
+    </ContentControl>
+</UserControl>

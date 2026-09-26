@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.CBOClassSelectUserControl">
+    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+        <HeaderedContentControl Classes="card" Grid.Row="0" Grid.Column="0" Margin="0,0,3,0" Header="Solo Class">
+            <StackPanel Spacing="3">
+                <ComboBox DropDownOpened="ClassBox_DropDownOpened" HorizontalAlignment="Stretch" PlaceholderText="Class" ItemsSource="{Binding PlayerClasses}" SelectedItem="{Binding SelectedSoloClass}" />
+                <ComboBox HorizontalAlignment="Stretch" PlaceholderText="Mode" ItemsSource="{Binding SoloModeStrings}" SelectedItem="{Binding SelectedSoloModeString}" />
+                <CheckBox HorizontalAlignment="Stretch" Content="Specify Equipment" IsChecked="{Binding UseSoloEquipment}" />
+            </StackPanel>
+        </HeaderedContentControl>
+        <HeaderedContentControl Classes="card" Grid.Row="0" Grid.Column="1" Margin="3,0,0,0" Header="Farm Class">
+            <StackPanel Spacing="3">
+                <ComboBox DropDownOpened="ClassBox_DropDownOpened" HorizontalAlignment="Stretch" PlaceholderText="Class" ItemsSource="{Binding PlayerClasses}" SelectedItem="{Binding SelectedFarmClass}" />
+                <ComboBox HorizontalAlignment="Stretch" PlaceholderText="Mode" ItemsSource="{Binding FarmModeStrings}" SelectedItem="{Binding SelectedFarmModeString}" />
+                <CheckBox HorizontalAlignment="Stretch" Content="Specify Equipment" IsChecked="{Binding UseFarmEquipment}" />
+            </StackPanel>
+        </HeaderedContentControl>
+        <HeaderedContentControl Classes="card" Grid.Row="1" Grid.Column="0" Margin="0,6,3,0" Header="Dodge Class">
+            <StackPanel Spacing="3">
+                <ComboBox DropDownOpened="ClassBox_DropDownOpened" HorizontalAlignment="Stretch" PlaceholderText="Class" ItemsSource="{Binding PlayerClasses}" SelectedItem="{Binding SelectedDodgeClass}" />
+                <ComboBox HorizontalAlignment="Stretch" PlaceholderText="Mode" ItemsSource="{Binding DodgeModeStrings}" SelectedItem="{Binding SelectedDodgeModeString}" />
+                <CheckBox HorizontalAlignment="Stretch" Content="Specify Equipment" IsChecked="{Binding UseDodgeEquipment}" />
+            </StackPanel>
+        </HeaderedContentControl>
+        <HeaderedContentControl Classes="card" Grid.Row="1" Grid.Column="1" Margin="3,6,0,0" Header="Boss Class">
+            <StackPanel Spacing="3">
+                <ComboBox DropDownOpened="ClassBox_DropDownOpened" HorizontalAlignment="Stretch" PlaceholderText="Class" ItemsSource="{Binding PlayerClasses}" SelectedItem="{Binding SelectedBossClass}" />
+                <ComboBox HorizontalAlignment="Stretch" PlaceholderText="Mode" ItemsSource="{Binding BossModeStrings}" SelectedItem="{Binding SelectedBossModeString}" />
+                <CheckBox HorizontalAlignment="Stretch" Content="Specify Equipment" IsChecked="{Binding UseBossEquipment}" />
+            </StackPanel>
+        </HeaderedContentControl>
+    </Grid>
+</UserControl>

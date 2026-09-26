@@ -1,0 +1,48 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.CBOptionsUserControl">
+    <Grid RowDefinitions="Auto,*">
+        <TextBox x:Name="SearchBox" Grid.Row="0" Margin="6" Watermark="Search" />
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="OptionsList" Margin="6,0,6,6">
+                <ItemsControl.ItemTemplate>
+                    <b:OptionTemplateSelector>
+                        <b:OptionTemplateSelector.BoolTemplate>
+                            <DataTemplate>
+                                <CheckBox HorizontalAlignment="Stretch" Margin="0,1" Content="{Binding Content}" IsChecked="{Binding Value}"
+                                          IsThreeState="False" ToolTip.Tip="{Binding Content}" />
+                            </DataTemplate>
+                        </b:OptionTemplateSelector.BoolTemplate>
+                        <b:OptionTemplateSelector.IntTemplate>
+                            <DataTemplate>
+                                <Border Height="32" Margin="4,3" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="0.5" CornerRadius="16"
+                                        ToolTip.Tip="{Binding Description}">
+                                    <DockPanel>
+                                        <TextBox DockPanel.Dock="Right" Width="120" CornerRadius="0,16,16,0" Watermark="{Binding Content}"
+                                                 Text="{Binding Value}" b:Behave.OnlyNumbers="True" b:Behave.SelectAll="True" />
+                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Text="{Binding Content}" />
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </b:OptionTemplateSelector.IntTemplate>
+                        <b:OptionTemplateSelector.StringTemplate>
+                            <DataTemplate>
+                                <Border Height="32" Margin="4,3" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="0.5" CornerRadius="16"
+                                        ToolTip.Tip="{Binding Description}">
+                                    <DockPanel>
+                                        <TextBox DockPanel.Dock="Right" Width="120" CornerRadius="0,16,16,0" Watermark="{Binding Content}"
+                                                 Text="{Binding Value}" b:Behave.SelectAll="True" />
+                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Text="{Binding Content}" />
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </b:OptionTemplateSelector.StringTemplate>
+                    </b:OptionTemplateSelector>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

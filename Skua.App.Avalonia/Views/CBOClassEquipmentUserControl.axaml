@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.CBOClassEquipmentUserControl">
+    <UserControl.Styles>
+        <Style Selector="ComboBox.equip">
+            <Setter Property="Margin" Value="0,3" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+        </Style>
+    </UserControl.Styles>
+    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto">
+        <Button Grid.ColumnSpan="2" HorizontalAlignment="Stretch" Command="{Binding RefreshInventoryCommand}" Content="Refresh Inventory" />
+        <HeaderedContentControl Classes="card" Grid.Row="1" Grid.Column="0" Margin="0,6,3,0" Header="Solo Class Equipment">
+            <StackPanel>
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Helm" ItemsSource="{Binding Helms}" SelectedItem="{Binding SelectedSoloHelm}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Armor" ItemsSource="{Binding Armors}" SelectedItem="{Binding SelectedSoloArmor}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Cape" ItemsSource="{Binding Capes}" SelectedItem="{Binding SelectedSoloCape}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Weapon" ItemsSource="{Binding Weapons}" SelectedItem="{Binding SelectedSoloWeapon}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Pet" ItemsSource="{Binding Pets}" SelectedItem="{Binding SelectedSoloPet}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Ground Item" ItemsSource="{Binding GroundItems}" SelectedItem="{Binding SelectedSoloGroundItem}" />
+            </StackPanel>
+        </HeaderedContentControl>
+        <HeaderedContentControl Classes="card" Grid.Row="1" Grid.Column="1" Margin="3,6,0,0" Header="Farm Class Equipment">
+            <StackPanel>
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Helm" ItemsSource="{Binding Helms}" SelectedItem="{Binding SelectedFarmHelm}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Armor" ItemsSource="{Binding Armors}" SelectedItem="{Binding SelectedFarmArmor}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Cape" ItemsSource="{Binding Capes}" SelectedItem="{Binding SelectedFarmCape}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Weapon" ItemsSource="{Binding Weapons}" SelectedItem="{Binding SelectedFarmWeapon}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Pet" ItemsSource="{Binding Pets}" SelectedItem="{Binding SelectedFarmPet}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Ground Item" ItemsSource="{Binding GroundItems}" SelectedItem="{Binding SelectedFarmGroundItem}" />
+            </StackPanel>
+        </HeaderedContentControl>
+        <HeaderedContentControl Classes="card" Grid.Row="2" Grid.Column="0" Margin="0,6,3,0" Header="Dodge Class Equipment">
+            <StackPanel>
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Helm" ItemsSource="{Binding Helms}" SelectedItem="{Binding SelectedDodgeHelm}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Armor" ItemsSource="{Binding Armors}" SelectedItem="{Binding SelectedDodgeArmor}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Cape" ItemsSource="{Binding Capes}" SelectedItem="{Binding SelectedDodgeCape}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Weapon" ItemsSource="{Binding Weapons}" SelectedItem="{Binding SelectedDodgeWeapon}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Pet" ItemsSource="{Binding Pets}" SelectedItem="{Binding SelectedDodgePet}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Ground Item" ItemsSource="{Binding GroundItems}" SelectedItem="{Binding SelectedDodgeGroundItem}" />
+            </StackPanel>
+        </HeaderedContentControl>
+        <HeaderedContentControl Classes="card" Grid.Row="2" Grid.Column="1" Margin="3,6,0,0" Header="Boss Class Equipment">
+            <StackPanel>
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Helm" ItemsSource="{Binding Helms}" SelectedItem="{Binding SelectedBossHelm}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Armor" ItemsSource="{Binding Armors}" SelectedItem="{Binding SelectedBossArmor}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Cape" ItemsSource="{Binding Capes}" SelectedItem="{Binding SelectedBossCape}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Weapon" ItemsSource="{Binding Weapons}" SelectedItem="{Binding SelectedBossWeapon}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Pet" ItemsSource="{Binding Pets}" SelectedItem="{Binding SelectedBossPet}" />
+                <ComboBox Classes="equip" DropDownOpened="Equip_DropDownOpened" PlaceholderText="Ground Item" ItemsSource="{Binding GroundItems}" SelectedItem="{Binding SelectedBossGroundItem}" />
+            </StackPanel>
+        </HeaderedContentControl>
+    </Grid>
+</UserControl>

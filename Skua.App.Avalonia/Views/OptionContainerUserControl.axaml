@@ -1,0 +1,65 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.OptionContainerUserControl">
+    <Grid Grid.IsSharedSizeScope="True" RowDefinitions="*,Auto">
+        <Border Margin="6,6,6,3" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="1">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="Groups">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Expander Header="{Binding Name}" IsExpanded="{Binding IsExpanded}" Margin="0,0,0,6"
+                                      HorizontalAlignment="Stretch">
+                                <ItemsControl ItemsSource="{Binding Items}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Classes="optionRow" Background="Transparent" Padding="4,2"
+                                                    PointerPressed="Row_PointerPressed">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" SharedSizeGroup="OptionName" />
+                                                        <ColumnDefinition Width="190" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Margin="0,0,12,0" VerticalAlignment="Center" Text="{Binding Option.DisplayName}" />
+                                                    <ContentControl Grid.Column="1" Content="{Binding}">
+                                                        <ContentControl.ContentTemplate>
+                                                            <b:OptionContainerTemplateSelector>
+                                                                <b:OptionContainerTemplateSelector.EnumTemplate>
+                                                                    <DataTemplate>
+                                                                        <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding EnumValues}" SelectedItem="{Binding SelectedValue}" />
+                                                                    </DataTemplate>
+                                                                </b:OptionContainerTemplateSelector.EnumTemplate>
+                                                                <b:OptionContainerTemplateSelector.BoolTemplate>
+                                                                    <DataTemplate>
+                                                                        <CheckBox HorizontalAlignment="Stretch" Content="{Binding Value}" IsChecked="{Binding Value}" IsThreeState="False" />
+                                                                    </DataTemplate>
+                                                                </b:OptionContainerTemplateSelector.BoolTemplate>
+                                                                <b:OptionContainerTemplateSelector.StringTemplate>
+                                                                    <DataTemplate>
+                                                                        <TextBox HorizontalAlignment="Stretch" Text="{Binding Value}" b:Behave.SelectAll="True" />
+                                                                    </DataTemplate>
+                                                                </b:OptionContainerTemplateSelector.StringTemplate>
+                                                            </b:OptionContainerTemplateSelector>
+                                                        </ContentControl.ContentTemplate>
+                                                    </ContentControl>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Expander>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+        <Border Grid.Row="1" Margin="6,3,6,6" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="1">
+            <StackPanel>
+                <TextBlock Margin="6,3" FontSize="14" FontWeight="Bold" Text="{Binding SelectedOption.Option.DisplayName}" />
+                <TextBlock Margin="6,3" Text="{Binding SelectedOption.Option.Description}" TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

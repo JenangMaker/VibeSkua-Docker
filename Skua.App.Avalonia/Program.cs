@@ -22,7 +22,7 @@ if (args.Contains("--headless"))
 
 if (Array.IndexOf(args, "--snapshot") is int s and >= 0 && s + 1 < args.Length)
 {
-    Snapshot.Run(args[s + 1]);
+    Snapshot.Run(args[s + 1], s + 2 < args.Length ? args[s + 2] : null);
     return;
 }
 

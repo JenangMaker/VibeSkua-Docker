@@ -1,0 +1,12 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.ConsoleView">
+    <Grid Margin="6" RowDefinitions="*,Auto">
+        <TextBox Grid.Row="0" VerticalContentAlignment="Top" AcceptsReturn="True" AcceptsTab="True"
+                 FontFamily="{DynamicResource MonoFont}" Text="{Binding SnippetText}" />
+        <Button Grid.Row="1" Margin="0,6,0,0" HorizontalAlignment="Stretch" Command="{Binding RunCommand}" Content="Run" />
+    </Grid>
+</UserControl>

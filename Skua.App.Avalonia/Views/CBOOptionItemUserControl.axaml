@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.CBOOptionItemUserControl" xmlns:vms="clr-namespace:Skua.Core.ViewModels;assembly=Skua.Core">
+    <UserControl.Styles>
+        <Style Selector="TextBlock.optionTitle">
+            <Setter Property="Text" Value="{Binding Content}" />
+            <Setter Property="ToolTip.Tip" Value="{Binding Description}" />
+            <Setter Property="Padding" Value="18,0" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </UserControl.Styles>
+    <UserControl.DataTemplates>
+        <DataTemplate DataType="vms:CBOBoolOptionItemViewModel">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="Title" />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Classes="optionTitle" />
+                <ToggleButton Grid.Column="1" MinWidth="70" HorizontalAlignment="Left" IsChecked="{Binding Value}"
+                              Content="{Binding Value, Converter={StaticResource BoolText}, ConverterParameter='On|Off'}" />
+            </Grid>
+        </DataTemplate>
+        <DataTemplate DataType="vms:CBOBoolChoiceOptionItemViewModel">
+            <StackPanel>
+                <TextBlock Classes="optionTitle" />
+                <StackPanel Margin="36,3,0,3" Spacing="3">
+                    <CheckBox Content="{Binding FirstChoice}" IsChecked="{Binding Value}" />
+                    <CheckBox Content="{Binding SecondChoice}" IsChecked="{Binding !Value}" />
+                </StackPanel>
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vms:CBOChoiceOptionItemViewModel">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="Title" />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Classes="optionTitle" />
+                <ComboBox Grid.Column="1" Margin="6,0,0,0" MinWidth="160" ItemsSource="{Binding Options}" SelectedIndex="{Binding Value}" />
+            </Grid>
+        </DataTemplate>
+    </UserControl.DataTemplates>
+    <ContentControl Content="{Binding}" />
+</UserControl>

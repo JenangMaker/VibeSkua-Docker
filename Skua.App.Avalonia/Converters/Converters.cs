@@ -1,6 +1,7 @@
 using System.Globalization;
 using Avalonia.Data;
 using Avalonia.Data.Converters;
+using Avalonia.Media;
 
 namespace Skua.App.Avalonia.Converters;
 
@@ -100,4 +101,29 @@ public sealed class MultiValueEqualityConverter : IMultiValueConverter
 {
     public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture) =>
         values.All(o => o?.Equals(values[0]) == true) || values.All(o => o is null);
+}
+
+/// <summary>
+/// For WPF's DataTrigger-swapped texts: ConverterParameter="Text if true|Text if false".
+/// </summary>
+public sealed class BoolTextConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        string[] texts = (parameter as string ?? "True|False").Split('|');
+        return value is true ? texts[0] : texts.ElementAtOrDefault(1) ?? "";
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => BindingOperations.DoNothing;
+}
+
+/// <summary>Script repository row tint: [Downloaded, Outdated] -> brush, as ScriptRepoView's row triggers.</summary>
+public sealed class ScriptRowBrushConverter : IMultiValueConverter
+{
+    private static readonly IBrush Downloaded = new SolidColorBrush(Color.Parse("#456796"), 0.2);
+    private static readonly IBrush Missing = new SolidColorBrush(Colors.Red, 0.2);
+    private static readonly IBrush Outdated = new SolidColorBrush(Colors.Yellow, 0.2);
+
+    public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture) =>
+        values.ElementAtOrDefault(1) is true ? Outdated : values.ElementAtOrDefault(0) is true ? Downloaded : Missing;
 }

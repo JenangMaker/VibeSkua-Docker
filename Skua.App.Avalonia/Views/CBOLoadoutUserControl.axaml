@@ -1,0 +1,15 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.CBOLoadoutUserControl">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <v:CBOClassSelectUserControl Margin="6,6,6,3" DataContext="{Binding ClassSelectViewModel}" />
+            <Expander Margin="6,3,6,6" Header="Equipment" IsExpanded="False" HorizontalAlignment="Stretch">
+                <v:CBOClassEquipmentUserControl Margin="3" DataContext="{Binding ClassEquipmentViewModel}" />
+            </Expander>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

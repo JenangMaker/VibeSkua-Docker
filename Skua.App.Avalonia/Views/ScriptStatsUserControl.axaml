@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.ScriptStatsUserControl">
+    <Grid Grid.IsSharedSizeScope="True" Margin="6" ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <v:StatItemUserControl Grid.Row="0" Grid.Column="0" Icon="Sword" Label="Kills:" Value="{Binding ScriptStats.Kills}" />
+        <v:StatItemUserControl Grid.Row="1" Grid.Column="0" Icon="EmoticonDead" Label="Deaths:" Value="{Binding ScriptStats.Deaths}" />
+        <v:StatItemUserControl Grid.Row="2" Grid.Column="0" Icon="ProgressQuestion" Label="Accepted:" Value="{Binding ScriptStats.QuestsAccepted}" />
+        <v:StatItemUserControl Grid.Row="3" Grid.Column="0" Icon="QuestionMarkCircle" Label="Completed:" Value="{Binding ScriptStats.QuestsCompleted}" />
+        <v:StatItemUserControl Grid.Row="4" Grid.Column="0" Icon="Backpack" Label="Pickups:" Value="{Binding ScriptStats.Drops}" />
+        <v:StatItemUserControl Grid.Row="5" Grid.Column="0" Icon="Reload" Label="Re-logins:" Value="{Binding ScriptStats.Relogins}" />
+        <v:StatItemUserControl Grid.Row="6" Grid.Column="0" Icon="TimerSand" Label="Time:" Value="{Binding ScriptStats.Time, StringFormat='{}{0:hh\\:mm\\:ss}'}" />
+        <v:StatItemUserControl Grid.Row="0" Grid.Column="1" Icon="Backpack" Label="Inventory Free" Value="{Binding ScriptStats.InventoryFreeSpace}" />
+        <v:StatItemUserControl Grid.Row="1" Grid.Column="1" Label="Inventory Used" Value="{Binding ScriptStats.InventoryFilledSpace}" />
+        <v:StatItemUserControl Grid.Row="2" Grid.Column="1" Label="Inventory Max" Value="{Binding ScriptStats.InventorySpace}" />
+        <v:StatItemUserControl Grid.Row="4" Grid.Column="1" Icon="Bank" Label="Bank Free" Value="{Binding ScriptStats.BankFreeSpace}" />
+        <v:StatItemUserControl Grid.Row="5" Grid.Column="1" Label="Bank Used" Value="{Binding ScriptStats.BankFilledSpace}" />
+        <v:StatItemUserControl Grid.Row="6" Grid.Column="1" Label="Bank Max" Value="{Binding ScriptStats.BankSpace}" />
+        <Button Grid.Row="7" Grid.Column="0" Margin="1,3,2,0" HorizontalAlignment="Stretch" Command="{Binding ResetStatsCommand}" Content="Reset" />
+        <Button Grid.Row="7" Grid.Column="1" Margin="2,3,1,0" HorizontalAlignment="Stretch" Command="{Binding GetSpaceCommand}" Content="Get Space" />
+    </Grid>
+</UserControl>

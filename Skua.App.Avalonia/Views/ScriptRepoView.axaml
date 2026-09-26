@@ -1,0 +1,128 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.ScriptRepoView">
+    <Grid Margin="6">
+        <DockPanel>
+            <ScrollViewer DockPanel.Dock="Top" Margin="0,0,0,6" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <DockPanel>
+                    <Button DockPanel.Dock="Left" Margin="0,0,3,0" Command="{Binding UpdateAllCommand}" Content="Update All" IsEnabled="{Binding !IsBusy}" />
+                    <Button DockPanel.Dock="Left" Margin="3,0" Command="{Binding DownloadAllCommand}" Content="Download All" IsEnabled="{Binding !IsBusy}" />
+                    <Button DockPanel.Dock="Right" Margin="3,0,0,0" Command="{Binding RefreshScriptsCommand}" Content="Refresh" IsEnabled="{Binding !IsBusy}" />
+                    <Button DockPanel.Dock="Right" Margin="3,0,0,0" Command="{Binding UpdateDatesCommand}" Content="Update Dates" IsEnabled="{Binding !IsBusy}" />
+                    <Button DockPanel.Dock="Right" Margin="3,0,0,0" Command="{Binding AddCustomFolderCommand}" ToolTip.Tip="Set Custom Scripts Folder" IsEnabled="{Binding !IsBusy}">
+                        <icons:MaterialIcon Kind="FolderPlus" />
+                    </Button>
+                    <Button DockPanel.Dock="Right" Margin="3,0,0,0" Command="{Binding ClearCustomFolderCommand}" ToolTip.Tip="Clear Custom Scripts Folder" IsEnabled="{Binding !IsBusy}">
+                        <icons:MaterialIcon Kind="FolderRemove" />
+                    </Button>
+                    <Button DockPanel.Dock="Right" Margin="3,0,0,0" Command="{Binding LoadLocalScriptCommand}" ToolTip.Tip="Load Single Custom Script" IsEnabled="{Binding !IsBusy}">
+                        <icons:MaterialIcon Kind="FileDocumentPlus" />
+                    </Button>
+                    <ComboBox DockPanel.Dock="Right" Margin="6,0,0,0" Width="100" PlaceholderText="Filter by"
+                              ItemsSource="{Binding FilterOptions}" SelectedItem="{Binding FilterBy}" />
+                    <ComboBox DockPanel.Dock="Right" Margin="6,0,0,0" Width="120" PlaceholderText="Sort by"
+                              ItemsSource="{Binding SortOptions}" SelectedItem="{Binding SortBy}" />
+                    <ToggleButton DockPanel.Dock="Right" Margin="3,0,6,0" Width="50" IsChecked="{Binding SortDescending}"
+                                  Content="{Binding SortDescending, Converter={StaticResource BoolText}, ConverterParameter='Desc|Asc'}" />
+                    <TextBox x:Name="SearchBox" Margin="3,0" Watermark="Search:" MinWidth="150" />
+                </DockPanel>
+            </ScrollViewer>
+            <Border DockPanel.Dock="Bottom" Margin="0,6,0,0" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="1" CornerRadius="4">
+                <StackPanel Orientation="Horizontal" Margin="6,4">
+                    <TextBlock Text="Bot Scripts: " />
+                    <TextBlock Text="{Binding BotScriptQuantity, FallbackValue=000}" />
+                    <TextBlock Margin="12,0,4,0" Text="Downloaded Script Files:" />
+                    <TextBlock>
+                        <Run Text="{Binding DownloadedQuantity, Mode=OneWay, FallbackValue=000}" /><Run Text="/" /><Run Text="{Binding ScriptQuantity, Mode=OneWay, FallbackValue=000}" />
+                    </TextBlock>
+                    <TextBlock Margin="12,0,4,0" Text="Outdated:" />
+                    <TextBlock Text="{Binding OutdatedQuantity, FallbackValue=0}" />
+                </StackPanel>
+            </Border>
+            <DataGrid x:Name="ScriptsGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                      SelectionMode="Single" SelectedItem="{Binding SelectedItem}"
+                      HorizontalScrollBarVisibility="Disabled" GridLinesVisibility="Horizontal">
+                <DataGrid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Command="{Binding DownloadCommand}" Header="Download" IsEnabled="{Binding !SelectedItem.Downloaded, FallbackValue=False}" />
+                        <MenuItem Command="{Binding DeleteCommand}" Header="Delete" IsEnabled="{Binding SelectedItem.Downloaded, FallbackValue=False}" />
+                        <MenuItem Command="{Binding OpenScriptCommand}" Header="Open in VSCode" IsEnabled="{Binding SelectedItem.Downloaded, FallbackValue=False}" />
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
+                <DataGrid.Styles>
+                    <Style Selector="DataGridRow">
+                        <Setter Property="Background">
+                            <MultiBinding Converter="{StaticResource ScriptRowBrush}">
+                                <Binding Path="Downloaded" />
+                                <Binding Path="Outdated" />
+                            </MultiBinding>
+                        </Setter>
+                    </Style>
+                </DataGrid.Styles>
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="Script" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Grid Margin="4,3" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                                    <TextBlock Grid.Row="0" Text="Name:" Foreground="#919191" HorizontalAlignment="Right" Margin="0,0,5,0" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Info.Name}" Foreground="#97d2de" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Row="1" Text="Description:" Foreground="#919191" HorizontalAlignment="Right" Margin="0,0,5,0" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Info.Description}" TextWrapping="Wrap" Margin="0,0,0,5" />
+                                    <TextBlock Grid.Row="2" Text="Tags:" Foreground="#919191" HorizontalAlignment="Right" Margin="0,0,5,0" />
+                                    <ItemsControl Grid.Row="2" Grid.Column="1" ItemsSource="{Binding InfoTags}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border BorderBrush="#97d2de" BorderThickness="1" CornerRadius="5" Padding="5,0,5,2" Margin="0,1,5,5">
+                                                    <TextBlock Foreground="#97d2de" Text="{Binding}" />
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Grid.Row="3" Text="ScriptPath:" Foreground="#919191" HorizontalAlignment="Right" Margin="0,0,5,5" />
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding FilePath}" TextWrapping="Wrap" Foreground="#a8a8a8" />
+                                    <TextBlock Grid.Row="4" Text="Added On:" Foreground="#919191" HorizontalAlignment="Right" Margin="0,0,5,5" />
+                                    <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding FormattedCreationDate}" Foreground="#a8a8a8" />
+                                </Grid>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Action" Width="200">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="4">
+                                    <Button Content="Start" Width="55" Padding="2,0" FontSize="11" Focusable="False"
+                                            Command="{Binding StartScriptCommand}" CommandParameter="{Binding}"
+                                            IsEnabled="{Binding Downloaded, FallbackValue=False}"
+                                            IsVisible="{Binding !$parent[UserControl].DataContext.IsManagerMode, FallbackValue=True}" />
+                                    <Button Content="Queue" Width="55" Padding="2,0" FontSize="11" Focusable="False"
+                                            Command="{Binding QueueScriptCommand}" CommandParameter="{Binding}"
+                                            IsEnabled="{Binding Downloaded, FallbackValue=False}" />
+                                    <Button Content="Load" Width="55" Padding="2,0" FontSize="11" Focusable="False"
+                                            Command="{Binding LoadScriptCommand}" CommandParameter="{Binding}"
+                                            IsEnabled="{Binding Downloaded, FallbackValue=False}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </DockPanel>
+        <!-- MaterialDesign Snackbar -->
+        <Border VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,40" Padding="12,6" CornerRadius="4"
+                Background="#323232" BoxShadow="0 2 8 0 #80000000"
+                IsVisible="{Binding ProgressReportMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock VerticalAlignment="Center" Text="{Binding ProgressReportMessage}" />
+                <Button Classes="flat" Command="{Binding CancelTaskCommand}" ToolTip.Tip="Cancel">
+                    <icons:MaterialIcon Kind="Cancel" />
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.StatItemUserControl">
+    <Grid x:Name="Root">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition SharedSizeGroup="StatLabel" />
+            <ColumnDefinition SharedSizeGroup="StatValue" />
+        </Grid.ColumnDefinitions>
+        <DockPanel Grid.Column="0">
+            <icons:MaterialIcon DockPanel.Dock="Left" VerticalAlignment="Center" Width="16"
+                                Foreground="{DynamicResource SkuaPrimaryBrush}"
+                                Kind="{Binding $parent[v:StatItemUserControl].Icon}"
+                                IsVisible="{Binding $parent[v:StatItemUserControl].HasIcon}" />
+            <TextBlock Margin="3" FontWeight="Bold" Text="{Binding $parent[v:StatItemUserControl].Label}" />
+        </DockPanel>
+        <TextBlock Grid.Column="1" Margin="3" Text="{Binding $parent[v:StatItemUserControl].Value}" />
+    </Grid>
+</UserControl>

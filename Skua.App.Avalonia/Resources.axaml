@@ -10,6 +10,8 @@
     <SolidColorBrush x:Key="SkuaBarBrush" Color="#263238" />
     <SolidColorBrush x:Key="SkuaDividerBrush" Color="#1FFFFFFF" />
 
+    <FontFamily x:Key="MonoFont">DejaVu Sans Mono, Liberation Mono, Consolas, monospace</FontFamily>
+
     <sys:Boolean x:Key="TrueValue">True</sys:Boolean>
     <sys:Boolean x:Key="FalseValue">False</sys:Boolean>
 
@@ -22,4 +24,6 @@
     <conv:EqualToConverter x:Key="EqualToConverter" />
     <conv:GreaterThanConverter x:Key="GreaterThanConverter" />
     <conv:MultiValueEqualityConverter x:Key="MultiValueEqualityConverter" />
+    <conv:BoolTextConverter x:Key="BoolText" />
+    <conv:ScriptRowBrushConverter x:Key="ScriptRowBrush" />
 </ResourceDictionary>

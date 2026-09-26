@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Skua.App.Avalonia"
+             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.GameOptionsView">
+    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*,Auto,Auto">
+        <DockPanel Grid.Row="0" Grid.ColumnSpan="2">
+            <TextBox DockPanel.Dock="Right" Width="80" Margin="3,6,6,6" Watermark="Columns" UseFloatingWatermark="True"
+                     Text="{Binding Columns}" b:Behave.OnlyNumbers="True" />
+            <TextBox x:Name="SearchBox" Margin="6,6,3,6" Watermark="Search" />
+        </DockPanel>
+        <ScrollViewer Grid.Row="1" Grid.ColumnSpan="2" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="OptionsList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <v:OptionItemUserControl />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="{Binding $parent[UserControl].DataContext.Columns}" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </ScrollViewer>
+        <ComboBox Grid.Row="2" Grid.ColumnSpan="2" Margin="6,3,3,3" HorizontalAlignment="Stretch" PlaceholderText="Relogin Server"
+                  ItemsSource="{Binding ServersList}" SelectedItem="{Binding SelectedServer}" />
+        <DockPanel Grid.Row="3" Margin="6,3,3,6">
+            <Button DockPanel.Dock="Right" CornerRadius="0,2,2,0" Command="{Binding ResetDefaultOptionsCommand}" Content="Default"
+                    ToolTip.Tip="Reset to the application default values." />
+            <Button Margin="0,0,1,0" CornerRadius="2,0,0,2" HorizontalAlignment="Stretch" Command="{Binding ResetOptionsCommand}" Content="Reset"
+                    ToolTip.Tip="Resets to the user saved default values. If no user defaults are found, resets to the application default." />
+        </DockPanel>
+        <Button Grid.Row="3" Grid.Column="1" Margin="3,3,6,6" HorizontalAlignment="Stretch" Command="{Binding SaveOptionsCommand}" Content="Save" />
+    </Grid>
+</UserControl>
