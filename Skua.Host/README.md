@@ -14,8 +14,11 @@ ActiveX control.
 
 ## In the container
 
-`docker/Dockerfile.kasm` publishes it self-contained to `/opt/skua-host`
-(not single-file: the script compiler needs the assemblies on disk), and
+The runtime is in `Skua.Linux`. The image ships `Skua.App.Avalonia`, which is
+the same runtime with Skua's windows, and runs without them under
+`--headless` / `SKUA_UI=0`; this project stays as the minimal headless build.
+`docker/Dockerfile.kasm` publishes it self-contained to `/opt/skua` (not
+single-file: the script compiler needs the assemblies on disk), and
 `web/main.js` starts it when `SKUA_HOST=1`; the page then connects on its own.
 See `web/README.md` ("Skua").
 

@@ -133,10 +133,11 @@ services:
       # RECYCLE_AFTER_MAP_CHANGES: "60"
       # Skua itself (Skua.App.Avalonia): the page connects to it and it drives
       # the game; its windows (main menu, bot window, options, ...) open on
-      # this desktop. SKUA_UI: "0" runs it without windows. Scripts start through its control API, which has NO
-      # AUTH (it runs code as the bot) and listens inside the container only:
+      # this desktop. SKUA_UI: "0" runs it without windows. Scripts can also
+      # start through its control API, which has NO AUTH (it runs code as the
+      # bot) and listens inside the container only:
       #   docker exec vibeskua-web curl -s localhost:8791/status
-      # See Skua.Host/README.md.
+      # See Skua.App.Avalonia/README.md and Skua.Host/README.md.
       # SKUA_HOST: "1"
       # SKUA_UI: "1"
       # Script to start once logged in: a repository path (scripts are synced

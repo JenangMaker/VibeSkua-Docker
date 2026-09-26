@@ -17,11 +17,11 @@ It runs the **client**, not VibeSkua. Three layers, and only the first is done:
 | :--- | :--- |
 | AQW client renders on Ruffle, bridge callbacks live | ✅ verified (Gitea run #698, 28/28) |
 | You can log in and play | ⚠️ implemented here, **never tested** |
-| The bot automates it | ⚠️ `Skua.Host` (`SKUA_HOST=1`), phase 1: scripts via an API, no UI |
+| The bot automates it | ⚠️ `SKUA_HOST=1`: Skua with its UI (Avalonia port) and a control API |
 
 `Skua.Core` — the actual bot brain: scripts, combat, quests and scheduling —
-runs headless next to the page with `SKUA_HOST=1` (see "Skua" below). There
-is no Skua UI yet; scripts are started through a local API.
+runs next to the page with `SKUA_HOST=1`, with its own windows on this desktop
+and a local control API (see "Skua" below).
 
 See `docs/ruffle-test/README.md` for what has actually been proven, and
 `DOCKER.md` for why the real client cannot be containerised as written.
@@ -320,13 +320,17 @@ from ~536k to ~198k and loaded SWFs from 384 to 32.
 
 ## Skua (SKUA_HOST=1)
 
-With `SKUA_HOST=1` the image runs `Skua.Host` (`/opt/skua-host`) beside the
-page: Skua.Core with no UI, driving `skua.swf` through `public/skua-bridge.js`
-over a local WebSocket (`127.0.0.1:8790`). `main.js` starts it, restarts it if
-it exits, and prefixes its output with `[skua]` in the container log.
+With `SKUA_HOST=1` the image runs Skua (`/opt/skua/Skua.App.Avalonia`) beside
+the page: Skua.Core with the VibeSkua client UI ported to Avalonia, driving
+`skua.swf` through `public/skua-bridge.js` over a local WebSocket
+(`127.0.0.1:8790`). Its windows (main menu, bot window, script loader and
+repository, options, skills, grabber, packet tools, ...) open on this desktop
+next to the game; `SKUA_UI=0` runs it without windows. `main.js` starts it,
+restarts it if it exits, and prefixes its output with `[skua]` in the
+container log. See `Skua.App.Avalonia/README.md`.
 
-Scripts are started through its control API (see `Skua.Host/README.md`),
-which by default listens inside the container only:
+Scripts can also be started through its control API (see
+`Skua.Host/README.md`), which by default listens inside the container only:
 
 ```sh
 docker exec vibeskua-web curl -s localhost:8791/status
