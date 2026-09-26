@@ -33,7 +33,10 @@ CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
 CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
 
-string Env(string name, string fallback) => Environment.GetEnvironmentVariable(name) is { Length: > 0 } v ? v : fallback;
+// Tolerates surrounding quotes and spaces: in compose's list form,
+// `- VAR="value"` passes the quotes through as part of the value.
+string? EnvRaw(string name) => Environment.GetEnvironmentVariable(name)?.Trim().Trim('"', '\'').Trim() is { Length: > 0 } v ? v : null;
+string Env(string name, string fallback) => EnvRaw(name) ?? fallback;
 string? Arg(string name)
 {
     int i = Array.IndexOf(args, name);
@@ -79,10 +82,19 @@ _ = Task.Run(scripts.StartupAsync);
 bridge.ConnectionChanged += up => Console.WriteLine(up ? "[host] page connected" : "[host] page disconnected");
 bridge.Start();
 var api = new HostApi(provider, scripts, Env("SKUA_API_PREFIX", "http://127.0.0.1:8791/"));
-api.Start();
+try
+{
+    api.Start();
+}
+catch (Exception e)
+{
+    // Keep the bot (and SKUA_SCRIPT) running without its API rather than
+    // restarting forever over a bad setting.
+    Console.Error.WriteLine($"[host] control API not started ({Env("SKUA_API_PREFIX", "http://127.0.0.1:8791/")}): {e.Message}");
+}
 Console.WriteLine("[host] ready: bridge " + Env("SKUA_BRIDGE_PREFIX", "http://127.0.0.1:8790/") + ", api " + Env("SKUA_API_PREFIX", "http://127.0.0.1:8791/"));
 
-if ((Arg("--script") ?? Environment.GetEnvironmentVariable("SKUA_SCRIPT")) is { Length: > 0 } script)
+if ((Arg("--script") ?? EnvRaw("SKUA_SCRIPT")) is { Length: > 0 } script)
 {
     _ = Task.Run(async () =>
     {

@@ -119,9 +119,10 @@ const RECYCLE_AFTER_MAP_CHANGES = Number(process.env.RECYCLE_AFTER_MAP_CHANGES |
 // whatever reaches it can run arbitrary code as the bot. It binds to
 // 127.0.0.1 by default (use `docker exec`); SKUA_API_PREFIX=http://+:8791/
 // opens it to wherever the port is published - a LAN address only.
-const SKUA_HOST = /^(1|true|yes)$/i.test((process.env.SKUA_HOST || '').trim());
+const unquote = v => (v || '').trim().replace(/^["']|["']$/g, '').trim();
+const SKUA_HOST = /^(1|true|yes)$/i.test(unquote(process.env.SKUA_HOST));
 const SKUA_HOST_BIN = process.env.SKUA_HOST_BIN || '/opt/skua-host/Skua.Host';
-const SKUA_BRIDGE_PREFIX = process.env.SKUA_BRIDGE_PREFIX || 'http://127.0.0.1:8790/';
+const SKUA_BRIDGE_PREFIX = unquote(process.env.SKUA_BRIDGE_PREFIX) || 'http://127.0.0.1:8790/';
 const SKUA_BRIDGE_URL = SKUA_BRIDGE_PREFIX.replace(/^http/, 'ws').replace('://+:', '://127.0.0.1:').replace('://*:', '://127.0.0.1:');
 
 let skuaChild = null;
@@ -138,7 +139,7 @@ function startSkuaHost() {
       env: {
         ...process.env,
         SKUA_BRIDGE_PREFIX,
-        SKUA_BRIDGE_ORIGINS: process.env.SKUA_BRIDGE_ORIGINS || `http://127.0.0.1:${PORT}`,
+        SKUA_BRIDGE_ORIGINS: unquote(process.env.SKUA_BRIDGE_ORIGINS) || `http://127.0.0.1:${PORT}`,
         DOTNET_CLI_TELEMETRY_OPTOUT: '1',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
