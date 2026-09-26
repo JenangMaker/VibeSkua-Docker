@@ -31,6 +31,8 @@ authentication: whatever can reach it can run code as the bot.
 curl -s localhost:8791/status
 curl -s -X POST -d '' 'localhost:8791/script/start?path=/path/to/Script.cs'
 curl -s -X POST --data-binary @Script.cs localhost:8791/script/start
+curl -s -X POST -d '' 'localhost:8791/script/load?path=Farm/GoldFarm'   # load only
+curl -s -X POST -d '' localhost:8791/script/start    # start the loaded script
 curl -s -X POST -d '' localhost:8791/script/stop
 curl -s 'localhost:8791/log?type=script&since=0'     # script | debug | flash
 ```
@@ -38,8 +40,9 @@ curl -s 'localhost:8791/log?type=script&since=0'     # script | debug | flash
 Always send a body with POST (`-d ''`): .NET's HttpListener on Linux answers a
 body-less POST with 411 but may still run the handler.
 
-`SKUA_SCRIPT=/path/to/Script.cs` (or `--script`) starts a script once the page
-is connected and logged in.
+`SKUA_SCRIPT=/path/to/Script.cs` loads a script at startup (in the UI it shows
+in the Script Loader, ready to start); `SKUA_SCRIPT_AUTO_START=1` also starts
+it once the page is connected and logged in. `--script` loads and starts.
 
 ## Scripts
 

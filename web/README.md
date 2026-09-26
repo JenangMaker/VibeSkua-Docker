@@ -339,7 +339,8 @@ docker exec vibeskua-web curl -s -X POST -d '' 'localhost:8791/script/start?path
 docker exec vibeskua-web curl -s -X POST -d '' localhost:8791/script/stop
 ```
 
-or set `SKUA_SCRIPT` to start one as soon as the character is logged in.
+or set `SKUA_SCRIPT` to load one at startup, and `SKUA_SCRIPT_AUTO_START=1` to
+also start it as soon as the character is logged in.
 Skua's script repository is synced at startup, as in the Windows app, so
 scripts are named by their repository path; no need to copy them in.
 Skua's settings and files live in `/config/.config/Skua` (kept across

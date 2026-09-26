@@ -17,8 +17,10 @@ namespace Skua.Linux;
 ///   SKUA_BRIDGE_PREFIX   where the page connects   (http://127.0.0.1:8790/)
 ///   SKUA_BRIDGE_ORIGINS  page origins allowed      (http://127.0.0.1:8770)
 ///   SKUA_API_PREFIX      control API               (http://127.0.0.1:8791/)
-///   SKUA_SCRIPT          script to start once logged in; absolute, or a
-///                        repository path such as Farm/GoldFarm
+///   SKUA_SCRIPT          script to load at startup (the Script Loader shows
+///                        it, ready to start); absolute, or a repository path
+///                        such as Farm/GoldFarm
+///   SKUA_SCRIPT_AUTO_START  1: also start it once logged in (default off)
 /// </summary>
 public sealed class SkuaRuntime
 {
@@ -124,16 +126,26 @@ public sealed class SkuaRuntime
         }
         Console.WriteLine($"[host] ready: bridge {Env("SKUA_BRIDGE_PREFIX", "http://127.0.0.1:8790/")}, api {apiPrefix}");
 
-        if ((script ?? EnvRaw("SKUA_SCRIPT")) is { Length: > 0 } toStart)
+        if ((script ?? EnvRaw("SKUA_SCRIPT")) is { Length: > 0 } toLoad)
         {
+            bool autoStart = script is not null || EnvRaw("SKUA_SCRIPT_AUTO_START") is { } a
+                && a.ToLowerInvariant() is "1" or "true" or "yes" or "on";
             _ = Task.Run(async () =>
             {
+                // Loading may wait for the script sync to fetch it.
+                if (await Api.LoadScriptFile(toLoad) is { } loadError)
+                {
+                    Console.Error.WriteLine($"[host] could not load {toLoad}: {loadError}");
+                    return;
+                }
+                Console.WriteLine($"[host] loaded {toLoad}" + (autoStart ? "; starting it once logged in" : " (SKUA_SCRIPT_AUTO_START is off: start it from Skua)"));
+                if (!autoStart)
+                    return;
                 var bot = provider.GetRequiredService<IScriptInterface>();
                 while (!(Bridge.IsConnected && bot.Player.LoggedIn))
                     await Task.Delay(2000);
-                Console.WriteLine($"[host] logged in; starting {toStart}");
-                var error = await Api.StartScriptFile(toStart);
-                if (error is not null)
+                Console.WriteLine($"[host] logged in; starting {toLoad}");
+                if (await Api.StartLoadedAsync() is { } error)
                     Console.Error.WriteLine($"[host] script failed to start: {error}");
             });
         }

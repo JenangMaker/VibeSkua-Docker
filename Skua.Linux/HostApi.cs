@@ -4,6 +4,8 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Skua.Core.Interfaces;
 using Skua.Core.Models;
+using CommunityToolkit.Mvvm.Messaging;
+using Skua.Core.Messaging;
 using Skua.Ruffle;
 
 namespace Skua.Linux;
@@ -44,6 +46,7 @@ public sealed class HostApi(IServiceProvider services, ScriptSync scripts, strin
             result = (method, path) switch
             {
                 ("GET", "/status") => Status(),
+                ("POST", "/script/load") => await LoadFromRequest(ctx.Request),
                 ("POST", "/script/start") => await StartFromRequest(ctx.Request),
                 ("POST", "/script/stop") => await Stop(),
                 ("GET", "/log") => Log(ctx.Request),
@@ -102,20 +105,36 @@ public sealed class HostApi(IServiceProvider services, ScriptSync scripts, strin
         };
     }
 
+    // ?path=<file>, or the script source as the body; null when neither is given.
+    private async Task<string?> ScriptFromRequest(HttpListenerRequest request)
+    {
+        if (request.QueryString["path"] is { } file)
+            return file;
+        using var reader = new StreamReader(request.InputStream, request.ContentEncoding ?? Encoding.UTF8);
+        string source = await reader.ReadToEndAsync();
+        if (string.IsNullOrWhiteSpace(source))
+            return null;
+        Directory.CreateDirectory(_scratch);
+        file = Path.Combine(_scratch, $"api-{DateTime.UtcNow:yyyyMMdd-HHmmss}.cs");
+        await File.WriteAllTextAsync(file, source);
+        return file;
+    }
+
+    private async Task<object> LoadFromRequest(HttpListenerRequest request)
+    {
+        if (await ScriptFromRequest(request) is not { } file)
+            return new { error = "give ?path=<file> or the script source as the body" };
+        var error = await LoadScriptFile(file);
+        return error is null ? new { loaded = services.GetRequiredService<IScriptManager>().LoadedScript } : new { error };
+    }
+
+    // With no script given, starts the loaded one (SKUA_SCRIPT, /script/load,
+    // or picked in the Script Loader).
     private async Task<object> StartFromRequest(HttpListenerRequest request)
     {
-        string? file = request.QueryString["path"];
-        if (file is null)
-        {
-            using var reader = new StreamReader(request.InputStream, request.ContentEncoding ?? Encoding.UTF8);
-            string source = await reader.ReadToEndAsync();
-            if (string.IsNullOrWhiteSpace(source))
-                return new { error = "give ?path=<file> or the script source as the body" };
-            Directory.CreateDirectory(_scratch);
-            file = Path.Combine(_scratch, $"api-{DateTime.UtcNow:yyyyMMdd-HHmmss}.cs");
-            await File.WriteAllTextAsync(file, source);
-        }
-        var error = await StartScriptFile(file);
+        string? error = await ScriptFromRequest(request) is { } file
+            ? await StartScriptFile(file)
+            : await StartLoadedAsync();
         return error is null ? new { started = services.GetRequiredService<IScriptManager>().LoadedScript } : new { error };
     }
 
@@ -134,20 +153,45 @@ public sealed class HostApi(IServiceProvider services, ScriptSync scripts, strin
     }
 
     /// <summary>
-    /// Loads and starts a script; returns why it failed, if it did. A relative
-    /// path is a repository path under Skua/Scripts, fetched if not on disk.
+    /// Loads a script, as the Script Loader's Load button does (it shows there,
+    /// ready to start); returns why it failed, if it did. A relative path is a
+    /// repository path under Skua/Scripts, fetched if not on disk.
     /// </summary>
-    public async Task<string?> StartScriptFile(string file)
+    public async Task<string?> LoadScriptFile(string file)
     {
         file = await scripts.ResolveAsync(file);
         if (!File.Exists(file))
             return $"no such file: {file}";
         var manager = services.GetRequiredService<IScriptManager>();
         if (manager.ScriptRunning)
-            await manager.StopScript();
+            return $"a script is running ({Path.GetFileName(manager.LoadedScript)}); stop it first";
         manager.SetLoadedScript(file);
+        // The Script Loader's own load handling (status line, Start enabled),
+        // on the UI thread when there is one.
+        services.GetRequiredService<IDispatcherService>().Invoke(() =>
+            StrongReferenceMessenger.Default.Send(new LoadScriptMessage(file), (int)MessageChannels.ScriptStatus));
+        return null;
+    }
+
+    /// <summary>Starts the loaded script; returns why it failed, if it did.</summary>
+    public async Task<string?> StartLoadedAsync()
+    {
+        var manager = services.GetRequiredService<IScriptManager>();
+        if (string.IsNullOrEmpty(manager.LoadedScript))
+            return "no script loaded: give ?path=<file>, or load one first";
+        if (manager.ScriptRunning)
+            return null;
         var exception = await manager.StartScript();
         return exception?.ToString();
+    }
+
+    /// <summary>Loads and starts a script, stopping any running one first.</summary>
+    public async Task<string?> StartScriptFile(string file)
+    {
+        var manager = services.GetRequiredService<IScriptManager>();
+        if (manager.ScriptRunning)
+            await manager.StopScript();
+        return await LoadScriptFile(file) ?? await StartLoadedAsync();
     }
 
     private async Task<object> Stop()

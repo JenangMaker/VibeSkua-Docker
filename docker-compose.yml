@@ -144,9 +144,12 @@ services:
       # The game is embedded in Skua's main window under its menu, as in the
       # Windows app; "0" keeps them separate (Skua a bar above the game).
       # SKUA_EMBED_GAME: "1"
-      # Script to start once logged in: a repository path (scripts are synced
-      # from auqw/Scripts at startup) or an absolute path.
+      # Script to load at startup (it shows in the Script Loader, ready to
+      # start): a repository path (scripts are synced from auqw/Scripts at
+      # startup) or an absolute path.
       # SKUA_SCRIPT: "Farm/GoldFarm"
+      # "1": also start it once logged in. Off by default: it only loads.
+      # SKUA_SCRIPT_AUTO_START: "0"
       # Script sync at startup: "auto" follows Skua's options (Auto Update
       # Scripts on: download silently; off: ask), "ask" always asks (Update
       # all / Only missing / Skip), "off" never syncs. A mounted Scripts folder
