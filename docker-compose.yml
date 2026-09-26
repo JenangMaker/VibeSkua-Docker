@@ -147,9 +147,20 @@ services:
       # Script to start once logged in: a repository path (scripts are synced
       # from auqw/Scripts at startup) or an absolute path.
       # SKUA_SCRIPT: "Farm/GoldFarm"
+      # Script sync at startup: "auto" follows Skua's options (Auto Update
+      # Scripts on: download silently; off: ask), "ask" always asks (Update
+      # all / Only missing / Skip), "off" never syncs. A mounted Scripts folder
+      # (see volumes below) is always asked about, since "Update all"
+      # overwrites local changes to outdated scripts.
+      # SKUA_SCRIPT_SYNC: "auto"
       # To reach the API from the LAN instead, add a LAN-IP port mapping
       # ("192.168.2.20:8791:8791") and:
       # SKUA_API_PREFIX: "http://+:8791/"
+    # Your own scripts: mount a host folder as Skua's Scripts folder. It must
+    # be writable by the container user (PUID/PGID). Skua asks before syncing
+    # it with auqw/Scripts (SKUA_SCRIPT_SYNC above).
+    # volumes:
+    #   - /path/on/host/skua-scripts:/config/.config/Skua/Scripts
     # Chromium needs syscalls Docker's default seccomp profile blocks.
     security_opt:
       - seccomp=unconfined

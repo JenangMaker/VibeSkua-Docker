@@ -12,6 +12,13 @@ namespace Skua.Linux;
 /// Honours the same settings (CheckBotScriptsUpdates, AutoUpdateBotScripts,
 /// CheckAdvanceSkillSetsUpdates, AutoUpdateAdvanceSkillSetsUpdates,
 /// CheckJunkItemsUpdates, AutoUpdateJunkItems).
+///
+/// Instead of downloading silently it asks (Update all / Only missing / Skip)
+/// when AutoUpdateBotScripts is off, when the Scripts folder is mounted from
+/// the host (updating overwrites local changes to outdated scripts), or when
+/// SKUA_SCRIPT_SYNC=ask; SKUA_SCRIPT_SYNC=off skips it. Like WPF, it asks
+/// before updating the junk list when AutoUpdateJunkItems is off. Without a
+/// UI the dialogs answer Skip / No.
 /// </summary>
 public sealed class ScriptSync(IServiceProvider services)
 {
@@ -20,6 +27,29 @@ public sealed class ScriptSync(IServiceProvider services)
 
     private IGetScriptsService Repo => services.GetRequiredService<IGetScriptsService>();
     private ISettingsService Settings => services.GetRequiredService<ISettingsService>();
+    private IDialogService Dialogs => services.GetRequiredService<IDialogService>();
+
+    // Refresh the index, then let the user choose what to download.
+    private async Task AskAndUpdateAsync(bool mounted)
+    {
+        await UpdateScriptsAsync(Scope.None);
+        var repo = Repo;
+        int missing = repo.Missing, outdated = repo.Outdated;
+        if (missing == 0 && outdated == 0)
+            return;
+
+        string message =
+            $"auqw/Scripts has {missing} script(s) you do not have and {outdated} newer than yours (of {repo.Total}).\r\n\r\n" +
+            (mounted
+                ? $"Your Scripts folder ({ClientFileSources.SkuaScriptsDIR}) is mounted from the host. \"Update all\" replaces your outdated scripts with the repository's versions, including any local changes to them; \"Only missing\" adds new scripts and leaves yours alone.\r\n\r\n"
+                : "") +
+            "Download them now?";
+        DialogResult choice = Dialogs.ShowMessageBox(message, "Script Updates", "Update all", "Only missing", "Skip");
+        Scope scope = choice.Value switch { 0 => Scope.All, 1 => Scope.Missing, _ => Scope.None };
+        Console.WriteLine($"[scripts] {missing} missing, {outdated} outdated; chose: {(choice.Value < 0 ? "Skip" : choice.Text)}");
+        if (scope != Scope.None)
+            await UpdateScriptsAsync(scope, refresh: false);
+    }
 
     public bool Syncing { get; private set; }
     public string LastResult { get; private set; } = "not run";
@@ -27,14 +57,46 @@ public sealed class ScriptSync(IServiceProvider services)
     /// <summary>Completes once the startup sync has finished, whatever its outcome.</summary>
     public Task FirstSync => _firstSync.Task;
 
+    public enum Scope { None, Missing, All }
+
+    /// <summary>Whether Skua's Scripts folder is a mount (a host folder given to the container).</summary>
+    public static bool ScriptsFolderMounted
+    {
+        get
+        {
+            try
+            {
+                string dir = Path.GetFullPath(ClientFileSources.SkuaScriptsDIR).TrimEnd('/');
+                // mountinfo fields: id parent major:minor root mount-point ...;
+                // a space in a path is written as the octal escape "\040".
+                return File.ReadLines("/proc/self/mountinfo")
+                    .Select(l => l.Split(' '))
+                    .Any(f => f.Length > 4 && f[4].Replace("\\040", " ").TrimEnd('/') == dir);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+
     public async Task StartupAsync()
     {
         try
         {
-            if (Settings.Get<bool>("CheckBotScriptsUpdates"))
-                await UpdateScriptsAsync(download: Settings.Get<bool>("AutoUpdateBotScripts"));
-            else
+            string mode = (SkuaRuntime.EnvRaw("SKUA_SCRIPT_SYNC") ?? "auto").ToLowerInvariant();
+            if (!Settings.Get<bool>("CheckBotScriptsUpdates"))
                 LastResult = "script updates off (CheckBotScriptsUpdates)";
+            else if (mode is "off" or "0" or "false" or "no")
+                LastResult = "script updates off (SKUA_SCRIPT_SYNC)";
+            else
+            {
+                bool mounted = ScriptsFolderMounted;
+                if (mode == "ask" || mounted || !Settings.Get<bool>("AutoUpdateBotScripts"))
+                    await AskAndUpdateAsync(mounted);
+                else
+                    await UpdateScriptsAsync(Scope.All);
+            }
 
             if (Settings.Get<bool>("CheckAdvanceSkillSetsUpdates")
                 && Settings.Get<bool>("AutoUpdateAdvanceSkillSetsUpdates")
@@ -48,8 +110,9 @@ public sealed class ScriptSync(IServiceProvider services)
             await Repo.UpdateQuestDataFile();
 
             if (Settings.Get<bool>("CheckJunkItemsUpdates")
-                && Settings.Get<bool>("AutoUpdateJunkItems")
                 && await Repo.CheckJunkItemsUpdates() > 0
+                && (Settings.Get<bool>("AutoUpdateJunkItems")
+                    || Dialogs.ShowMessageBox("Would you like to update your Junk Items list?", "Junk Items Update", true) == true)
                 && await Repo.UpdateJunkItemsFile())
             {
                 services.GetRequiredService<IJunkService>().Load();
@@ -66,22 +129,34 @@ public sealed class ScriptSync(IServiceProvider services)
         }
     }
 
-    /// <summary>Refreshes the index and, if <paramref name="download"/>, fetches missing and outdated scripts.</summary>
-    public async Task<object> UpdateScriptsAsync(bool download = true)
+    /// <summary>
+    /// Refreshes the index (unless <paramref name="refresh"/> is false) and
+    /// downloads the scripts in <paramref name="scope"/>: none, only missing
+    /// ones, or missing and outdated ones.
+    /// </summary>
+    public async Task<object> UpdateScriptsAsync(Scope scope = Scope.All, bool refresh = true)
     {
         await _gate.WaitAsync();
         Syncing = true;
         try
         {
-            Console.WriteLine("[scripts] fetching the script index");
-            await Repo.RefreshScriptsAsync(null, default);
+            if (refresh || Repo.Total == 0)
+            {
+                Console.WriteLine("[scripts] fetching the script index");
+                await Repo.RefreshScriptsAsync(null, default);
+            }
             var repo = Repo;
             int missing = repo.Missing, outdated = repo.Outdated;
             int fetched = 0;
-            if (download && (missing > 0 || outdated > 0))
+            if (scope == Scope.All && (missing > 0 || outdated > 0))
             {
                 Console.WriteLine($"[scripts] downloading {missing} missing, {outdated} outdated of {repo.Total}");
                 fetched = await repo.DownloadAllWhereAsync(s => !s.Downloaded || s.Outdated);
+            }
+            else if (scope == Scope.Missing && missing > 0)
+            {
+                Console.WriteLine($"[scripts] downloading {missing} missing of {repo.Total} (leaving {outdated} outdated as they are)");
+                fetched = await repo.DownloadAllWhereAsync(s => !s.Downloaded);
             }
             LastResult = $"{repo.Total} scripts; {fetched} downloaded at {DateTime.UtcNow:u}";
             Console.WriteLine($"[scripts] {LastResult}");

@@ -45,6 +45,19 @@ the embedding without the container.
 Hotkeys work while a Skua window has focus, as in WPF (they are key
 bindings on the main window, not global).
 
+## Script sync
+
+At startup Skua syncs its Scripts folder with auqw/Scripts
+(`Skua.Linux/ScriptSync.cs`). With Options > Application > Auto Update
+Scripts on, it downloads missing and outdated scripts silently, as the WPF
+app does; otherwise it asks: **Update all**, **Only missing** (new scripts,
+yours left alone) or **Skip**. It always asks when the Scripts folder is
+mounted from the host (`/config/.config/Skua/Scripts`), because "Update all"
+replaces outdated scripts, local edits included. `SKUA_SCRIPT_SYNC=ask|off`
+forces asking or skips the sync. The junk item list asks as in WPF when its
+auto update is off. Without windows (`SKUA_UI=0`) the questions answer Skip /
+No; `POST /scripts/update` on the control API syncs everything on demand.
+
 ## Checking it
 
 `--snapshot` renders the main window, the bot window, sample dialogs and

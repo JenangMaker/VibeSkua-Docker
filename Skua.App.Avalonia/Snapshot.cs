@@ -81,6 +81,18 @@ public static class Snapshot
         Shot("BotWindow", () => new BotWindow { DataContext = provider.GetRequiredService<BotWindowViewModel>() });
         Shot("Dialog-MessageBox", () => new HostDialog { DataContext = new MessageBoxDialogViewModel("A message from a script.", "Caption", true) });
         Shot("Dialog-Custom", () => new HostDialog { DataContext = new CustomDialogViewModel("Pick one:", "Caption", new[] { "Full", "Partial", "None" }) });
+        Shot("Dialog-ScriptUpdates", () => new HostDialog
+        {
+            DataContext = new CustomDialogViewModel(
+                """
+                auqw/Scripts has 12 script(s) you do not have and 3 newer than yours (of 1925).
+
+                Your Scripts folder (/config/.config/Skua/Scripts) is mounted from the host. "Update all" replaces your outdated scripts with the repository's versions, including any local changes to them; "Only missing" adds new scripts and leaves yours alone.
+
+                Download them now?
+                """,
+                "Script Updates", new[] { "Update all", "Only missing", "Skip" }),
+        });
         Shot("Dialog-Input", () => new HostDialog { DataContext = new InputDialogViewModel("Quantity", "How many?") });
 
         foreach (Type type in ViewLocator.RegisteredViewModels.OrderBy(t => t.Name))
