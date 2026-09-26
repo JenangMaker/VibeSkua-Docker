@@ -131,6 +131,7 @@ const SKUA_BRIDGE_PREFIX = unquote(process.env.SKUA_BRIDGE_PREFIX) || 'http://12
 const SKUA_BRIDGE_URL = SKUA_BRIDGE_PREFIX.replace(/^http/, 'ws').replace('://+:', '://127.0.0.1:').replace('://*:', '://127.0.0.1:');
 
 let skuaChild = null;
+let gameWindowXid = null;
 
 function startSkuaHost() {
   if (!fs.existsSync(SKUA_HOST_BIN)) {
@@ -232,6 +233,14 @@ function serve() {
       // the browser could request 127.0.0.1 too, so: the Host must be ours
       // (defeats DNS rebinding), and the custom header forces a CORS preflight
       // on any cross-origin request, which this server never approves.
+      // The game window's X11 id, for Skua to embed it under its menu the way
+      // the WPF app hosted Flash (Skua.App.Avalonia/GameEmbed.cs). Nothing
+      // secret: a window id on this display.
+      if (req.url === '/game-window') {
+        res.writeHead(gameWindowXid ? 200 : 404, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ xid: gameWindowXid }));
+        return;
+      }
       if (req.url === '/autologin') {
         const own = req.headers.host === `127.0.0.1:${PORT}` && req.headers['x-vibeskua'] === '1';
         if (!own || !AQW_USER || !AQW_PASS) { res.writeHead(404); res.end(); return; }
@@ -283,7 +292,10 @@ app.whenReady().then(async () => {
   console.log(`[host] serving http://127.0.0.1:${PORT}`);
   if (REMOTE_DEBUG_PORT) startDebugRelay();
   if (SKUA_HOST) startSkuaHost();
+  createGameWindow();
+});
 
+function createGameWindow() {
   const win = new BrowserWindow({
     width: 1000,
     height: 640,
@@ -310,9 +322,29 @@ app.whenReady().then(async () => {
     lastMsg = line;
     console.log('[page]', line);
   });
-  if (SKUA_HOST && SKUA_UI) placeBelowSkuaBar(win);
+  if (SKUA_HOST && SKUA_UI) {
+    // Until Skua embeds it (or if it cannot), keep it below Skua's bar.
+    placeBelowSkuaBar(win);
+    const handle = win.getNativeWindowHandle();
+    gameWindowXid = String(handle.length >= 8 ? handle.readBigUInt64LE(0) : handle.readUInt32LE(0));
+  }
   win.loadURL(`http://127.0.0.1:${PORT}/index.html`);
-});
+
+  // Skua embeds this window in its own (Skua.App.Avalonia/GameEmbed.cs) and
+  // hands it back when it stops, but if Skua is killed outright the X server
+  // destroys it with Skua's window. Open a new one: the page logs back in and
+  // returns to the saved map (session.js), and Skua embeds the new window.
+  win.on('closed', () => {
+    gameWindowXid = null;
+    if (SKUA_HOST && SKUA_UI && !quitting) {
+      console.error('[host] game window destroyed; opening a new one');
+      setTimeout(createGameWindow, 1000);
+    }
+  });
+}
+
+let quitting = false;
+app.on('before-quit', () => { quitting = true; });
 
 // The desktop's window manager (openbox in the KasmVNC base image) maximizes
 // every window. With Skua's windows on the same desktop the game would sit

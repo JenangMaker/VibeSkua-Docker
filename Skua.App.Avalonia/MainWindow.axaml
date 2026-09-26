@@ -4,11 +4,12 @@
         xmlns:views="clr-namespace:Skua.App.Avalonia.Views"
         x:Class="Skua.App.Avalonia.MainWindow"
         Title="{Binding Title}"
-        Width="948"
-        SizeToContent="Height"
+        Width="1000"
+        Height="720"
         Icon="avares://Skua.App.Avalonia/Assets/SkuaIcon.ico">
-    <!-- Skua.App.WPF's MainWindow is the main menu over the game. The game is
-         in the vibeskua-web page here, so this is the menu over a status line. -->
+    <!-- Skua.App.WPF's MainWindow: the main menu over the game. The game is the
+         vibeskua-web Electron window, embedded over GameArea (GameEmbed.cs);
+         the status line shows what Skua sees. -->
     <DockPanel>
         <DockPanel x:Name="MenuBar" DockPanel.Dock="Top" Height="28" Background="{DynamicResource SkuaPaperBrush}"
                    >
@@ -54,8 +55,12 @@
             </Menu>
             <Panel />
         </DockPanel>
-        <Border Padding="10,6" Background="{DynamicResource SkuaBarBrush}">
+        <Border DockPanel.Dock="Top" Padding="10,6" Background="{DynamicResource SkuaBarBrush}">
             <TextBlock x:Name="StatusText" Classes="caption" Text="Waiting for the game page..." />
+        </Border>
+        <Border x:Name="GameArea" Background="#111111">
+            <TextBlock x:Name="GameAreaText" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Classes="caption" Text="Waiting for the game window..." />
         </Border>
     </DockPanel>
 </Window>

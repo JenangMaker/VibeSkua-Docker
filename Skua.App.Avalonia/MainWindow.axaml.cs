@@ -10,20 +10,30 @@ namespace Skua.App.Avalonia;
 public partial class MainWindow : Window
 {
     private readonly DispatcherTimer _status;
+    private GameEmbed? _embed;
 
     public MainWindow()
     {
         InitializeComponent();
-        WindowPlacement.AsTopBar(this);
         // As MainMenuUserControl did: the menu has its own view model.
         MenuBar.DataContext = App.Service<MainMenuViewModel>();
         _status = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, (_, _) => UpdateStatus());
-        Opened += (_, _) => _status.Start();
+        Opened += (_, _) =>
+        {
+            _status.Start();
+            // The game goes under the menu, as in the WPF app; without one to
+            // embed, this becomes a bar above the game window instead.
+            _embed = new GameEmbed(this, GameArea);
+            _embed.Embedded += () => GameAreaText.IsVisible = false;
+            _embed.Failed += () => WindowPlacement.ToTopBar(this, GameArea);
+            _embed.Start();
+        };
+        // Before the window (and anything inside it) is destroyed.
+        Closing += (_, _) => _embed?.Release();
         StrongReferenceMessenger.Default.Register<MainWindow, ShowMainWindowMessage>(this, (w, _) => { w.Show(); w.Activate(); });
     }
 
-    // There is no game in this window (it is in the vibeskua-web page), so a
-    // line of what Skua sees stands in for it.
+    // What Skua sees, under the menu.
     private void UpdateStatus()
     {
         if (App.Runtime is not { } runtime)
@@ -45,6 +55,7 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _status.Stop();
+        _embed?.Dispose();
         StrongReferenceMessenger.Default.UnregisterAll(this);
         base.OnClosed(e);
     }

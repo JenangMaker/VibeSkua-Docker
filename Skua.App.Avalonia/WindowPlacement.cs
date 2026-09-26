@@ -8,25 +8,30 @@ namespace Skua.App.Avalonia;
 /// The KasmVNC desktop's window manager (openbox, as the LinuxServer base
 /// image configures it) maximizes every new window. In WPF the game was inside
 /// Skua's main window; here it is the Electron window beside it, so Skua's
-/// windows undo that: the main window becomes a bar across the top of the
-/// screen (main.js puts the game below it), the others open at their own
-/// size, centred.
+/// windows undo that except the main window, which holds the game
+/// (GameEmbed): the others open at their own size, centred.
 /// </summary>
 public static class WindowPlacement
 {
     /// <summary>Height the main window bar takes; main.js leaves the same (SKUA_BAR_HEIGHT).</summary>
     public const int BarHeight = 80;
 
-    public static void AsTopBar(Window window) => Apply(window, w =>
+    /// <summary>
+    /// The main window's fallback when the game cannot be embedded: a bar
+    /// across the top of the screen, the game window below it (main.js).
+    /// </summary>
+    public static void ToTopBar(Window w, Control gameArea)
     {
+        gameArea.IsVisible = false;
+        if (w.WindowState == WindowState.Maximized)
+            w.WindowState = WindowState.Normal;
         if ((w.Screens.ScreenFromWindow(w) ?? w.Screens.Primary) is not { } screen)
             return;
         var area = screen.WorkingArea;
-        double scale = screen.Scaling;
         w.SizeToContent = SizeToContent.Height;
-        w.Width = area.Width / scale;
+        w.Width = area.Width / screen.Scaling;
         w.Position = new PixelPoint(area.X, area.Y);
-    });
+    }
 
     public static void Centred(Window window) => Apply(window, w =>
     {

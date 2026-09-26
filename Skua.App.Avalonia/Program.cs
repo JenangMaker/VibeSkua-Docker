@@ -20,6 +20,12 @@ if (args.Contains("--headless"))
     return;
 }
 
+if (Array.IndexOf(args, "--fake-game") is int f and >= 0)
+{
+    FakeGame.Run(f + 1 < args.Length && int.TryParse(args[f + 1], out int port) ? port : 8770);
+    return;
+}
+
 if (Array.IndexOf(args, "--snapshot") is int s and >= 0 && s + 1 < args.Length)
 {
     Snapshot.Run(args[s + 1], s + 2 < args.Length ? args[s + 2] : null);

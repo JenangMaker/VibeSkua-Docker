@@ -22,7 +22,7 @@ Skua.App.Avalonia --snapshot DIR [filter]   # render views to DIR/*.png and exit
 | :- | :- |
 | `XAML/DataTemplates.xaml` | `ViewRegistry.cs` + `ViewLocator.cs` (a view model's nearest registered base class wins; unported ones show "Not ported yet") |
 | `Services/*` (dialogs, windows, file dialogs, clipboard, dispatcher, hotkeys, themes) | `Services/*` - synchronous like WPF's: on the UI thread a nested loop runs until a dialog closes |
-| `HostWindow` / `HostDialog` / `BotWindow` / `MainWindow` | same names; `MainWindow` is the menu over a status line, since the game is in the page |
+| `HostWindow` / `HostDialog` / `BotWindow` / `MainWindow` | same names; `MainWindow` is the menu and a status line over the game, as in WPF: the game's Electron window is re-parented into it (`GameEmbed.cs`; X11's SetParent). Other windows open at their size, centred (`WindowPlacement.cs`: the KasmVNC desktop maximizes every window) |
 | Behaviours | `Behaviors.cs` attached properties (`b:Behave.OnlyNumbers`, `CopySelected`, `ScrollToEnd`, `DeleteSelected`, ...) |
 | `ICollectionView` filters | `UiMirror<T>`: a filtered UI-thread copy (the script list changes on other threads) |
 | `ListBox.SelectedItems` as a command parameter | `Selection.Run(command, list)` in code-behind (Avalonia's is not an `IList<object>`) |
@@ -31,10 +31,16 @@ Skua.App.Avalonia --snapshot DIR [filter]   # render views to DIR/*.png and exit
 | MdXaml | Markdown.Avalonia.Tight |
 
 Every view of the client is ported. Not ported: the Flash host windows
-(`TabbedHostWindow`, `EmbeddedMainWindow`, `GameContainerUserControl`: the
-game is the page), the tray icon and balloon tips, and the Skua.Manager
+(`TabbedHostWindow`, `EmbeddedMainWindow`, `GameContainerUserControl`; the
+game is embedded by `GameEmbed` instead), the tray icon and balloon tips, and the Skua.Manager
 views (account manager, launcher, updaters, groups), which belong to a
 separate app.
+
+The game gets keyboard focus while the pointer is over it (the window
+manager only focuses Skua's window). If Skua stops, the game window is handed
+back to the desktop; if Skua is killed outright, main.js opens a new one,
+which logs back in. `--fake-game` stands in for the game window when testing
+the embedding without the container.
 
 Hotkeys work while a Skua window has focus, as in WPF (they are key
 bindings on the main window, not global).
