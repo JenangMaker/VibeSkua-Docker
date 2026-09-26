@@ -21,7 +21,7 @@ public sealed class HostApi(IServiceProvider services, ScriptSync scripts, strin
     {
         _listener.Prefixes.Add(prefix);
         _listener.Start();
-        _ = Loop();
+        _ = Task.Run(Loop);   // off any caller's synchronization context
     }
 
     private async Task Loop()

@@ -61,8 +61,11 @@ public sealed class RuffleBridge : IDisposable
     public void Start()
     {
         _listener.Start();
-        _ = AcceptLoop();
-        _ = EventLoop();
+        // On the thread pool, whatever thread calls Start: started on a UI
+        // thread, the loops' awaits would resume on it, so a synchronous
+        // Invoke from that thread would wait for a reply only it can process.
+        _ = Task.Run(AcceptLoop);
+        _ = Task.Run(EventLoop);
     }
 
     /// <summary>Waits until a page is connected, or the timeout passes.</summary>
@@ -136,7 +139,7 @@ public sealed class RuffleBridge : IDisposable
             HttpListenerContext ctx;
             try
             {
-                ctx = await _listener.GetContextAsync();
+                ctx = await _listener.GetContextAsync().ConfigureAwait(false);
             }
             catch when (_cts.IsCancellationRequested)
             {
@@ -151,7 +154,7 @@ public sealed class RuffleBridge : IDisposable
                 continue;
             }
 
-            var socket = (await ctx.AcceptWebSocketAsync(null)).WebSocket;
+            var socket = (await ctx.AcceptWebSocketAsync(null).ConfigureAwait(false)).WebSocket;
             var previous = Interlocked.Exchange(ref _socket, socket);
             if (previous is not null)
             {
@@ -171,7 +174,7 @@ public sealed class RuffleBridge : IDisposable
         {
             while (socket.State == WebSocketState.Open)
             {
-                var result = await socket.ReceiveAsync(buffer, _cts.Token);
+                var result = await socket.ReceiveAsync(buffer, _cts.Token).ConfigureAwait(false);
                 if (result.MessageType == WebSocketMessageType.Close)
                     break;
                 message.Write(buffer.AsSpan(0, result.Count));
