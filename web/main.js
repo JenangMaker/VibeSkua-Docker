@@ -10,7 +10,7 @@
 //      /game/api/* omits (gameversion, login and the server list all need it)
 //   3. run the WebSocket<->TCP bridge so the SWF can reach SmartFoxServer
 
-const { app, BrowserWindow, session } = require('electron');
+const { app, BrowserWindow, session, screen } = require('electron');
 const http = require('http');
 const https = require('https');
 const net = require('net');
@@ -124,6 +124,9 @@ const unquote = v => (v || '').trim().replace(/^["']|["']$/g, '').trim();
 const SKUA_HOST = /^(1|true|yes)$/i.test(unquote(process.env.SKUA_HOST));
 const SKUA_HOST_BIN = unquote(process.env.SKUA_HOST_BIN) || '/opt/skua/Skua.App.Avalonia';
 const SKUA_UI = !/^(0|false|no)$/i.test(unquote(process.env.SKUA_UI));
+// Height of Skua's main window bar across the top of the desktop; the game
+// window goes below it (Skua.App.Avalonia/WindowPlacement.cs, BarHeight).
+const SKUA_BAR_HEIGHT = Number(unquote(process.env.SKUA_BAR_HEIGHT)) || 80;
 const SKUA_BRIDGE_PREFIX = unquote(process.env.SKUA_BRIDGE_PREFIX) || 'http://127.0.0.1:8790/';
 const SKUA_BRIDGE_URL = SKUA_BRIDGE_PREFIX.replace(/^http/, 'ws').replace('://+:', '://127.0.0.1:').replace('://*:', '://127.0.0.1:');
 
@@ -307,8 +310,31 @@ app.whenReady().then(async () => {
     lastMsg = line;
     console.log('[page]', line);
   });
+  if (SKUA_HOST && SKUA_UI) placeBelowSkuaBar(win);
   win.loadURL(`http://127.0.0.1:${PORT}/index.html`);
 });
+
+// The desktop's window manager (openbox in the KasmVNC base image) maximizes
+// every window. With Skua's windows on the same desktop the game would sit
+// under them, so keep it below Skua's main window bar: undo the maximize
+// (which can arrive after the window is shown) and fill the rest of the screen.
+function placeBelowSkuaBar(win) {
+  const until = Date.now() + 5000;
+  const place = () => {
+    if (win.isDestroyed()) return;
+    const area = screen.getPrimaryDisplay().workArea;
+    if (win.isMaximized()) win.unmaximize();
+    win.setBounds({
+      x: area.x,
+      y: area.y + SKUA_BAR_HEIGHT,
+      width: area.width,
+      height: Math.max(200, area.height - SKUA_BAR_HEIGHT),
+    });
+  };
+  win.on('maximize', () => { if (Date.now() < until) setTimeout(place, 50); });
+  win.once('show', place);
+  for (const ms of [0, 500, 1500]) setTimeout(place, ms);
+}
 
 // Deliberately does NOT quit on window close: in the container the window is
 // the whole session, and s6 would just restart us.

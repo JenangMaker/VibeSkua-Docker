@@ -13,6 +13,7 @@ public partial class HostDialog : Window
     public HostDialog()
     {
         InitializeComponent();
+        WindowPlacement.Centred(this);
     }
 
     public bool? Result { get; private set; }

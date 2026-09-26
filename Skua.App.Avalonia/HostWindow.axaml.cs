@@ -13,6 +13,7 @@ public partial class HostWindow : Window
     public HostWindow()
     {
         InitializeComponent();
+        WindowPlacement.Centred(this);
         DataContextChanged += (_, _) => ApplySize();
     }
 

@@ -10,6 +10,7 @@ public partial class BotWindow : Window
     public BotWindow()
     {
         InitializeComponent();
+        WindowPlacement.Centred(this);
         DataContextChanged += (_, _) =>
         {
             Filter();

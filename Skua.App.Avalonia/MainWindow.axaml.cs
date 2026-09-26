@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        WindowPlacement.AsTopBar(this);
         // As MainMenuUserControl did: the menu has its own view model.
         MenuBar.DataContext = App.Service<MainMenuViewModel>();
         _status = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, (_, _) => UpdateStatus());
