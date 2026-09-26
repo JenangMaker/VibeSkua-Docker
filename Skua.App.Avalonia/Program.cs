@@ -26,6 +26,16 @@ if (Array.IndexOf(args, "--snapshot") is int s and >= 0 && s + 1 < args.Length)
     return;
 }
 
+// Avalonia 11 on Linux draws through X11 only.
+if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")))
+{
+    Console.Error.WriteLine("[host] no display (DISPLAY unset); running without windows");
+    var headless = SkuaRuntime.Create();
+    headless.Start();
+    await Task.Delay(Timeout.Infinite);
+    return;
+}
+
 App.Runtime = SkuaRuntime.Create(services =>
 {
     services.AddAvaloniaServices();

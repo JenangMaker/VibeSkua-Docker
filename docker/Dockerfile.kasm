@@ -17,11 +17,12 @@
 ARG BASE_IMAGE=ghcr.io/linuxserver/baseimage-kasmvnc:debianbookworm
 ARG NODE_VERSION=22.11.0
 
-# Skua.Host: Skua.Core running headless against the page (SKUA_HOST=1; see
-# Skua.Host/README.md). Self-contained, so the runtime image needs no .NET.
-# Not single-file: the script compiler (Roslyn) resolves references from
-# assembly paths on disk.
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS skua-host
+# Skua: Skua.App.Avalonia, the VibeSkua client UI ported to Avalonia over
+# Skua.Core, driving the game in the page (SKUA_HOST=1; SKUA_UI=0 runs it with
+# no windows). Self-contained, so the runtime image needs no .NET. Not
+# single-file: the script compiler (Roslyn) resolves references from assembly
+# paths on disk. See Skua.App.Avalonia/README.md.
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS skua
 WORKDIR /src
 COPY Directory.Build.props ./
 COPY Shared/ Shared/
@@ -31,10 +32,12 @@ COPY Skua.Core.Interfaces/ Skua.Core.Interfaces/
 COPY Skua.Core.Models/ Skua.Core.Models/
 COPY Skua.Core.Utils/ Skua.Core.Utils/
 COPY Skua.Ruffle/ Skua.Ruffle/
-COPY Skua.Linux/ Skua.Linux/
-COPY Skua.Host/ Skua.Host/
 COPY Skua.Host.WinForms/ Skua.Host.WinForms/
-RUN dotnet publish Skua.Host/Skua.Host.csproj -c Release -r linux-x64       --self-contained true -p:PublishSingleFile=false -o /out  && test -x /out/Skua.Host
+COPY Skua.Linux/ Skua.Linux/
+COPY Skua.App.Avalonia/ Skua.App.Avalonia/
+RUN dotnet publish Skua.App.Avalonia/Skua.App.Avalonia.csproj -c Release -r linux-x64 \
+      --self-contained true -p:PublishSingleFile=false -o /out \
+ && test -x /out/Skua.App.Avalonia
 
 FROM ${BASE_IMAGE}
 
@@ -73,6 +76,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libxss1 \
       libxtst6 \
       xdg-utils \
+      libice6 \
+      libsm6 \
+      libfontconfig1 \
+      fonts-dejavu-core \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -104,7 +111,7 @@ RUN --mount=type=secret,id=ruffle_web_auth \
 # LinuxServer's init runs /defaults/autostart (via openbox, with /bin/sh) to
 # launch the session's application; it hands off to /app/launch.sh. The
 # custom-cont-init.d script re-copies the autostart into /config each start.
-COPY --from=skua-host /out/ /opt/skua-host/
+COPY --from=skua /out/ /opt/skua/
 
 COPY docker/kasm-root/ /
 RUN chmod +x /defaults/autostart /app/launch.sh \

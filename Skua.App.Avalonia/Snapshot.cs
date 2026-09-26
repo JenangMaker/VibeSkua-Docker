@@ -35,6 +35,24 @@ public static class Snapshot
         Directory.CreateDirectory(dir);
         var provider = App.Runtime.Services;
 
+        // SNAPSHOT_START=1: also run the app's startup sequence (runtime,
+        // theme, hotkeys on the main window), as a smoke test of that path.
+        MainWindow? main = null;
+        if (Environment.GetEnvironmentVariable("SNAPSHOT_START") == "1")
+        {
+            App.Runtime.Start();
+            provider.GetRequiredService<AvaloniaThemeService>().ApplyCurrent();
+            main = new MainWindow { DataContext = provider.GetRequiredService<MainViewModel>() };
+            main.Show();
+            Dispatcher.UIThread.RunJobs();
+            if (provider.GetRequiredService<Skua.Core.Interfaces.IHotKeyService>() is AvaloniaHotKeyService hotkeys)
+            {
+                hotkeys.Target = main;
+                hotkeys.Reload();
+            }
+            Console.WriteLine($"[snapshot] startup ok; main window key bindings: {main.KeyBindings.Count}");
+        }
+
         void Shot(string name, Func<Window> create)
         {
             if (only is not null && !name.Contains(only, StringComparison.OrdinalIgnoreCase))

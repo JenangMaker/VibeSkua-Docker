@@ -25,8 +25,11 @@ public sealed class AvaloniaHotKeyService(Dictionary<string, IRelayCommand> hotK
 
     private readonly List<KeyBinding> _registered = new();
 
-    private static Window? MainWindow =>
-        (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+    /// <summary>The window to bind to; the application's main window if unset.</summary>
+    public Window? Target { get; set; }
+
+    private Window? MainWindow =>
+        Target ?? (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
 
     public void Reload() => UiThread.Invoke(() =>
     {

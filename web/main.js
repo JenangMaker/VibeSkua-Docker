@@ -111,9 +111,10 @@ const AQW_SERVER = process.env.AQW_SERVER || '';
 const RECYCLE_AFTER_MINUTES = Number(process.env.RECYCLE_AFTER_MINUTES || 0) || 0;
 const RECYCLE_AFTER_MAP_CHANGES = Number(process.env.RECYCLE_AFTER_MAP_CHANGES || 0) || 0;
 
-// Skua.Host: Skua itself (scripts, combat, quests, options) running headless
-// next to the page and driving skua.swf through the bridge in
-// public/skua-bridge.js. Off unless SKUA_HOST=1. Restarted if it exits.
+// Skua itself (Skua.App.Avalonia: scripts, combat, quests, options, and the
+// VibeSkua windows on this desktop) next to the page, driving skua.swf
+// through the bridge in public/skua-bridge.js. Off unless SKUA_HOST=1;
+// SKUA_UI=0 runs it without windows. Restarted if it exits.
 //
 // Its control API (start/stop scripts, status, logs) has NO authentication:
 // whatever reaches it can run arbitrary code as the bot. It binds to
@@ -121,7 +122,8 @@ const RECYCLE_AFTER_MAP_CHANGES = Number(process.env.RECYCLE_AFTER_MAP_CHANGES |
 // opens it to wherever the port is published - a LAN address only.
 const unquote = v => (v || '').trim().replace(/^["']|["']$/g, '').trim();
 const SKUA_HOST = /^(1|true|yes)$/i.test(unquote(process.env.SKUA_HOST));
-const SKUA_HOST_BIN = process.env.SKUA_HOST_BIN || '/opt/skua-host/Skua.Host';
+const SKUA_HOST_BIN = unquote(process.env.SKUA_HOST_BIN) || '/opt/skua/Skua.App.Avalonia';
+const SKUA_UI = !/^(0|false|no)$/i.test(unquote(process.env.SKUA_UI));
 const SKUA_BRIDGE_PREFIX = unquote(process.env.SKUA_BRIDGE_PREFIX) || 'http://127.0.0.1:8790/';
 const SKUA_BRIDGE_URL = SKUA_BRIDGE_PREFIX.replace(/^http/, 'ws').replace('://+:', '://127.0.0.1:').replace('://*:', '://127.0.0.1:');
 
@@ -135,7 +137,7 @@ function startSkuaHost() {
   let delay = 2000;
   const run = () => {
     const started = Date.now();
-    const child = spawn(SKUA_HOST_BIN, [], {
+    const child = spawn(SKUA_HOST_BIN, SKUA_UI ? [] : ['--headless'], {
       env: {
         ...process.env,
         SKUA_BRIDGE_PREFIX,
