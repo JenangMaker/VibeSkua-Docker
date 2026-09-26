@@ -115,24 +115,6 @@ async function applyModules(disable, enable) {
   }
 }
 
-// AQW rasterises each map's background layers into bitmaps with
-// BitmapData.draw (World.rebuildMapBMP), then hides the originals. The webgl
-// renderer cannot draw offscreen, so those bitmaps come out blank and the
-// background vanishes. The game's own "Smooth Background" option skips the
-// rasteriser and shows the vector layers as-is, so turn it on for webgl.
-async function applySmoothBg() {
-  if (!await waitForGame()) return;
-  try {
-    player.setGameObject('litePreference.data.bSmoothBG', true);
-    say('webgl: Smooth Background on (map rasteriser needs offscreen drawing)', 'ok');
-  } catch (e) {
-    say('could not enable Smooth Background: ' + e, 'err');
-  }
-  // No need to call world.applySmoothBG(): this runs at the title screen,
-  // before any map exists, and the flag alone keeps the first map from being
-  // rasterised. (Calling it there only logs a null-reference error.)
-}
-
 // --- Rendering controls (patched Ruffle only) -------------------------------
 // The game keeps running at full speed whatever these are; they only decide
 // how much gets drawn. With software rendering, drawing is nearly all the CPU.
@@ -253,7 +235,6 @@ async function main() {
     currentRenderer = renderer;
     initControls(renderScale, maxRenderFps);
     applyModules(disableModules, enableModules);
-    if (renderer === 'webgl') applySmoothBg();
   } catch (e) {
     say('failed to load skua.swf: ' + e, 'err');
   }

@@ -172,6 +172,7 @@ With the official Ruffle release these do nothing and the bar stays hidden.
 | wgpu-webgl | **15** | 100% | Loads fully -- the frame cap is safe |
 | **webgl** | Max | 100% | Avatars, HUD and player data missing |
 | webgl + Ruffle `560f6f6f3` | Max | 100% | Loads and runs well; map background blank |
+| webgl + Ruffle `b60c83526` | Max | 100% | Everything draws: map rasteriser, cooldown overlay, Static Player Art |
 
 webgl failed because Ruffle's `BitmapData.draw()` raised an internal error on
 backends that cannot render offscreen, and AQW calls it while setting up a
@@ -179,29 +180,21 @@ room: `RustError("Render backend does not support BitmapData.draw")`, then
 `Error #1009 at Game/userTreeWrite()`. Fixed in Ruffle `560f6f6f3` (draw now
 leaves the bitmap unchanged instead of aborting the script).
 
-Whatever AQW draws is still blank on webgl. The visible case is the map
-background: `World.rebuildMapBMP` rasterises the background layers into
-bitmaps and hides the originals. The page now turns on the game's own
-**Smooth Background** option (Options > Game Settings) when the renderer is
-webgl, which skips that rasteriser and shows the vector layers directly. The
-setting is saved in the game's local storage, so it stays on if you later
-switch back to wgpu-webgl; toggle it there if you want the rasteriser back.
-Tested in-game: backgrounds load and combat works.
+Ruffle `b60c83526` implements `BitmapData.draw` on webgl (it used to draw
+nothing), so everything AQW draws into bitmaps now works there: the map
+background rasteriser (`World.rebuildMapBMP`), the skill-cooldown overlay
+(`World.coolDownAct`), aura icon fades and **Static Player Art**. Tested
+in-game on an Intel GPU, frame rate unchanged. **Smooth Background** is back
+to being the player's choice (Options > Game Settings); off, AQW draws the
+map as one bitmap, which is the cheaper option.
 
-Still blank on webgl: the dark overlay on skill icons during cooldown
-(`World.coolDownAct` draws it with `BitmapData.draw`), and the equivalent
-fade on aura icons. The cooldown still works and the "not ready yet" message
-still shows. The countdown numbers are a separate game option, **Visual Skill
-CDs**, and don't need `draw`; tested working on webgl. **Static Player Art**
-does nothing visible on webgl (AQW marks players frozen, but they keep
-animating), so it saves no CPU there. Fixing these needs offscreen drawing in
-Ruffle's webgl backend. Test cases: [TESTING.md](TESTING.md).
+With the **official** Ruffle release (no `RUFFLE_WEB_URL`), webgl still
+cannot draw into bitmaps: the map background is blank unless Smooth
+Background is on, and the cooldown overlay and Static Player Art do nothing.
 
-Recommended for lower CPU today: **wgpu-webgl with Draw 15** (tested), and
-Draw Off while farming.
-
-webgl's worst frame stayed near 20 ms where wgpu-webgl stalled for 500-2000 ms,
-but webgl draws no filters and is the less complete backend.
+**Recommended:** webgl, with Draw 15 for lower CPU or Max for smoothness, and
+Draw Off while farming. wgpu-webgl draws filters (glows, shadows) that webgl
+does not, but manages ~2 fps in a busy room; see [TESTING.md](TESTING.md).
 
 ### Knobs
 
