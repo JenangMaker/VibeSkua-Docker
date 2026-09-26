@@ -17,6 +17,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Skua.Core\Skua.Core.csproj" />
     <ProjectReference Include="..\Skua.Ruffle\Skua.Ruffle.csproj" />
+    <!-- System.Windows.Forms stand-in; ships with the host so scripts compile. -->
+    <ProjectReference Include="..\Skua.Host.WinForms\Skua.Host.WinForms.csproj" />
   </ItemGroup>
 
 </Project>

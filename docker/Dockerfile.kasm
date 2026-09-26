@@ -32,6 +32,7 @@ COPY Skua.Core.Models/ Skua.Core.Models/
 COPY Skua.Core.Utils/ Skua.Core.Utils/
 COPY Skua.Ruffle/ Skua.Ruffle/
 COPY Skua.Host/ Skua.Host/
+COPY Skua.Host.WinForms/ Skua.Host.WinForms/
 RUN dotnet publish Skua.Host/Skua.Host.csproj -c Release -r linux-x64       --self-contained true -p:PublishSingleFile=false -o /out  && test -x /out/Skua.Host
 
 FROM ${BASE_IMAGE}

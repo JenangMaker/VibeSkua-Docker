@@ -137,7 +137,9 @@ services:
       #   docker exec vibeskua-web curl -s localhost:8791/status
       # See Skua.Host/README.md.
       # SKUA_HOST: "1"
-      # SKUA_SCRIPT: "/config/scripts/MyScript.cs"   # started once logged in
+      # Script to start once logged in: a repository path (scripts are synced
+      # from auqw/Scripts at startup) or an absolute path.
+      # SKUA_SCRIPT: "Farm/GoldFarm"
       # To reach the API from the LAN instead, add a LAN-IP port mapping
       # ("192.168.2.20:8791:8791") and:
       # SKUA_API_PREFIX: "http://+:8791/"

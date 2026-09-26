@@ -273,6 +273,26 @@ public static class Services
                     }
 
                     refs.AddRange(refPaths.Select(s => MetadataReference.CreateFromFile(s)));
+
+                    // On Windows the WPF app has loaded most of the framework by
+                    // the time a script compiles, so "every loaded assembly" covers
+                    // what scripts use (Process, System.Drawing, ...). A headless
+                    // host has loaded far less; reference the whole framework, plus
+                    // any System.* stand-ins shipped beside it (Skua.Host's
+                    // System.Windows.Forms).
+                    if (!OperatingSystem.IsWindows()
+                        && AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is string tpa)
+                    {
+                        HashSet<string> have = new(refs.Select(r => Path.GetFileName(r.FilePath ?? "")), StringComparer.OrdinalIgnoreCase);
+                        foreach (string path in tpa.Split(Path.PathSeparator))
+                        {
+                            string name = Path.GetFileName(path);
+                            bool framework = name.StartsWith("System.", StringComparison.OrdinalIgnoreCase)
+                                || name is "Microsoft.CSharp.dll" or "Microsoft.Win32.Primitives.dll" or "netstandard.dll" or "mscorlib.dll";
+                            if (framework && have.Add(name))
+                                refs.Add(MetadataReference.CreateFromFile(path));
+                        }
+                    }
                     _cachedBaseReferences = refs;
                 }
             }

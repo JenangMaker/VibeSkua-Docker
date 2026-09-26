@@ -5,14 +5,21 @@
 //   SKUA_BRIDGE_PREFIX   where the page connects   (http://127.0.0.1:8790/)
 //   SKUA_BRIDGE_ORIGINS  page origins allowed      (http://127.0.0.1:8770)
 //   SKUA_API_PREFIX      control API               (http://127.0.0.1:8791/)
-//   SKUA_SCRIPT          script to start once logged in (or --script <path>)
+//   SKUA_SCRIPT          script to start once logged in (or --script <path>);
+//                        absolute, or a repository path such as Farm/Gold.cs
 //
 // Control API (JSON; local only):
 //   GET  /status                      bridge, login, map, script state
-//   POST /script/start?path=<file>    load and start a script (.cs)
+//   POST /script/start?path=<file>    load and start a script (.cs); a
+//                                     relative path is under Skua/Scripts
 //   POST /script/start   (body: C#)   start a script given as source
 //   POST /script/stop
 //   GET  /log?type=script|debug|flash&since=<n>
+//   GET  /scripts?q=<terms>&limit=<n> search the script repository
+//   POST /scripts/update              fetch missing and outdated scripts
+//
+// At startup the script repository (auqw/Scripts) is synced into Skua/Scripts,
+// as the WPF app does; see ScriptSync.
 
 using System.Globalization;
 using CommunityToolkit.Mvvm.DependencyInjection;
@@ -66,10 +73,12 @@ _ = Task.Run(async () =>
     catch (Exception e) { Console.Error.WriteLine($"[host] server list: {e.Message}"); }
 });
 provider.GetRequiredService<IPluginManager>().Initialize();
+var scripts = new ScriptSync(provider);
+_ = Task.Run(scripts.StartupAsync);
 
 bridge.ConnectionChanged += up => Console.WriteLine(up ? "[host] page connected" : "[host] page disconnected");
 bridge.Start();
-var api = new HostApi(provider, Env("SKUA_API_PREFIX", "http://127.0.0.1:8791/"));
+var api = new HostApi(provider, scripts, Env("SKUA_API_PREFIX", "http://127.0.0.1:8791/"));
 api.Start();
 Console.WriteLine("[host] ready: bridge " + Env("SKUA_BRIDGE_PREFIX", "http://127.0.0.1:8790/") + ", api " + Env("SKUA_API_PREFIX", "http://127.0.0.1:8791/"));
 

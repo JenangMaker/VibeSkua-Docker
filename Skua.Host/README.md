@@ -38,6 +38,32 @@ body-less POST with 411 but may still run the handler.
 `SKUA_SCRIPT=/path/to/Script.cs` (or `--script`) starts a script once the page
 is connected and logged in.
 
+## Scripts
+
+At startup the host syncs Skua's script repository (auqw/Scripts, branch
+Skua) into `Skua/Scripts`, the way the WPF app does: it downloads missing and
+outdated scripts (all ~1900 take under a minute the first time) and refreshes
+the advanced skill sets, quest data and junk list. The same settings apply
+(`CheckBotScriptsUpdates`, `AutoUpdateBotScripts`, ...).
+
+So a script can be named by its repository path, relative to `Skua/Scripts`,
+case-insensitively, with or without `.cs`:
+
+```sh
+curl -s 'localhost:8791/scripts?q=gold farm'                 # search: path, name, tags
+curl -s -X POST -d '' 'localhost:8791/script/start?path=Farm/GoldFarm'
+curl -s -X POST -d '' localhost:8791/scripts/update            # sync again
+```
+
+`SKUA_SCRIPT=Farm/GoldFarm` works the same way.
+
+Community scripts include `CoreBots.cs`, which has `using System.Windows.Forms;`
+and one WinForms dialog. Linux has no WinForms, so the host ships a stand-in
+(`Skua.Host.WinForms`, assembly `System.Windows.Forms`) with just the members
+CoreBots uses: scripts compile, and showing a form throws. On Linux the script
+compiler also references the whole framework (`Skua.Core/AppStartup/Services.cs`);
+on Windows the loaded assemblies already covered it.
+
 ## Status (2026-09-26)
 
 Built and run on Linux (.NET 10) against a logged-in session: `Skua.Core`

@@ -24,7 +24,36 @@ public sealed class RuffleFlashUtil : IFlashUtil
     {
         Bridge = bridge;
         _manager = manager;
-        Bridge.FlashCall += (name, args) => FlashCall?.Invoke(name, args!);
+        Bridge.FlashCall += (name, args) => FlashCall?.Invoke(name, AsFlashCallArgs(args));
+    }
+
+    /// <summary>
+    /// The SWF's calls as Skua.WPF's FlashUtil hands them to Skua.Core.
+    /// skua.swf's Externalizer passes its arguments as one array
+    /// (<c>ExternalInterface.call(name, rest)</c>), and WPF reads the request's
+    /// whole &lt;arguments&gt; element with <c>FromFlashXml</c>, which falls
+    /// through to the element's text. So Skua.Core always gets exactly one
+    /// argument: the text of every string and number in it, concatenated (for
+    /// the usual single string, that string).
+    /// </summary>
+    public static object[] AsFlashCallArgs(object?[] args)
+    {
+        var text = new System.Text.StringBuilder();
+        void Append(object? v)
+        {
+            switch (v)
+            {
+                case string str: text.Append(str); break;
+                case bool or null: break;   // <true/>, <false/>, <null/> have no text
+                case IDictionary<string, object?> obj: foreach (var x in obj.Values) Append(x); break;
+                case object?[] arr: foreach (var x in arr) Append(x); break;
+                case IFormattable f: text.Append(f.ToString(null, CultureInfo.InvariantCulture)); break;
+                default: text.Append(v); break;
+            }
+        }
+        foreach (var a in args)
+            Append(a);
+        return [text.ToString()];
     }
 
     public RuffleBridge Bridge { get; }

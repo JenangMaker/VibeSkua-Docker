@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Skua.Core.Interfaces;
 using Skua.Core.Models;
@@ -76,7 +75,7 @@ public sealed class NoScreenshots : IScreenshotService
 
 public sealed class HeadlessDialogs : IDialogService
 {
-    private static void Note(string what) => Trace.WriteLine($"[headless] {what}");
+    private static void Note(string what) => Console.Error.WriteLine($"[headless] {what}");
 
     public bool? ShowDialog<TViewModel>(TViewModel viewModel) where TViewModel : class
     {

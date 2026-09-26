@@ -12,7 +12,7 @@ namespace Skua.Host;
 /// The control API: start/stop scripts, read status and logs. Binds to a
 /// local address only; anything that can reach it can run code as the bot.
 /// </summary>
-public sealed class HostApi(IServiceProvider services, string prefix)
+public sealed class HostApi(IServiceProvider services, ScriptSync scripts, string prefix)
 {
     private readonly HttpListener _listener = new();
     private readonly string _scratch = Path.Combine(Path.GetTempPath(), "skua-host");
@@ -47,6 +47,8 @@ public sealed class HostApi(IServiceProvider services, string prefix)
                 ("POST", "/script/start") => await StartFromRequest(ctx.Request),
                 ("POST", "/script/stop") => await Stop(),
                 ("GET", "/log") => Log(ctx.Request),
+                ("GET", "/scripts") => Scripts(ctx.Request),
+                ("POST", "/scripts/update") => await scripts.UpdateScriptsAsync(),
                 _ => NotFound(out status),
             };
         }
@@ -91,6 +93,12 @@ public sealed class HostApi(IServiceProvider services, string prefix)
             bridgeConnected = bridge.IsConnected,
             game,
             script = new { running = manager.ScriptRunning, loaded = manager.LoadedScript },
+            scripts = new
+            {
+                directory = ClientFileSources.SkuaScriptsDIR,
+                syncing = scripts.Syncing,
+                last = scripts.LastResult,
+            },
         };
     }
 
@@ -108,12 +116,30 @@ public sealed class HostApi(IServiceProvider services, string prefix)
             await File.WriteAllTextAsync(file, source);
         }
         var error = await StartScriptFile(file);
-        return error is null ? new { started = file } : new { error };
+        return error is null ? new { started = services.GetRequiredService<IScriptManager>().LoadedScript } : new { error };
     }
 
-    /// <summary>Loads and starts a script; returns why it failed, if it did.</summary>
+    private object Scripts(HttpListenerRequest request)
+    {
+        int limit = int.TryParse(request.QueryString["limit"], out int l) ? Math.Clamp(l, 1, 1000) : 50;
+        return scripts.Search(request.QueryString["q"], limit).Select(s => new
+        {
+            path = s.FilePath,
+            name = s.Name,
+            description = s.Description,
+            tags = s.Tags,
+            downloaded = s.Downloaded,
+            outdated = s.Outdated,
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Loads and starts a script; returns why it failed, if it did. A relative
+    /// path is a repository path under Skua/Scripts, fetched if not on disk.
+    /// </summary>
     public async Task<string?> StartScriptFile(string file)
     {
+        file = await scripts.ResolveAsync(file);
         if (!File.Exists(file))
             return $"no such file: {file}";
         var manager = services.GetRequiredService<IScriptManager>();
