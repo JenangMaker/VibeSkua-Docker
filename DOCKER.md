@@ -207,14 +207,20 @@ docker build -f docker/Dockerfile.kasm -t vibeskua-web .
 ```
 
 By default the image uses the official Ruffle release. VibeSkua works best
-with the patched Ruffle build (Loader and renderer fixes AQW needs, and the
-renderer/fps controls). Pass a zip of its web build as `RUFFLE_WEB_URL`:
+with the patched Ruffle build ([JenangMaker/ruffle](https://github.com/JenangMaker/ruffle),
+branch `aqw-loader-fixes`: Loader and renderer fixes AQW needs, and the
+renderer/fps controls), which the published image uses. Pass a zip of its web
+build as `RUFFLE_WEB_URL`:
 
 ```bash
 docker build -f docker/Dockerfile.kasm \
-  --build-arg RUFFLE_WEB_URL=https://github.com/JenangMaker/ruffle/releases/download/<tag>/ruffle-web.zip \
+  --build-arg RUFFLE_WEB_URL=https://github.com/JenangMaker/ruffle/releases/download/aqw-latest/ruffle-aqw-selfhosted.zip \
   -t vibeskua-web .
 ```
+
+The published image is built by `.github/workflows/publish-image.yml` (run
+it from the Actions tab, or push a `v*` tag); the Ruffle zip comes from that
+fork's `aqw.yml` workflow.
 
 If that download needs a login, pass it as a BuildKit secret, never as a
 build argument (those stay in the image):
