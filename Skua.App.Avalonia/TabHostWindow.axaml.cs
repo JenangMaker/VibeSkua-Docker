@@ -493,7 +493,7 @@ public partial class TabHostWindow : Window
 
     private void PumpFocus()
     {
-        const int NotifyInferior = 2;
+        const int NotifyVirtual = 1, NotifyInferior = 2, NotifyNonlinearVirtual = 4;
         IntPtr display = _display;
         if (display == IntPtr.Zero || _closing)
             return;
@@ -504,6 +504,11 @@ public partial class TabHostWindow : Window
             ulong window = (ulong)Marshal.ReadInt64(_event, 32);
             int detail = Marshal.ReadInt32(_event, 84);
             if (detail == NotifyInferior)
+                continue;
+            // Straight into the tab's game (a window inside it): the tab's own
+            // GameEmbed focuses the game; focusing the tab here as well would
+            // race it and could take the keys from the game.
+            if (type == X.EnterNotify && detail is NotifyVirtual or NotifyNonlinearVirtual)
                 continue;
             if (type == X.EnterNotify)
                 X.XSetInputFocus(display, window, X.RevertToParent, 0);
