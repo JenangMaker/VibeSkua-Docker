@@ -489,8 +489,8 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
             {
                 case "ref":
                     string refPath = parts[1];
-                    string refLocal = Path.Combine(ClientFileSources.SkuaScriptsDIR, refPath.Replace("Scripts/", ""));
-                    string currentDirRef = string.IsNullOrEmpty(currentFile) ? "" : Path.Combine(Path.GetDirectoryName(currentFile) ?? "", refPath);
+                    string refLocal = ScriptPaths.FixCase(Path.Combine(ClientFileSources.SkuaScriptsDIR, refPath.Replace("Scripts/", "")));
+                    string currentDirRef = string.IsNullOrEmpty(currentFile) ? "" : ScriptPaths.FixCase(Path.Combine(Path.GetDirectoryName(currentFile) ?? "", refPath));
                     
                     if (!string.IsNullOrEmpty(currentDirRef) && File.Exists(currentDirRef))
                     {
@@ -511,8 +511,8 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
 
                 case "include":
                     string includePath = parts[1];
-                    string includeLocal = Path.Combine(ClientFileSources.SkuaScriptsDIR, includePath.Replace("Scripts/", ""));
-                    string currentDirInclude = string.IsNullOrEmpty(currentFile) ? "" : Path.Combine(Path.GetDirectoryName(currentFile) ?? "", includePath);
+                    string includeLocal = ScriptPaths.FixCase(Path.Combine(ClientFileSources.SkuaScriptsDIR, includePath.Replace("Scripts/", "")));
+                    string currentDirInclude = string.IsNullOrEmpty(currentFile) ? "" : ScriptPaths.FixCase(Path.Combine(Path.GetDirectoryName(currentFile) ?? "", includePath));
                     
                     if (!string.IsNullOrEmpty(currentDirInclude) && File.Exists(currentDirInclude))
                         filesToInclude.Add(currentDirInclude);
@@ -675,8 +675,8 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
                     {
                         case "ref":
                             string refPath = parts[1];
-                            string refLocal = Path.Combine(ClientFileSources.SkuaScriptsDIR, refPath.Replace("Scripts/", ""));
-                            string currentDirRef = string.IsNullOrEmpty(currentFile) ? "" : Path.Combine(Path.GetDirectoryName(currentFile) ?? "", refPath);
+                            string refLocal = ScriptPaths.FixCase(Path.Combine(ClientFileSources.SkuaScriptsDIR, refPath.Replace("Scripts/", "")));
+                            string currentDirRef = string.IsNullOrEmpty(currentFile) ? "" : ScriptPaths.FixCase(Path.Combine(Path.GetDirectoryName(currentFile) ?? "", refPath));
                             
                             if (!string.IsNullOrEmpty(currentDirRef) && File.Exists(currentDirRef))
                                 references.Add(currentDirRef);
@@ -688,8 +688,8 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
 
                         case "include":
                             string includePath = parts[1];
-                            string includeLocal = Path.Combine(ClientFileSources.SkuaScriptsDIR, includePath.Replace("Scripts/", ""));
-                            string currentDirInclude = string.IsNullOrEmpty(currentFile) ? "" : Path.Combine(Path.GetDirectoryName(currentFile) ?? "", includePath);
+                            string includeLocal = ScriptPaths.FixCase(Path.Combine(ClientFileSources.SkuaScriptsDIR, includePath.Replace("Scripts/", "")));
+                            string currentDirInclude = string.IsNullOrEmpty(currentFile) ? "" : ScriptPaths.FixCase(Path.Combine(Path.GetDirectoryName(currentFile) ?? "", includePath));
                             
                             if (!string.IsNullOrEmpty(currentDirInclude) && File.Exists(currentDirInclude))
                                 includes.Add(currentDirInclude);
@@ -1308,8 +1308,8 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
                 if (parts.Length >= 2)
                 {
                     string includePath = parts[1];
-                    string localPath = Path.Combine(ClientFileSources.SkuaScriptsDIR, includePath.Replace("Scripts/", ""));
-                    string currentDirInclude = string.IsNullOrEmpty(currentFile) ? "" : Path.Combine(Path.GetDirectoryName(currentFile) ?? "", includePath);
+                    string localPath = ScriptPaths.FixCase(Path.Combine(ClientFileSources.SkuaScriptsDIR, includePath.Replace("Scripts/", "")));
+                    string currentDirInclude = string.IsNullOrEmpty(currentFile) ? "" : ScriptPaths.FixCase(Path.Combine(Path.GetDirectoryName(currentFile) ?? "", includePath));
                     
                     if (!string.IsNullOrEmpty(currentDirInclude) && File.Exists(currentDirInclude))
                         dependencies.Add(currentDirInclude);
@@ -1358,7 +1358,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
             string cmd = parts[0][5..];
             if (cmd == "ref")
             {
-                string local = Path.Combine(ClientFileSources.SkuaScriptsDIR, parts[1].Replace("Scripts/", ""));
+                string local = ScriptPaths.FixCase(Path.Combine(ClientFileSources.SkuaScriptsDIR, parts[1].Replace("Scripts/", "")));
                 if (File.Exists(local))
                     references.Add(local);
                 else if (File.Exists(parts[1]))
