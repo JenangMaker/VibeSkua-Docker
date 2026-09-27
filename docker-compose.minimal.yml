@@ -8,7 +8,7 @@
 
 services:
   vibeskua:
-    image: ghcr.io/OWNER/vibeskua-web:latest   # the image you publish, see DOCKER.md
+    image: ghcr.io/jenangmaker/vibeskua-web:latest
     container_name: vibeskua
     ports:
       - "3000:3000"

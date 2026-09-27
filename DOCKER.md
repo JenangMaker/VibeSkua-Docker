@@ -27,8 +27,8 @@ container is a small desktop you open at `http://<host>:3000`.
 ## Quick start
 
 1. Save [`docker-compose.minimal.yml`](docker-compose.minimal.yml) as
-   `docker-compose.yml` in an empty folder, and set the image to the published
-   one (`ghcr.io/OWNER/vibeskua-web:latest`).
+   `docker-compose.yml` in an empty folder. It uses the published image,
+   `ghcr.io/jenangmaker/vibeskua-web:latest`.
 2. Set `PUID`/`PGID` to your user's (`id -u`, `id -g`) and change `PASSWORD`.
 3. Start it and open the desktop:
 
@@ -212,7 +212,7 @@ renderer/fps controls). Pass a zip of its web build as `RUFFLE_WEB_URL`:
 
 ```bash
 docker build -f docker/Dockerfile.kasm \
-  --build-arg RUFFLE_WEB_URL=https://github.com/OWNER/ruffle/releases/download/<tag>/ruffle-web.zip \
+  --build-arg RUFFLE_WEB_URL=https://github.com/JenangMaker/ruffle/releases/download/<tag>/ruffle-web.zip \
   -t vibeskua-web .
 ```
 
