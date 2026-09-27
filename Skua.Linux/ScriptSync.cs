@@ -150,24 +150,29 @@ public sealed class ScriptSync(IServiceProvider services)
             var repo = Repo;
             int missing = repo.Missing, outdated = repo.Outdated;
             int fetched = 0;
+            List<(ScriptInfo Script, Exception Error)> failures = new();
             if (scope == Scope.All && (missing > 0 || outdated > 0))
             {
                 Console.WriteLine($"[scripts] downloading {missing} missing, {outdated} outdated of {repo.Total}");
-                fetched = await repo.DownloadAllWhereAsync(s => !s.Downloaded || s.Outdated);
+                (fetched, failures) = await DownloadAsync(s => !s.Downloaded || s.Outdated);
             }
             else if (scope == Scope.Missing && missing > 0)
             {
                 Console.WriteLine($"[scripts] downloading {missing} missing of {repo.Total} (leaving {outdated} outdated as they are)");
-                fetched = await repo.DownloadAllWhereAsync(s => !s.Downloaded);
+                (fetched, failures) = await DownloadAsync(s => !s.Downloaded);
             }
-            LastResult = $"{repo.Total} scripts; {fetched} downloaded at {DateTime.UtcNow:u}";
+            // (A failed index fetch is reported by GetScriptsService itself.)
+            if (failures.Count > 0)
+                ReportFailures(failures, fetched);
+            LastResult = $"{repo.Total} scripts; {fetched} downloaded" + (failures.Count > 0 ? $", {failures.Count} failed" : "") + $" at {DateTime.UtcNow:u}";
             Console.WriteLine($"[scripts] {LastResult}");
-            return new { total = repo.Total, missing, outdated, downloaded = fetched };
+            return new { total = repo.Total, missing, outdated, downloaded = fetched, failed = failures.Count };
         }
         catch (Exception e)
         {
             LastResult = $"failed: {e.Message}";
             Console.Error.WriteLine($"[scripts] {LastResult}");
+            ReportFailure($"Syncing scripts from {ScriptsSource.Name} failed:\r\n{e.Message}", e);
             return new { error = e.Message };
         }
         finally
@@ -176,6 +181,66 @@ public sealed class ScriptSync(IServiceProvider services)
             _gate.Release();
         }
     }
+
+    // Download the matching scripts 15 at a time; one failure does not stop the rest.
+    private async Task<(int Fetched, List<(ScriptInfo, Exception)> Failures)> DownloadAsync(Func<ScriptInfo, bool> pred)
+    {
+        var repo = Repo;
+        List<ScriptInfo> targets = repo.Scripts.ToList().Where(pred).ToList();
+        List<(ScriptInfo, Exception)> failures = new();
+        using SemaphoreSlim slots = new(15);
+        await Task.WhenAll(targets.Select(async s =>
+        {
+            await slots.WaitAsync();
+            try { await repo.DownloadScriptAsync(s); }
+            catch (Exception e) { lock (failures) failures.Add((s, e)); }
+            finally { slots.Release(); }
+        }));
+        return (targets.Count - failures.Count, failures);
+    }
+
+    private void ReportFailures(List<(ScriptInfo Script, Exception Error)> failures, int fetched)
+    {
+        string dir = ClientFileSources.SkuaScriptsDIR;
+        foreach (var (script, error) in failures.Take(5))
+            Console.Error.WriteLine($"[scripts] {script.FilePath}: {error.Message}");
+
+        string message = $"{failures.Count} script(s) could not be downloaded from {ScriptsSource.Name} ({fetched} downloaded).\r\n\r\n";
+        if (failures.Any(f => f.Error is UnauthorizedAccessException or IOException { HResult: 13 }))
+        {
+            message += $"Skua cannot write to its Scripts folder ({dir}). " +
+                $"It runs as user {Geteuid()}:{Getegid()}; " +
+                (ScriptsFolderMounted
+                    ? "the folder is mounted from the host, so set the container's PUID/PGID to the folder's owner (stat -c '%u:%g' <host folder>) or make the folder writable for that user."
+                    : "make the folder writable for that user.") +
+                "\r\n\r\n";
+        }
+        message += "Failed:\r\n" + string.Join("\r\n", failures
+            .Take(3)
+            .Select(f => $"  {f.Script.FilePath}: {f.Error.Message}"));
+        if (failures.Count > 3)
+            message += $"\r\n  ... and {failures.Count - 3} more (see the container log)";
+        ReportFailure(message, null);
+    }
+
+    // Show the problem without holding up the sync (or an API request) until it is dismissed.
+    private void ReportFailure(string message, Exception? e)
+    {
+        _ = Task.Run(() =>
+        {
+            try { Dialogs.ShowMessageBox(message, "Script Sync Failed"); }
+            catch { }
+        });
+    }
+
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "geteuid")]
+    private static extern uint GeteuidNative();
+
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "getegid")]
+    private static extern uint GetegidNative();
+
+    private static string Geteuid() { try { return GeteuidNative().ToString(); } catch { return "?"; } }
+    private static string Getegid() { try { return GetegidNative().ToString(); } catch { return "?"; } }
 
     /// <summary>Scripts in the repository index whose path, name or tags contain every term.</summary>
     public IEnumerable<ScriptInfo> Search(string? query, int limit = 50)
