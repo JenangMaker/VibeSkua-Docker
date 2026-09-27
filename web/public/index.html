@@ -43,6 +43,25 @@
   // Which of Skua's tabs (accounts) this page is: main.js opens one page per
   // tab, ?instance=N, each with its own bridge port and credentials.
   window.VIBESKUA_INSTANCE = new URLSearchParams(location.search).get('instance') || '0';
+
+  // The game's api/char/ requests (the bank, ...) carry custom headers, so
+  // the browser would ask game.aq.com's permission first, and it refuses
+  // (a redirect): the bank never loaded. Send them through main.js
+  // (/aq-api/char/...), same-origin, which forwards them as Flash would.
+  (() => {
+    const GAME_API = /^https?:\/\/game\.aq\.com\/game\/api\/char\//i;
+    const realFetch = window.fetch.bind(window);
+    window.fetch = async function (input, init) {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (!GAME_API.test(url)) return realFetch(input, init);
+      const local = '/aq-api/char/' + url.replace(GAME_API, '');
+      if (input instanceof Request) {
+        const body = input.method === 'GET' || input.method === 'HEAD' ? undefined : await input.arrayBuffer();
+        return realFetch(local, { method: input.method, headers: input.headers, body, credentials: 'same-origin' });
+      }
+      return realFetch(local, { ...init, credentials: 'same-origin' });
+    };
+  })();
 </script>
 <script src="/ruffle/ruffle.js"></script>
 <script src="/session.js"></script>

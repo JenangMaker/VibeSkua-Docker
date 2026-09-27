@@ -284,6 +284,17 @@ function serve() {
         res.end(JSON.stringify({ instance: n, open: req.method === 'POST' }));
         return;
       }
+      // The game's own api/char/ requests (the bank, ...), relayed. It sends
+      // them with custom headers (ccid, token), so a browser first asks
+      // game.aq.com's permission (a CORS preflight), which it answers with a
+      // redirect: the bank never loaded, and scripts took banked items for
+      // missing and tried to buy them. The page sends them here instead
+      // (index.html), same-origin, and this forwards them as Flash would.
+      if (url.pathname.startsWith('/aq-api/char/')) {
+        if (req.headers.host !== `127.0.0.1:${PORT}` || !['GET', 'POST'].includes(req.method)) { res.writeHead(404); res.end(); return; }
+        relayGameApi(req, res, url);
+        return;
+      }
       // Credentials for auto-login, for this page only (see `own`).
       if (url.pathname === '/autologin') {
         const creds = inst >= 0 ? credsFor(inst) : {};
@@ -299,6 +310,25 @@ function serve() {
       fs.createReadStream(file).pipe(res);
     }).listen(PORT, '127.0.0.1', resolve);
   });
+}
+
+function relayGameApi(req, res, url) {
+  const target = `https://game.aq.com/game/api${url.pathname.slice('/aq-api'.length)}${url.search}`;
+  const headers = { 'User-Agent': 'vibeskua-web' };
+  for (const h of ['ccid', 'token', 'content-type']) if (req.headers[h]) headers[h] = req.headers[h];
+  const upstream = https.request(target, { method: req.method, headers }, up => {
+    res.writeHead(up.statusCode || 502, {
+      'Content-Type': up.headers['content-type'] || 'text/plain',
+      'Cache-Control': 'no-store',
+    });
+    up.pipe(res);
+  });
+  upstream.on('error', e => {
+    console.error(`[host] game api ${url.pathname}: ${e.message}`);
+    if (!res.headersSent) res.writeHead(502);
+    res.end();
+  });
+  req.pipe(upstream);
 }
 
 const corsFixed = new Set();
