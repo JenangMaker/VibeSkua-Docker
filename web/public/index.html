@@ -29,6 +29,7 @@
   <div class="group">Renderer:
     <button data-renderer="wgpu-webgl" title="Full visuals (filters, glows). Reloads the page.">wgpu</button>
     <button data-renderer="webgl" title="Lighter, but no filters and less complete. Reloads the page.">webgl</button>
+    <button data-renderer="canvas" title="No GPU needed: by far the lightest without one, no filters. Reloads the page.">canvas</button>
   </div>
   <div class="group">Resolution:
     <button data-scale="0.5">50%</button>
@@ -209,7 +210,7 @@ function initControls(renderScale, maxRenderFps) {
 
 async function main() {
   let servers = [], proxyPort = 8181, disableModules = [], enableModules = [], quality = 'low';
-  let renderer = 'wgpu-webgl', renderScale = 1, maxRenderFps = Infinity;
+  let renderer = 'webgl', renderScale = 1, maxRenderFps = Infinity;
   let sessionCfg = {}, skuaBridgeUrl = null;
   try {
     const r = await (await fetch('/servers?instance=' + window.VIBESKUA_INSTANCE)).json();

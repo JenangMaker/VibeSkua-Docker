@@ -57,22 +57,27 @@ const RUFFLE_QUALITY = process.env.RUFFLE_QUALITY || 'low';
 // control bar under the game, or per-load with ?renderer=&scale=&fps= in the
 // page URL.
 //
-// Tested in a logged-in 10-player Battleon (Intel GPU): webgl ~36 fps at Max,
-// wgpu-webgl ~2 fps (wgpu-core overhead). webgl is the default for that; what
-// it lacks is anything AQW draws into a BitmapData (skill cooldown shading,
-// aura fades; map backgrounds are worked around in index.html).
+// With a GPU, tested in a logged-in 10-player Battleon (Intel): webgl ~36 fps
+// at Max, wgpu-webgl ~2 fps (wgpu-core overhead). webgl lacks some filters
+// (glows); wgpu-webgl draws everything.
 //
-// RUFFLE_RENDERER: webgl (default, fast) or wgpu-webgl (full visuals, heavy).
-const RUFFLE_RENDERER = unquoteEnv('RUFFLE_RENDERER') || 'webgl';
-// Fraction of display resolution to render at; the browser upscales.
-const RENDER_SCALE = Number(unquoteEnv('RENDER_SCALE') || '1');
-// Without a GPU (no /dev/dri render node passed in), Chromium draws on the
-// CPU (SwiftShader), and drawing as often as possible takes whole cores per
-// account. Then drawing is capped at NO_GPU_RENDER_FPS unless MAX_RENDER_FPS
-// says otherwise; the game itself still runs at full speed.
+// Without a GPU (no /dev/dri render node passed in) Chromium can only offer
+// WebGL through SwiftShader, a GPU emulated on the CPU. Ruffle's webgl
+// renderer refuses that ("major performance caveat") and falls back to wgpu
+// on SwiftShader: ~7 cores on the login screen at 15 fps. The canvas renderer
+// (Canvas 2D, drawn by Chromium's own software rasteriser) took ~0.5 of a
+// core there, ~1.5 in a 10-player Battleon. So canvas is the default then.
+//
+// RUFFLE_RENDERER: webgl (default with a GPU), canvas (default without),
+// or wgpu-webgl (full visuals, heavy).
 const HAS_GPU = (() => {
   try { return fs.readdirSync('/dev/dri').some(f => f.startsWith('renderD')); } catch { return false; }
 })();
+const RUFFLE_RENDERER = unquoteEnv('RUFFLE_RENDERER') || (HAS_GPU ? 'webgl' : 'canvas');
+// Fraction of display resolution to render at; the browser upscales.
+const RENDER_SCALE = Number(unquoteEnv('RENDER_SCALE') || '1');
+// Without a GPU drawing is also capped at NO_GPU_RENDER_FPS unless
+// MAX_RENDER_FPS says otherwise; the game itself still runs at full speed.
 const NO_GPU_RENDER_FPS = 15;
 // Most renders per second. 0 = headless (nothing drawn), Infinity = unlimited.
 const MAX_RENDER_FPS = Number(unquoteEnv('MAX_RENDER_FPS') || (HAS_GPU ? 'Infinity' : String(NO_GPU_RENDER_FPS)));

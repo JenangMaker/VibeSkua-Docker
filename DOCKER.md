@@ -137,16 +137,20 @@ is slow and busy however it is tuned. If `ls /dev/dri` on the host lists a
 found` / `[host] no GPU passed in`). NVIDIA cards need the NVIDIA container
 toolkit instead; that is untested here.
 
-Without a GPU the image already draws at most 15 frames a second (the game
-itself still runs at full speed). Further:
+Without a GPU the image switches to settings made for the CPU: the `canvas`
+renderer, which Chromium draws with its own software rasteriser (the WebGL
+renderers would run on an emulated GPU and take several cores even on the
+login screen), and at most 15 frames drawn a second (the game itself still
+runs at full speed). Canvas leaves out some effects (glows, shadows).
+Further:
 
 - `MAX_RENDER_FPS` sets how often the game is drawn: lower saves CPU, `0`
   draws nothing at all (fine for a bot you are not watching). With a GPU the
   default is unlimited.
 - `RENDER_SCALE: "0.75"` (or `"0.5"`) draws at a lower resolution.
-- `RUFFLE_RENDERER` is `webgl` by default, the fast one. `wgpu-webgl` draws
-  every effect (skill cooldown shading, aura fades) but is many times slower;
-  only consider it with a GPU.
+- `RUFFLE_RENDERER`: `webgl` by default with a GPU, `canvas` without.
+  `wgpu-webgl` draws every effect but is many times slower; only consider it
+  with a GPU.
 - These three can also be changed live from the bar under the game.
 - `ENABLE_MODULES: "DisableFX,HidePlayers"` switches on Skua's own
   performance modules.
@@ -175,7 +179,7 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `SKUA_HOST` | `1` | `0`: the game only, without Skua. |
 | `SKUA_UI` | `1` | `0`: Skua without windows, driven through its control API only. |
 | `SKUA_EMBED_GAME` | `1` | `0`: the game in its own window below Skua's instead of inside it (no tabs). |
-| `RUFFLE_RENDERER` | `webgl` | `wgpu-webgl` draws every effect but is much heavier; see [Performance](#performance). |
+| `RUFFLE_RENDERER` | `webgl` with a GPU, `canvas` without | `wgpu-webgl` draws every effect but is much heavier; see [Performance](#performance). |
 | `RUFFLE_QUALITY` | `low` | `low`, `medium`, `high`. |
 | `RENDER_SCALE` | `1` | Fraction of the window's resolution to draw at. |
 | `MAX_RENDER_FPS` | unlimited with a GPU, `15` without | Frames drawn per second; `0` draws nothing. |
