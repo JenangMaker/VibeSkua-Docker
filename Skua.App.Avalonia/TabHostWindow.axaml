@@ -1,0 +1,131 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        xmlns:local="clr-namespace:Skua.App.Avalonia"
+        x:Class="Skua.App.Avalonia.TabHostWindow"
+        x:DataType="local:TabHostWindow"
+        Title="VibeSkua"
+        Width="1100"
+        Height="700"
+        Background="#1E1E1E"
+        Icon="avares://Skua.App.Avalonia/Assets/SkuaIcon.ico">
+    <!-- Skua.App.WPF's TabbedHostWindow: a tab per account, each its own Skua
+         (menu over its game) placed over HostArea; Army Control sends every
+         tab the same command; Grid View shows all their games at once. -->
+    <Window.Styles>
+        <Style Selector="Border.tab">
+            <Setter Property="Background" Value="#252526" />
+            <Setter Property="BorderBrush" Value="#333333" />
+            <Setter Property="BorderThickness" Value="1,1,1,0" />
+            <Setter Property="CornerRadius" Value="4,4,0,0" />
+            <Setter Property="Margin" Value="2,0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Border.tab:pointerover">
+            <Setter Property="Background" Value="#2D2D30" />
+        </Style>
+        <Style Selector="Border.tab.selected">
+            <Setter Property="Background" Value="#3E3E42" />
+        </Style>
+        <Style Selector="Border.tab > Grid > Border.indicator">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+        <Style Selector="Border.tab.selected > Grid > Border.indicator">
+            <Setter Property="IsVisible" Value="True" />
+        </Style>
+        <Style Selector="Button.tabbar, ToggleButton.tabbar">
+            <Setter Property="Background" Value="#252526" />
+            <Setter Property="BorderBrush" Value="#333333" />
+            <Setter Property="BorderThickness" Value="1,1,1,0" />
+            <Setter Property="CornerRadius" Value="4,4,0,0" />
+            <Setter Property="Margin" Value="2,0" />
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="Foreground" Value="{DynamicResource SkuaPrimaryBrush}" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+        <Style Selector="ToggleButton.tabbar:checked /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#3E3E42" />
+            <Setter Property="BorderBrush" Value="#007ACC" />
+        </Style>
+    </Window.Styles>
+    <DockPanel>
+        <DockPanel DockPanel.Dock="Top" Height="34" Margin="2,2,2,0">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="0,0,5,0">
+                <Button x:Name="ArmyButton" Classes="tabbar">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <icons:MaterialIcon Kind="Earth" />
+                        <TextBlock Text="Army Control" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Button.Flyout>
+                        <MenuFlyout Placement="BottomEdgeAlignedRight">
+                            <MenuItem x:Name="MenuStartScripts" Header="Start All Scripts" Click="StartAll_Click" />
+                            <MenuItem x:Name="MenuStopScripts" Header="Stop All Scripts" Click="StopAll_Click" />
+                            <MenuItem Header="Load Script to All" Click="LoadScriptAll_Click" />
+                            <MenuItem Header="Army Scheduler" Click="ArmyScheduler_Click" />
+                            <Separator />
+                            <MenuItem x:Name="MenuLoginAll" Header="Login All Clients" Click="LoginAll_Click" />
+                            <MenuItem Header="Logout All Clients" Click="LogoutAll_Click" />
+                            <Separator />
+                            <MenuItem Header="Jump All to Map..." Click="JumpMap_Click" />
+                            <MenuItem Header="Jump All to Player..." Click="JumpPlayer_Click" />
+                            <Separator />
+                            <MenuItem Header="Accept Quest (All)..." Click="AcceptQuest_Click" />
+                            <Separator />
+                            <MenuItem Header="Misc Options">
+                                <MenuItem Header="Lag Killer" Tag="LagKiller" ToggleType="CheckBox" Click="Option_Click" />
+                                <MenuItem Header="Headless Mode" Tag="HeadlessMode" ToggleType="CheckBox" Click="Option_Click" />
+                                <MenuItem Header="Hide Players" Tag="HidePlayers" ToggleType="CheckBox" Click="Option_Click" />
+                                <MenuItem Header="Disable FX" Tag="DisableFX" ToggleType="CheckBox" Click="Option_Click" />
+                                <MenuItem Header="Infinite Range" Tag="InfiniteRange" ToggleType="CheckBox" Click="Option_Click" />
+                                <MenuItem Header="Use Function-Based Skills" Tag="UseFunctionBasedSkills" ToggleType="CheckBox" Click="Option_Click" />
+                                <MenuItem Header="Streamer Mode" Tag="StreamerMode" ToggleType="CheckBox" Click="Option_Click" />
+                            </MenuItem>
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
+                <ToggleButton x:Name="GridButton" Classes="tabbar" Click="Grid_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <icons:MaterialIcon Kind="ViewGrid" />
+                        <TextBlock Text="Grid View" VerticalAlignment="Center" />
+                    </StackPanel>
+                </ToggleButton>
+            </StackPanel>
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <StackPanel Orientation="Horizontal">
+                    <ItemsControl x:Name="TabStrip" ItemsSource="{Binding Tabs}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="local:SkuaTab">
+                                <Border Classes="tab" Classes.selected="{Binding IsSelected}" PointerPressed="Tab_PointerPressed">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Margin="10,4" Spacing="8">
+                                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                                            <Button Classes="flat" Padding="4,0" Click="CloseTab_Click" ToolTip.Tip="Close this tab (its Skua and game)">
+                                                <icons:MaterialIcon Kind="Close" Width="12" Height="12" />
+                                            </Button>
+                                        </StackPanel>
+                                        <Border Classes="indicator" Height="3" VerticalAlignment="Bottom" Background="{DynamicResource SkuaPrimaryBrush}" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Classes="tabbar" Click="AddTab_Click" ToolTip.Tip="New tab: another Skua with its own game">
+                        <icons:MaterialIcon Kind="Plus" />
+                    </Button>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+        <Panel x:Name="HostArea" Background="#252526">
+            <StackPanel x:Name="LoadingIndicator" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.5">
+                <TextBlock Text="Loading Instance..." Foreground="White" FontSize="24" FontWeight="Light" HorizontalAlignment="Center" Margin="0,0,0,10" />
+                <TextBlock Text="Please wait while the game is being initialized" Foreground="#AAAAAA" FontSize="14" HorizontalAlignment="Center" />
+            </StackPanel>
+        </Panel>
+    </DockPanel>
+</Window>

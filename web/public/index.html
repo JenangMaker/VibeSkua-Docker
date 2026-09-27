@@ -39,6 +39,11 @@
 </div>
 <div id="status"></div>
 
+<script>
+  // Which of Skua's tabs (accounts) this page is: main.js opens one page per
+  // tab, ?instance=N, each with its own bridge port and credentials.
+  window.VIBESKUA_INSTANCE = new URLSearchParams(location.search).get('instance') || '0';
+</script>
 <script src="/ruffle/ruffle.js"></script>
 <script src="/session.js"></script>
 <script src="/skua-bridge.js"></script>
@@ -188,7 +193,7 @@ async function main() {
   let renderer = 'wgpu-webgl', renderScale = 1, maxRenderFps = Infinity;
   let sessionCfg = {}, skuaBridgeUrl = null;
   try {
-    const r = await (await fetch('/servers')).json();
+    const r = await (await fetch('/servers?instance=' + window.VIBESKUA_INSTANCE)).json();
     servers = r.servers || [];
     proxyPort = r.proxyPort || proxyPort;
     disableModules = r.disableModules || [];

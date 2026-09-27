@@ -60,6 +60,26 @@ replaces outdated scripts, local edits included. `SKUA_SCRIPT_SYNC=ask|off`
 forces asking or skips the sync. The junk item list asks as in WPF when its
 auto update is off. Without windows (`SKUA_UI=0`) the questions answer Skip /
 No; `POST /scripts/update` on the control API syncs everything on demand.
+Scripts that fail to download (a Scripts folder the container user cannot
+write, say) are listed in a pop-up.
+
+## Tabs, Army Control, Grid View
+
+As WPF's `TabbedHostWindow`: by default this program is the tab host
+(`TabHostWindow`), and each tab is another copy of it (`--tab-child`,
+`SKUA_INSTANCE=N`) - a full Skua with its own game window, which main.js
+opens for it (`/instances/N`, page `?instance=N`, its own browser storage).
+The host re-parents each tab's main window under the tab strip; tabs not on
+screen are parked out of view and slowed to 2 fps, Grid View tiles them all
+with their menus hidden. Tab N's bridge and API listen on the configured
+ports + 10*N; only the first tab syncs scripts and loads `SKUA_SCRIPT`.
+
+Army Control sends every tab the same command through its control API
+(`Skua.Linux/ArmyApi.cs`, `POST /army/...`): start/stop scripts, load a script
+(the Script Repo's Load), the Army Scheduler (the Scheduler's playlist, run by
+every tab), login/logout, jump to a map or player, accept a quest, and the
+Misc Options toggles. `SKUA_TABS=0` runs a single Skua as before; `SKUA_TABS=N`
+opens N tabs at start; `AQW_USER_N` / `AQW_PASS_N` log tab N in.
 
 ## Checking it
 

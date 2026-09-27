@@ -50,7 +50,7 @@
       if (this.busy) return;
       this.busy = true;
       try {
-        const res = await fetch('/autologin', { headers: { 'X-Vibeskua': '1' }, cache: 'no-store' });
+        const res = await fetch('/autologin?instance=' + (window.VIBESKUA_INSTANCE || '0'), { headers: { 'X-Vibeskua': '1' }, cache: 'no-store' });
         if (!res.ok) return;
         const creds = await res.json();
         for (let i = 0; i < 90 && !this.has('mcLogin.ni'); i++) await sleep(1000);

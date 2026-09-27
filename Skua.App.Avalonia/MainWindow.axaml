@@ -55,7 +55,7 @@
             </Menu>
             <Panel />
         </DockPanel>
-        <Border DockPanel.Dock="Top" Padding="10,6" Background="{DynamicResource SkuaBarBrush}">
+        <Border x:Name="StatusBar" DockPanel.Dock="Top" Padding="10,6" Background="{DynamicResource SkuaBarBrush}">
             <TextBlock x:Name="StatusText" Classes="caption" Text="Waiting for the game page..." />
         </Border>
         <Border x:Name="GameArea" Background="#111111">

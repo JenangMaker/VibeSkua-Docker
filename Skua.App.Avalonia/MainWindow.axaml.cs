@@ -35,7 +35,30 @@ public partial class MainWindow : Window
         };
         // Before the window (and anything inside it) is destroyed.
         Closing += (_, _) => _embed?.Release();
+        if (App.Mode == AppMode.TabChild && App.Runtime is { } runtime)
+        {
+            // The tab host finds this window, and switches Grid View, through
+            // this tab's control API.
+            runtime.Api.Routes["GET /ui/window"] = _ => Dispatcher.UIThread.InvokeAsync<object>(() =>
+                new { xid = TryGetPlatformHandle()?.Handle is { } h && h != IntPtr.Zero ? ((ulong)h).ToString() : null }).GetTask();
+            runtime.Api.Routes["POST /ui/grid"] = request =>
+            {
+                bool on = request.QueryString["on"] is "1" or "true";
+                return Dispatcher.UIThread.InvokeAsync<object>(() =>
+                {
+                    SetGridView(on);
+                    return new { grid = on };
+                }).GetTask();
+            };
+        }
         StrongReferenceMessenger.Default.Register<MainWindow, ShowMainWindowMessage>(this, (w, _) => { w.Show(); w.Activate(); });
+    }
+
+    /// <summary>In the tab host's Grid View only the game shows, as in WPF.</summary>
+    public void SetGridView(bool on)
+    {
+        MenuBar.IsVisible = !on;
+        StatusBar.IsVisible = !on;
     }
 
     // What Skua sees, under the menu.

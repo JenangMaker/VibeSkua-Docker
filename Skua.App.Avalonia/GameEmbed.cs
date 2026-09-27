@@ -40,7 +40,7 @@ public sealed class GameEmbed : IDisposable
         _window = window;
         _area = area;
         string origin = SkuaRuntime.Env("SKUA_BRIDGE_ORIGINS", "http://127.0.0.1:8770").Split(',')[0].TrimEnd('/');
-        _endpoint = origin + "/game-window";
+        _endpoint = origin + "/game-window?instance=" + SkuaRuntime.Instance;
     }
 
     /// <summary>Raised on the UI thread if the game window never appears.</summary>
@@ -144,7 +144,7 @@ public sealed class GameEmbed : IDisposable
     // The save-set only protects windows inside windows created by the same
     // connection, so it has to be Avalonia's, not ours. Its X11 platform is
     // internal; its Display property is public.
-    private static void AddToAvaloniaSaveSet(ulong window)
+    internal static void AddToAvaloniaSaveSet(ulong window)
     {
         try
         {

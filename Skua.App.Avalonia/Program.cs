@@ -42,11 +42,23 @@ if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")))
     return;
 }
 
+// Tabs, as Skua.App.WPF's TabbedHostWindow: this process draws the tab strip
+// and starts one Skua per tab (--tab-child), each with its own game. On by
+// default; SKUA_TABS=0 runs a single Skua, SKUA_TABS=N opens N tabs.
+App.Mode = args.Contains("--tab-child") ? AppMode.TabChild
+    : TabHostWindow.Enabled ? AppMode.TabHost
+    : AppMode.Single;
+if (App.Mode == AppMode.TabChild)
+    TabHostWindow.WatchHost();
+
 App.Runtime = SkuaRuntime.Create(services =>
 {
     services.AddAvaloniaServices();
     services.AddSkuaMainAppViewModels();
 });
+// The tab host only uses Skua's services for its dialogs (Scheduler, Script
+// Repo); the bot, bridge and API run in the tabs.
+App.StartRuntime = App.Mode != AppMode.TabHost;
 AppBuilder.Configure<App>()
     .UsePlatformDetect()
     .WithInterFont()

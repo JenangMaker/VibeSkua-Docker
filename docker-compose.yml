@@ -144,6 +144,14 @@ services:
       # The game is embedded in Skua's main window under its menu, as in the
       # Windows app; "0" keeps them separate (Skua a bar above the game).
       # SKUA_EMBED_GAME: "1"
+      # Tabs, as in the Windows VibeSkua: one AQW account per tab (each its
+      # own Skua and game), Army Control (every tab at once) and Grid View.
+      # "0" turns tabs off; a number opens that many tabs at start. Tab N logs
+      # in with AQW_USER_N / AQW_PASS_N (AQW_SERVER_N) when set, e.g.
+      # AQW_USER_2 for the second tab; tab 1 uses AQW_USER / AQW_PASS. Tab N's
+      # Skua listens on the bridge/API ports + 10*(N-1) (tab 2: API 8801).
+      # Each tab costs about as much memory and CPU as the first.
+      # SKUA_TABS: "1"
       # Script to load at startup (it shows in the Script Loader, ready to
       # start): a repository path (scripts are synced from SKUA_SCRIPTS_REPO
       # at startup) or an absolute path.

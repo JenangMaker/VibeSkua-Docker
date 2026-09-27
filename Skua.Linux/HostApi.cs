@@ -14,10 +14,16 @@ namespace Skua.Linux;
 /// The control API: start/stop scripts, read status and logs. Binds to a
 /// local address only; anything that can reach it can run code as the bot.
 /// </summary>
-public sealed class HostApi(IServiceProvider services, ScriptSync scripts, string prefix)
+public sealed partial class HostApi(IServiceProvider services, ScriptSync scripts, string prefix)
 {
     private readonly HttpListener _listener = new();
     private readonly string _scratch = Path.Combine(Path.GetTempPath(), "skua-host");
+
+    /// <summary>
+    /// Routes the UI adds (e.g. GET /ui/window), by "METHOD /path". Checked
+    /// after the built-in ones.
+    /// </summary>
+    public System.Collections.Concurrent.ConcurrentDictionary<string, Func<HttpListenerRequest, Task<object>>> Routes { get; } = new();
 
     public void Start()
     {
@@ -52,6 +58,8 @@ public sealed class HostApi(IServiceProvider services, ScriptSync scripts, strin
                 ("GET", "/log") => Log(ctx.Request),
                 ("GET", "/scripts") => Scripts(ctx.Request),
                 ("POST", "/scripts/update") => await scripts.UpdateScriptsAsync(),
+                ("POST", _) when path.StartsWith("/army/") => await Army(path["/army/".Length..], ctx.Request),
+                _ when Routes.TryGetValue($"{method} {path}", out var route) => await route(ctx.Request),
                 _ => NotFound(out status),
             };
         }
@@ -93,6 +101,7 @@ public sealed class HostApi(IServiceProvider services, ScriptSync scripts, strin
         }
         return new
         {
+            instance = SkuaRuntime.Instance,
             bridgeConnected = bridge.IsConnected,
             game,
             script = new { running = manager.ScriptRunning, loaded = manager.LoadedScript },

@@ -9,8 +9,20 @@ using Skua.Linux;
 
 namespace Skua.App.Avalonia;
 
+public enum AppMode
+{
+    /// <summary>One Skua: menu over the game.</summary>
+    Single,
+    /// <summary>The tab strip, Army Control and Grid View over one Skua per tab.</summary>
+    TabHost,
+    /// <summary>One tab's Skua, its window inside the tab host's.</summary>
+    TabChild,
+}
+
 public partial class App : Application
 {
+    public static AppMode Mode { get; set; } = AppMode.Single;
+
     /// <summary>Skua.Core and the bridge; set by Program before the app starts.</summary>
     public static SkuaRuntime? Runtime { get; set; }
 
@@ -47,6 +59,14 @@ public partial class App : Application
         }).ContinueWith(_ => Dispatcher.UIThread.Post(() =>
         {
             Service<Skua.App.Avalonia.Services.AvaloniaThemeService>().ApplyCurrent();
+            if (Mode == AppMode.TabHost)
+            {
+                var host = new TabHostWindow();
+                desktop.MainWindow = host;
+                host.Show();
+                Console.Error.WriteLine("[host] start: tab host up");
+                return;
+            }
             var main = new MainWindow { DataContext = Service<MainViewModel>() };
             desktop.MainWindow = main;
             main.Show();

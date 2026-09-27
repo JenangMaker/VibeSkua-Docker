@@ -131,7 +131,33 @@ const SKUA_BRIDGE_PREFIX = unquote(process.env.SKUA_BRIDGE_PREFIX) || 'http://12
 const SKUA_BRIDGE_URL = SKUA_BRIDGE_PREFIX.replace(/^http/, 'ws').replace('://+:', '://127.0.0.1:').replace('://*:', '://127.0.0.1:');
 
 let skuaChild = null;
-let gameWindowXid = null;
+
+// Skua's tabs, one AQW account each (Skua.App.Avalonia/TabHost.cs). Every tab
+// is its own Skua process with its own game window here: instance 0 is the
+// first tab and uses the settings above; instance N talks to Skua on the
+// bridge port + 10*N, keeps its browser storage apart (partition
+// persist:vibeskua-N), and logs in with AQW_USER_<N+1> / AQW_PASS_<N+1> /
+// AQW_SERVER_<N+1> when those are set (AQW_USER_2 is the second tab).
+// Skua opens and closes them through /instances/N.
+const MAX_INSTANCES = 50;
+const instances = new Map();   // N -> { win, xid, wanted }
+
+function bridgeUrlFor(n) {
+  const u = new URL(SKUA_BRIDGE_URL);
+  u.port = String(Number(u.port || 80) + 10 * n);
+  return u.toString();
+}
+
+function credsFor(n) {
+  if (n === 0) return { user: AQW_USER, pass: AQW_PASS, server: AQW_SERVER };
+  const env = k => unquote(process.env[`${k}_${n + 1}`]);
+  return { user: env('AQW_USER'), pass: env('AQW_PASS'), server: env('AQW_SERVER') || AQW_SERVER };
+}
+
+function instanceOf(url) {
+  const n = Number(url.searchParams.get('instance') || 0);
+  return Number.isInteger(n) && n >= 0 && n < MAX_INSTANCES ? n : -1;
+}
 
 function startSkuaHost() {
   if (!fs.existsSync(SKUA_HOST_BIN)) {
@@ -156,6 +182,9 @@ function startSkuaHost() {
     child.on('error', e => console.error(`[host] Skua.Host: ${e.message}`));
     child.on('exit', (code, signal) => {
       skuaChild = null;
+      // Its tabs went with it; the restarted Skua opens its own. The first
+      // tab's game stays, and is embedded again.
+      for (const n of [...instances.keys()]) if (n > 0) closeInstance(n);
       // Back off only if it keeps dying young.
       delay = Date.now() - started > 60000 ? 2000 : Math.min(delay * 2, 60000);
       console.error(`[host] Skua.Host exited (${signal || code}); restarting in ${delay / 1000}s`);
@@ -210,8 +239,15 @@ function fetchServers() {
 function serve() {
   return new Promise(resolve => {
     http.createServer(async (req, res) => {
-      if (req.url === '/servers') {
+      const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
+      // Only this machine's own pages and Skua: the Host must be ours (defeats
+      // DNS rebinding), and the custom header forces a CORS preflight on any
+      // cross-origin request, which this server never approves.
+      const own = req.headers.host === `127.0.0.1:${PORT}` && req.headers['x-vibeskua'] === '1';
+      const inst = instanceOf(url);
+      if (url.pathname === '/servers') {
         const servers = await fetchServers();
+        const creds = credsFor(Math.max(inst, 0));
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           servers, proxyPort: PROXY_PORT,
@@ -222,30 +258,38 @@ function serve() {
           renderScale: RENDER_SCALE,
           // JSON has no Infinity; null means unlimited.
           maxRenderFps: Number.isFinite(MAX_RENDER_FPS) ? MAX_RENDER_FPS : null,
-          autoLogin: Boolean(AQW_USER && AQW_PASS),
+          autoLogin: Boolean(creds.user && creds.pass),
           recycleAfterMinutes: RECYCLE_AFTER_MINUTES,
           recycleAfterMapChanges: RECYCLE_AFTER_MAP_CHANGES,
-          skuaBridgeUrl: SKUA_HOST ? SKUA_BRIDGE_URL : null,
+          skuaBridgeUrl: SKUA_HOST ? bridgeUrlFor(Math.max(inst, 0)) : null,
         }));
         return;
       }
-      // Credentials for auto-login, for this page only. Other pages loaded in
-      // the browser could request 127.0.0.1 too, so: the Host must be ours
-      // (defeats DNS rebinding), and the custom header forces a CORS preflight
-      // on any cross-origin request, which this server never approves.
-      // The game window's X11 id, for Skua to embed it under its menu the way
+      // A game window's X11 id, for Skua to embed it under its menu the way
       // the WPF app hosted Flash (Skua.App.Avalonia/GameEmbed.cs). Nothing
       // secret: a window id on this display.
-      if (req.url === '/game-window') {
-        res.writeHead(gameWindowXid ? 200 : 404, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-        res.end(JSON.stringify({ xid: gameWindowXid }));
+      if (url.pathname === '/game-window') {
+        const xid = instances.get(inst)?.xid || null;
+        res.writeHead(xid ? 200 : 404, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ xid }));
         return;
       }
-      if (req.url === '/autologin') {
-        const own = req.headers.host === `127.0.0.1:${PORT}` && req.headers['x-vibeskua'] === '1';
-        if (!own || !AQW_USER || !AQW_PASS) { res.writeHead(404); res.end(); return; }
+      // Skua's tabs: POST opens instance N's game window, DELETE closes it.
+      const m = url.pathname.match(/^\/instances\/(\d+)$/);
+      if (m) {
+        const n = Number(m[1]);
+        if (!own || n >= MAX_INSTANCES || !(req.method === 'POST' || req.method === 'DELETE')) { res.writeHead(404); res.end(); return; }
+        if (req.method === 'POST') openInstance(n); else closeInstance(n);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ instance: n, open: req.method === 'POST' }));
+        return;
+      }
+      // Credentials for auto-login, for this page only (see `own`).
+      if (url.pathname === '/autologin') {
+        const creds = inst >= 0 ? credsFor(inst) : {};
+        if (!own || !creds.user || !creds.pass) { res.writeHead(404); res.end(); return; }
         res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-        res.end(JSON.stringify({ user: AQW_USER, pass: AQW_PASS, server: AQW_SERVER }));
+        res.end(JSON.stringify(creds));
         return;
       }
       const rel = decodeURIComponent(req.url.split('?')[0]).replace(/^\/+/, '') || 'index.html';
@@ -257,8 +301,11 @@ function serve() {
   });
 }
 
-function installCorsFix() {
-  session.defaultSession.webRequest.onHeadersReceived(
+const corsFixed = new Set();
+function installCorsFix(ses = session.defaultSession) {
+  if (corsFixed.has(ses)) return;
+  corsFixed.add(ses);
+  ses.webRequest.onHeadersReceived(
     { urls: ['https://*.aq.com/*'] },
     (details, cb) => {
       const h = details.responseHeaders || {};
@@ -292,22 +339,46 @@ app.whenReady().then(async () => {
   console.log(`[host] serving http://127.0.0.1:${PORT}`);
   if (REMOTE_DEBUG_PORT) startDebugRelay();
   if (SKUA_HOST) startSkuaHost();
-  createGameWindow();
+  openInstance(0);
 });
 
-function createGameWindow() {
+function openInstance(n) {
+  const inst = instances.get(n);
+  if (inst) { inst.wanted = true; return; }
+  instances.set(n, { win: null, xid: null, wanted: true });
+  createGameWindow(n);
+}
+
+function closeInstance(n) {
+  const inst = instances.get(n);
+  if (!inst) return;
+  inst.wanted = false;
+  instances.delete(n);
+  if (inst.win && !inst.win.isDestroyed()) inst.win.destroy();
+  console.log(`[host] game window for tab ${n} closed`);
+}
+
+function createGameWindow(n = 0) {
+  const inst = instances.get(n);
+  if (!inst) return;
+  const ses = n === 0 ? session.defaultSession : session.fromPartition(`persist:vibeskua-${n}`);
+  installCorsFix(ses);
   const win = new BrowserWindow({
     width: 1000,
     height: 640,
     autoHideMenuBar: true,
     backgroundColor: '#111111',
-    webPreferences: { nodeIntegration: false, contextIsolation: true },
+    title: n === 0 ? 'VibeSkua Web' : `VibeSkua Web ${n + 1}`,
+    // Tabs not on screen keep playing (Skua parks them out of view).
+    webPreferences: { nodeIntegration: false, contextIsolation: true, session: ses, backgroundThrottling: false },
   });
+  inst.win = win;
+  const tag = n === 0 ? '[page]' : `[page ${n}]`;
   // Collapse repeats. Ruffle can emit the same error every frame, and writing
   // each one to stdout is itself a meaningful cost once Docker is capturing it.
   let lastMsg = null, repeats = 0, flushTimer = null;
   const flush = () => {
-    if (repeats > 0) console.log(`[page] (previous line repeated ${repeats}x)`);
+    if (repeats > 0) console.log(`${tag} (previous line repeated ${repeats}x)`);
     repeats = 0;
     flushTimer = null;
   };
@@ -320,25 +391,27 @@ function createGameWindow() {
     }
     flush();
     lastMsg = line;
-    console.log('[page]', line);
+    console.log(tag, line);
   });
   if (SKUA_HOST && SKUA_UI) {
     // Until Skua embeds it (or if it cannot), keep it below Skua's bar.
     placeBelowSkuaBar(win);
     const handle = win.getNativeWindowHandle();
-    gameWindowXid = String(handle.length >= 8 ? handle.readBigUInt64LE(0) : handle.readUInt32LE(0));
+    inst.xid = String(handle.length >= 8 ? handle.readBigUInt64LE(0) : handle.readUInt32LE(0));
   }
-  win.loadURL(`http://127.0.0.1:${PORT}/index.html`);
+  win.loadURL(`http://127.0.0.1:${PORT}/index.html${n === 0 ? '' : `?instance=${n}`}`);
 
   // Skua embeds this window in its own (Skua.App.Avalonia/GameEmbed.cs) and
   // hands it back when it stops, but if Skua is killed outright the X server
   // destroys it with Skua's window. Open a new one: the page logs back in and
   // returns to the saved map (session.js), and Skua embeds the new window.
   win.on('closed', () => {
-    gameWindowXid = null;
-    if (SKUA_HOST && SKUA_UI && !quitting) {
-      console.error('[host] game window destroyed; opening a new one');
-      setTimeout(createGameWindow, 1000);
+    if (instances.get(n) !== inst) return;   // closed on purpose
+    inst.xid = null;
+    inst.win = null;
+    if (SKUA_HOST && SKUA_UI && !quitting && inst.wanted) {
+      console.error(`[host] game window ${n} destroyed; opening a new one`);
+      setTimeout(() => { if (instances.get(n) === inst && !inst.win) createGameWindow(n); }, 1000);
     }
   });
 }

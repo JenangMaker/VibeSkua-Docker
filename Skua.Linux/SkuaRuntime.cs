@@ -49,6 +49,13 @@ public sealed class SkuaRuntime
 
     public static string Env(string name, string fallback) => EnvRaw(name) ?? fallback;
 
+    /// <summary>
+    /// Which tab (account) this Skua is, from SKUA_INSTANCE: 0 for the first
+    /// or only one. The tab host (Skua.App.Avalonia/TabHost.cs) starts one
+    /// Skua per tab and gives each its own ports.
+    /// </summary>
+    public static int Instance => int.TryParse(EnvRaw("SKUA_INSTANCE"), out int n) && n > 0 ? n : 0;
+
     // Each startup step, so a startup that hangs shows where.
     private static void Step(string what) => Console.Error.WriteLine($"[host] start: {what}");
 
