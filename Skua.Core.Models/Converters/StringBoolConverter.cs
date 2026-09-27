@@ -11,7 +11,13 @@ public class StringBoolConverter : JsonConverter
 
     public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
     {
-        return reader.Value.ToString() is "1" or "true";
+        // "1"/"0", 1/0, or a JSON true/false (whose Value prints "True").
+        return reader.Value switch
+        {
+            bool b => b,
+            null => false,
+            var v => v.ToString() is "1" or "true" or "True",
+        };
     }
 
     public override bool CanConvert(Type objectType)

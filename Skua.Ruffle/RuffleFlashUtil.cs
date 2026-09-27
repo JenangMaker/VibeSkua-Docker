@@ -43,7 +43,7 @@ public sealed class RuffleFlashUtil : IFlashUtil
         {
             switch (v)
             {
-                case string str: text.Append(str); break;
+                case string str: text.Append(FlashValue.AsFlashJson(str)); break;
                 case bool or null: break;   // <true/>, <false/>, <null/> have no text
                 case IDictionary<string, object?> obj: foreach (var x in obj.Values) Append(x); break;
                 case object?[] arr: foreach (var x in arr) Append(x); break;

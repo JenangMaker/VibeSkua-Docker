@@ -86,11 +86,84 @@ public static class FlashValue
     /// </summary>
     public static string? ResultString(JsonElement e) => e.ValueKind switch
     {
-        JsonValueKind.String => e.GetString(),
+        JsonValueKind.String => AsFlashJson(e.GetString()),
         JsonValueKind.Number => e.GetRawText(),
         JsonValueKind.True => "true",
         JsonValueKind.False => "false",
         JsonValueKind.Null or JsonValueKind.Undefined => null,
         _ => e.GetRawText(),
     };
+
+    /// <summary>
+    /// JSON from skua.swf (getGameObject and the like) as Flash writes it.
+    /// Ruffle's JSON.stringify writes a whole Number held as a double with a
+    /// ".0" (CharItemID 1414826782 as 1414826782.0) where Flash writes
+    /// 1414826782; Skua's models read those fields as int, and one such value
+    /// fails the whole object (an empty inventory: scripts then keep buying
+    /// items the account owns). Strips the ".0" from whole numbers outside
+    /// strings; other text is returned as it is.
+    /// </summary>
+    public static string? AsFlashJson(string? s)
+    {
+        if (string.IsNullOrEmpty(s) || !s.Contains(".0", StringComparison.Ordinal))
+            return s;
+        char first = s[0];
+        if (first is '{' or '[')
+            return StripWholeNumberFractions(s);
+        // A bare number ("1414826782.0"); anything else is plain text.
+        return System.Text.RegularExpressions.Regex.IsMatch(s, @"^-?\d+\.0+$") ? s[..s.IndexOf('.')] : s;
+    }
+
+    private static string StripWholeNumberFractions(string s)
+    {
+        System.Text.StringBuilder? sb = null;
+        int copied = 0;
+        bool inString = false;
+        for (int i = 0; i < s.Length; i++)
+        {
+            char c = s[i];
+            if (inString)
+            {
+                if (c == '\\')
+                    i++;
+                else if (c == '"')
+                    inString = false;
+                continue;
+            }
+            if (c == '"')
+            {
+                inString = true;
+                continue;
+            }
+            if (c != '-' && !char.IsAsciiDigit(c))
+                continue;
+            // A number token: digits, then maybe a fraction and an exponent.
+            int j = i + 1;
+            while (j < s.Length && char.IsAsciiDigit(s[j]))
+                j++;
+            if (j < s.Length && s[j] == '.')
+            {
+                int k = j + 1;
+                while (k < s.Length && s[k] == '0')
+                    k++;
+                bool wholeNumber = k > j + 1 && (k == s.Length || !(char.IsAsciiDigit(s[k]) || s[k] is 'e' or 'E'));
+                if (wholeNumber)
+                {
+                    sb ??= new System.Text.StringBuilder(s.Length);
+                    sb.Append(s, copied, j - copied);
+                    copied = k;
+                    i = k - 1;
+                    continue;
+                }
+                while (k < s.Length && (char.IsAsciiDigit(s[k]) || s[k] is 'e' or 'E' or '+' or '-'))
+                    k++;
+                j = k;
+            }
+            i = j - 1;
+        }
+        if (sb is null)
+            return s;
+        sb.Append(s, copied, s.Length - copied);
+        return sb.ToString();
+    }
 }
