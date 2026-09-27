@@ -228,6 +228,16 @@ public sealed class GameEmbed : IDisposable
                     {
                         X.XNextEvent(display, ev);
                         int type = Marshal.ReadInt32(ev);
+                        // XCrossingEvent: mode at 80, detail at 84 (64-bit).
+                        // A click makes the browser grab the pointer, which
+                        // reports a Leave (mode NotifyGrab) though the pointer
+                        // has not moved; acting on it took the keys from the
+                        // game as soon as a text box was clicked. Only real
+                        // pointer movement moves focus, and not into or out
+                        // of windows inside the game's.
+                        if (type is X.EnterNotify or X.LeaveNotify
+                            && (Marshal.ReadInt32(ev, 80) != X.NotifyNormal || Marshal.ReadInt32(ev, 84) == X.NotifyInferior))
+                            continue;
                         if (type == X.EnterNotify && _game != 0)
                             X.XSetInputFocus(display, _game, X.RevertToParent, 0);
                         else if (type == X.LeaveNotify && _host != 0)
@@ -263,6 +273,8 @@ public sealed class GameEmbed : IDisposable
         public const int EnterNotify = 7;
         public const int LeaveNotify = 8;
         public const int RevertToParent = 2;
+        public const int NotifyNormal = 0;
+        public const int NotifyInferior = 2;
 
         [DllImport(Lib)] public static extern IntPtr XOpenDisplay(string? name);
         [DllImport(Lib)] public static extern int XCloseDisplay(IntPtr display);

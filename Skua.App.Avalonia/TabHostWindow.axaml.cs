@@ -503,7 +503,9 @@ public partial class TabHostWindow : Window
             int type = Marshal.ReadInt32(_event);
             ulong window = (ulong)Marshal.ReadInt64(_event, 32);
             int detail = Marshal.ReadInt32(_event, 84);
-            if (detail == NotifyInferior)
+            // Grabs (a click in the game) report crossings without the
+            // pointer moving; only real movement moves focus.
+            if (detail == NotifyInferior || Marshal.ReadInt32(_event, 80) != 0)
                 continue;
             // Straight into the tab's game (a window inside it): the tab's own
             // GameEmbed focuses the game; focusing the tab here as well would
