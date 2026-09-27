@@ -60,13 +60,22 @@ There are three ways to build the project:
 dotnet build Skua.sln -c Release -p:WarningLevel=0 --nologo
 ```
 
-3. **Docker:** Build without installing the .NET SDK or Visual Studio on your machine. Output still lands in **Build/AnyCPU**.
+3. **Docker:** Build without installing the .NET SDK or Visual Studio on your machine. Output still lands in **Build/AnyCPU**. See [docs/BUILD-DOCKER.md](docs/BUILD-DOCKER.md).
 
 ```bash
 docker compose run --rm build
 ```
 
-> **Note:** the container **builds** VibeSkua, it does not run it. The client needs WPF, the Flash ActiveX control, and process hooking on an interactive Windows desktop, none of which exist inside a container. See [DOCKER.md](DOCKER.md) for the full rundown.
+## Running in Docker (Linux, in a browser)
+
+VibeSkua also runs on Linux in a container you open in a browser: Skua's full UI with the game embedded, several accounts in tabs, Army Control and Grid View. The game runs in [Ruffle](https://ruffle.rs) instead of Flash, and the UI is ported to Avalonia. Only port 3000 is needed:
+
+```bash
+docker compose -f docker-compose.minimal.yml up -d
+# then open http://<host>:3000
+```
+
+See [DOCKER.md](DOCKER.md) for setup, several accounts, scripts, settings and performance.
 
 ### Copyright & Disclaimer
 

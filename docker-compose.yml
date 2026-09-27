@@ -1,7 +1,11 @@
-# VibeSkua containers.
+# VibeSkua containers, for developing VibeSkua. To just RUN it, use
+# docker-compose.minimal.yml and DOCKER.md.
 #
-# The build services BUILD VibeSkua; they cannot run it (WPF + Flash ActiveX +
-# process hooking need an interactive Windows desktop). See DOCKER.md.
+# vibeskua-web is VibeSkua itself in a browser (Linux, Ruffle, Skua's
+# Avalonia UI); every setting is listed below and in DOCKER.md.
+#
+# The build services build the Windows client (WPF + Flash ActiveX), which
+# only runs on a Windows desktop. See docs/BUILD-DOCKER.md.
 #
 #   docker compose run --rm build            # Linux host / Docker Desktop (WSL2)
 #   docker compose run --rm build-windows    # Windows container host
@@ -77,8 +81,9 @@ services:
     # Chrome needs more than the default 64MB of shared memory.
     shm_size: 1gb
 
-  # AQW on Ruffle with the Skua bridge, reachable in a browser at :3000.
-  # Same pattern as linuxserver/chrome. NOT the bot - see web/README.md.
+  # VibeSkua in a browser at :3000: Skua's UI with the game (AQW on Ruffle)
+  # embedded, one tab per account. Same pattern as linuxserver/chrome.
+  # Port 3000 is all it needs. See DOCKER.md.
   vibeskua-web:
     build:
       context: .
@@ -121,11 +126,15 @@ services:
       # Extra Chromium switches, space-separated, for GPU experiments.
       # (The glXGetMscRateOML log spam is filtered in /app/launch.sh.)
       # CHROMIUM_FLAGS: ""
-      # Auto-login (as Skua does), again after a disconnect or a recycle.
-      # Give the password as a secret (Komodo secret / env file), not inline.
-      # AQW_USER: ""
-      # AQW_PASS: ""
-      # AQW_SERVER: "Twilly"          # first online server if unset
+      # Auto-login (as Skua does), again after a disconnect or a recycle, one
+      # tab per account: AQW_USER_<N> / AQW_PASS_<N> (/ AQW_SERVER_<N>) for
+      # tab N; plain AQW_USER / AQW_PASS also work for tab 1. Give passwords
+      # as secrets (Komodo secret / env file), not inline.
+      # AQW_USER_1: ""
+      # AQW_PASS_1: ""
+      # AQW_USER_2: ""
+      # AQW_PASS_2: ""
+      # AQW_SERVER: "Twilly"          # every tab's; first online server if unset
       # Reload the client when either is reached, out of combat, then log back
       # in and return to the same map. Ruffle keeps every SWF it loads for the
       # whole session (~45 MB per room change), so long sessions need this.
@@ -139,24 +148,24 @@ services:
       # bot) and listens inside the container only:
       #   docker exec vibeskua-web curl -s localhost:8791/status
       # See Skua.App.Avalonia/README.md and Skua.Host/README.md.
-      # SKUA_HOST: "1"
+      # SKUA_HOST: "1"                 # "0": the game only, no Skua
       # SKUA_UI: "1"
       # The game is embedded in Skua's main window under its menu, as in the
       # Windows app; "0" keeps them separate (Skua a bar above the game).
       # SKUA_EMBED_GAME: "1"
       # Tabs, as in the Windows VibeSkua: one AQW account per tab (each its
       # own Skua and game), Army Control (every tab at once) and Grid View.
-      # "0" turns tabs off; a number opens that many tabs at start. Tab N logs
-      # in with AQW_USER_N / AQW_PASS_N (AQW_SERVER_N) when set, e.g.
-      # AQW_USER_2 for the second tab; tab 1 uses AQW_USER / AQW_PASS. Tab N's
-      # Skua listens on the bridge/API ports + 10*(N-1) (tab 2: API 8801).
+      # A tab opens for each account above (AQW_USER_<N>); "0" turns tabs off,
+      # a number opens at least that many. Tab N's Skua listens on the
+      # bridge/API ports + 10*(N-1) inside the container (tab 2: API 8801).
       # Each tab costs about as much memory and CPU as the first.
       # SKUA_TABS: "1"
       # Script to load at startup (it shows in the Script Loader, ready to
       # start): a repository path (scripts are synced from SKUA_SCRIPTS_REPO
-      # at startup) or an absolute path.
+      # at startup) or an absolute path. SKUA_SCRIPT_<N> for tab N.
       # SKUA_SCRIPT: "Farm/GoldFarm"
       # "1": also start it once logged in. Off by default: it only loads.
+      # SKUA_SCRIPT_AUTO_START_<N> for tab N.
       # SKUA_SCRIPT_AUTO_START: "0"
       # Script sync at startup: "auto" follows Skua's options (Auto Update
       # Scripts on: download silently; off: ask), "ask" always asks (Update
@@ -164,18 +173,18 @@ services:
       # (see volumes below) is always asked about, since "Update all"
       # overwrites local changes to outdated scripts.
       # SKUA_SCRIPT_SYNC: "auto"
-      # Where scripts sync from: a GitHub or Gitea repository and branch. The
-      # image defaults to the jenangmaker Gitea mirror; Skua's own default is
-      # https://github.com/auqw/Scripts.
-      # SKUA_SCRIPTS_REPO: "https://gitea.jenangmaker.cloud/jenangmaker/skua-scripts"
+      # Where scripts sync from: a GitHub or Gitea repository and branch.
+      # SKUA_SCRIPTS_REPO: "https://github.com/auqw/Scripts"
       # SKUA_SCRIPTS_BRANCH: "Skua"
       # To reach the API from the LAN instead, add a LAN-IP port mapping
       # ("192.168.2.20:8791:8791") and:
       # SKUA_API_PREFIX: "http://+:8791/"
-    # Your own scripts: mount a host folder as Skua's Scripts folder. It must
-    # be writable by the container user (PUID/PGID). Skua asks before syncing
-    # it with the scripts repository (SKUA_SCRIPT_SYNC above).
+    # Keep settings, CoreBots options, scripts and saved browser data across
+    # updates: mount /config. A separate Scripts folder can go on top; Skua
+    # asks before syncing it with the scripts repository. Both must be
+    # writable by the container user (PUID/PGID).
     # volumes:
+    #   - ./config:/config
     #   - /path/on/host/skua-scripts:/config/.config/Skua/Scripts
     # Chromium needs syscalls Docker's default seccomp profile blocks.
     security_opt:

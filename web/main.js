@@ -137,8 +137,9 @@ let skuaChild = null;
 // first tab and uses the settings above; instance N talks to Skua on the
 // bridge port + 10*N, keeps its browser storage apart (partition
 // persist:vibeskua-N), and logs in with AQW_USER_<N+1> / AQW_PASS_<N+1> /
-// AQW_SERVER_<N+1> when those are set (AQW_USER_2 is the second tab).
-// Skua opens and closes them through /instances/N.
+// AQW_SERVER_<N+1> when those are set (AQW_USER_2 is the second tab; see
+// credsFor). Skua opens a tab for each such account at start and opens and
+// closes their windows through /instances/N.
 const MAX_INSTANCES = 50;
 const instances = new Map();   // N -> { win, xid, wanted }
 
@@ -148,10 +149,17 @@ function bridgeUrlFor(n) {
   return u.toString();
 }
 
+// Tab N+1's account: AQW_USER_<N+1> / AQW_PASS_<N+1> / AQW_SERVER_<N+1>; the
+// first tab also takes plain AQW_USER / AQW_PASS. AQW_SERVER is every tab's
+// default server.
 function credsFor(n) {
-  if (n === 0) return { user: AQW_USER, pass: AQW_PASS, server: AQW_SERVER };
   const env = k => unquote(process.env[`${k}_${n + 1}`]);
-  return { user: env('AQW_USER'), pass: env('AQW_PASS'), server: env('AQW_SERVER') || AQW_SERVER };
+  const first = n === 0;
+  return {
+    user: env('AQW_USER') || (first ? unquote(AQW_USER) : ''),
+    pass: process.env[`AQW_PASS_${n + 1}`] || (first ? AQW_PASS : ''),   // as given: quotes may be part of it
+    server: env('AQW_SERVER') || AQW_SERVER,
+  };
 }
 
 function instanceOf(url) {
@@ -167,9 +175,13 @@ function startSkuaHost() {
   let delay = 2000;
   const run = () => {
     const started = Date.now();
+    // Skua gets everything but the AQW passwords, which only the pages use
+    // (/autologin). It still sees which AQW_USER_<N> are set, to open that
+    // many tabs.
+    const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^AQW_PASS/.test(k)));
     const child = spawn(SKUA_HOST_BIN, SKUA_UI ? [] : ['--headless'], {
       env: {
-        ...process.env,
+        ...env,
         SKUA_BRIDGE_PREFIX,
         SKUA_BRIDGE_ORIGINS: unquote(process.env.SKUA_BRIDGE_ORIGINS) || `http://127.0.0.1:${PORT}`,
         DOTNET_CLI_TELEMETRY_OPTOUT: '1',

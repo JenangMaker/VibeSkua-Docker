@@ -65,8 +65,20 @@ public partial class TabHostWindow : Window
         SkuaRuntime.EnvRaw("SKUA_TABS")?.ToLowerInvariant() is not ("0" or "false" or "no" or "off")
         && SkuaRuntime.EnvRaw("SKUA_EMBED_GAME")?.ToLowerInvariant() is not ("0" or "false" or "no" or "off");
 
-    /// <summary>How many tabs to open at start: SKUA_TABS=N, else one.</summary>
-    private static int InitialTabs => int.TryParse(SkuaRuntime.EnvRaw("SKUA_TABS"), out int n) && n > 1 ? Math.Min(n, MaxTabs) : 1;
+    /// <summary>
+    /// How many tabs to open at start: one per configured account (the
+    /// highest N with AQW_USER_N set; main.js logs each in), or SKUA_TABS=N
+    /// if that is more; at least one.
+    /// </summary>
+    private static int InitialTabs
+    {
+        get
+        {
+            int accounts = Enumerable.Range(1, MaxTabs).LastOrDefault(n => SkuaRuntime.EnvRaw($"AQW_USER_{n}") is not null);
+            int asked = int.TryParse(SkuaRuntime.EnvRaw("SKUA_TABS"), out int t) ? t : 1;
+            return Math.Clamp(Math.Max(accounts, asked), 1, MaxTabs);
+        }
+    }
 
     private const int MaxTabs = 50;
 
@@ -214,13 +226,16 @@ public partial class TabHostWindow : Window
         psi.Environment["SKUA_TAB_HOST_PID"] = Environment.ProcessId.ToString();
         psi.Environment["SKUA_BRIDGE_PREFIX"] = PrefixFor("SKUA_BRIDGE_PREFIX", "http://127.0.0.1:8790/", n);
         psi.Environment["SKUA_API_PREFIX"] = PrefixFor("SKUA_API_PREFIX", "http://127.0.0.1:8791/", n);
+        // One sync (the first tab's) is enough: they share the Scripts folder.
         if (n > 0)
-        {
-            // One sync (the first tab's) is enough: they share the Scripts folder.
             psi.Environment["SKUA_SCRIPT_SYNC"] = "off";
-            psi.Environment.Remove("SKUA_SCRIPT");
-            psi.Environment.Remove("SKUA_SCRIPT_AUTO_START");
-        }
+        // Tab N's script: SKUA_SCRIPT_N (the first tab also takes plain
+        // SKUA_SCRIPT), started once logged in if SKUA_SCRIPT_AUTO_START_N,
+        // else SKUA_SCRIPT_AUTO_START, says so.
+        string? script = SkuaRuntime.EnvRaw($"SKUA_SCRIPT_{n + 1}") ?? (n == 0 ? SkuaRuntime.EnvRaw("SKUA_SCRIPT") : null);
+        string? autoStart = SkuaRuntime.EnvRaw($"SKUA_SCRIPT_AUTO_START_{n + 1}") ?? SkuaRuntime.EnvRaw("SKUA_SCRIPT_AUTO_START");
+        SetOrRemove(psi, "SKUA_SCRIPT", script);
+        SetOrRemove(psi, "SKUA_SCRIPT_AUTO_START", autoStart);
 
         Process process;
         try
@@ -245,6 +260,14 @@ public partial class TabHostWindow : Window
         tab.Throttled = null;
         tab.Started = DateTime.UtcNow;
         Console.WriteLine($"[tabs] tab {n + 1}: Skua pid {process.Id}, api {tab.Api}");
+    }
+
+    private static void SetOrRemove(ProcessStartInfo psi, string name, string? value)
+    {
+        if (value is null)
+            psi.Environment.Remove(name);
+        else
+            psi.Environment[name] = value;
     }
 
     // Restart a tab's Skua that died, as main.js restarts the single one;

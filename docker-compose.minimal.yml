@@ -1,0 +1,39 @@
+# VibeSkua in a browser: the smallest useful setup. See DOCKER.md.
+#
+#   docker compose -f docker-compose.minimal.yml up -d
+#   then open http://<this-host>:3000  (log in with CUSTOM_USER / PASSWORD)
+#
+# Keep port 3000 on your LAN (or behind a reverse proxy with HTTPS): whoever
+# reaches it controls the bot and the logged-in accounts.
+
+services:
+  vibeskua:
+    image: ghcr.io/OWNER/vibeskua-web:latest   # the image you publish, see DOCKER.md
+    container_name: vibeskua
+    ports:
+      - "3000:3000"
+    environment:
+      # The user the app runs as, and so who owns ./config on the host
+      # (`id -u` / `id -g` of your user).
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "Etc/UTC"
+      # Login for the web desktop.
+      CUSTOM_USER: "vibeskua"
+      PASSWORD: "change-me"
+      # Optional: log accounts in automatically, one tab each. Better in an
+      # .env file or your orchestrator's secrets than here.
+      # AQW_USER_1: "first account"
+      # AQW_PASS_1: "..."
+      # AQW_USER_2: "second account"
+      # AQW_PASS_2: "..."
+    volumes:
+      # Everything that should survive an update: Skua's settings, CoreBots
+      # options, scripts, themes, plugins, and saved browser data.
+      - ./config:/config
+    # Chromium needs more shared memory than Docker's default, and syscalls
+    # Docker's default seccomp profile blocks.
+    shm_size: 1gb
+    security_opt:
+      - seccomp=unconfined
+    restart: unless-stopped

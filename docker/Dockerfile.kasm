@@ -1,18 +1,12 @@
-# VibeSkua Web — AQW on Ruffle, in a browser-accessible container.
+# VibeSkua Web — VibeSkua (Skua + AQW on Ruffle) in a browser-accessible
+# container. How to run it: DOCKER.md.
 #
 # Same shape as linuxserver/chrome: a LinuxServer KasmVNC base image running a
-# desktop app, reachable over HTTP. Browse to :3000 and the game is there.
+# desktop app, reachable over HTTP. Browse to :3000 and VibeSkua is there:
+# Skua's UI (Skua.App.Avalonia) with the game embedded, one tab per account.
 #
-#   docker compose up -d vibeskua-web
+#   docker compose -f docker-compose.minimal.yml up -d
 #   open http://<host>:3000
-#
-# The bot: with SKUA_HOST=1, Skua.Host (Skua.Core without a UI) runs beside
-# the page and drives the game through the bridge; scripts are started through
-# its local control API. See Skua.Host/README.md.
-#
-# UNTESTED. No Docker on the machine where this was written; the image has
-# never been built. The pieces it wraps (Ruffle + skua.swf + the live AQW
-# client) are verified, in CI, on Linux — the packaging around them is not.
 
 ARG BASE_IMAGE=ghcr.io/linuxserver/baseimage-kasmvnc:debianbookworm
 ARG NODE_VERSION=22.11.0
@@ -121,7 +115,6 @@ RUN chmod +x /defaults/autostart /app/launch.sh \
 ENV TITLE="VibeSkua Web" \
     PORT=8770 \
     SOCKET_PROXY_PORT=8181 \
-    SKUA_SCRIPTS_REPO=https://gitea.jenangmaker.cloud/jenangmaker/skua-scripts \
-    SKUA_SCRIPTS_BRANCH=Skua
+    SKUA_HOST=1
 
 EXPOSE 3000 3001

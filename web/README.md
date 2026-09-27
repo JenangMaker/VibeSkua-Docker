@@ -24,7 +24,7 @@ runs next to the page with `SKUA_HOST=1`, with its own windows on this desktop
 and a local control API (see "Skua" below).
 
 See `docs/ruffle-test/README.md` for what has actually been proven, and
-`DOCKER.md` for why the real client cannot be containerised as written.
+`DOCKER.md` for running the image.
 
 ## Status
 

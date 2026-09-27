@@ -1,183 +1,227 @@
 # VibeSkua in Docker
 
-## Read this first: the bot cannot run inside a container
+VibeSkua runs on Linux in a container and you use it from a browser: Skua's
+full UI with the game embedded under its menu, several accounts in tabs, Army
+Control and Grid View, as in the Windows app. Underneath, the game runs in
+[Ruffle](https://ruffle.rs) (a Flash player in Rust/WebAssembly) inside
+Electron, and Skua is the Windows client's UI ported to
+[Avalonia](https://avaloniaui.net), on the same Skua.Core.
 
-VibeSkua is a **WPF desktop application that hosts the Flash ActiveX control
-(`ShockwaveFlashObjects`) and hooks the Flash process via CoreHook**. Three
-hard dependencies make containerised *execution* impossible:
+The image is built on LinuxServer's
+[KasmVNC base](https://github.com/linuxserver/docker-baseimage-kasmvnc): the
+container is a small desktop you open at `http://<host>:3000`.
 
-| Dependency | Why a container can't provide it |
-| :--- | :--- |
-| WPF / DirectX rendering (`WMode="direct"`, hardware acceleration) | Windows containers have no GPU-backed desktop compositor or window station. |
-| Flash Player **ActiveX** COM control | End-of-life, requires a registered in-process COM server on an interactive desktop. Not redistributable into a container image. |
-| CoreHook process hooking (`corehook64.dll`, `coreload64.dll`) + `SetWindowPos` off-screen repositioning, hotkeys, tray icon | Needs a real interactive session (Session 1), not Session 0 container isolation. |
+> **Use at your own risk.** Botting is against AQW's terms of service; see the
+> disclaimer in the [README](README.md).
 
-Linux containers are even further out — none of that exists there at all. (A
-Linux container *can* run the Flash bridge once Ruffle replaces the ActiveX
-control; see below. It cannot run the client as written.)
-
-**So what's here instead:** a reproducible **build** container. It compiles
-`Skua.sln` and drops the exact same `Build/AnyCPU` release layout that
-`BuildRelease.bat` produces, without you installing the .NET 10 SDK, Visual
-Studio, or Velopack on the host. You then run `Skua.exe` on a Windows desktop
-as usual.
-
-If you want VibeSkua running somewhere other than your own desktop **as it is
-today**, the answer is a **Windows VM** (Hyper-V, a cloud Windows VM, or a
-dedicated box) with Flash ActiveX installed — not Docker.
-
-> **There is a route to headless Linux, but it needs a new host layer.**
-> Replacing Flash ActiveX with [Ruffle](https://ruffle.rs) has been tested
-> against the live AQW client and works: see [`docs/ruffle-test`](docs/ruffle-test/).
-> `Skua.Core` (191 files, essentially no Windows coupling) would survive; only
-> `Skua.WPF` / `Skua.App.WPF` and the CoreHook layer get replaced.
-
----
-
-## The one container that runs something
-
-```bash
-docker compose run --rm ruffle-test
-```
-
-`docker/Dockerfile.ruffle-test` runs the Skua ExternalInterface bridge against
-the **live AQW client** on Linux, headless, using Ruffle in place of Flash
-ActiveX. It exits 0/1 so it works as a CI check. This is the proof that a
-Linux/Docker runtime is reachable — see [`docs/ruffle-test`](docs/ruffle-test/).
-It does not run the bot; it runs the bot's Flash bridge.
-
----
-
-## Which build image do I use?
-
-| Your Docker host | Use | Command |
-| :--- | :--- | :--- |
-| Docker Desktop on **Windows Home** (WSL2 backend) | `docker/Dockerfile.linux` | `docker compose run --rm build` |
-| Docker on macOS / Linux | `docker/Dockerfile.linux` | `docker compose run --rm build` |
-| **Windows containers** (Win Pro/Enterprise/Server, GitHub Actions `windows-*`) | `docker/Dockerfile.windows` | `docker compose run --rm build-windows` |
-
-> Your machine is Windows 11 Home. Docker Desktop on Home only supports the
-> WSL2 (Linux) backend, so **`build` is the service that will actually run for
-> you**; `build-windows` needs Pro/Enterprise/Server or CI.
-
-Both produce Windows binaries. The Windows image is the toolchain-exact one and
-is what CI should use; the Linux image cross-compiles with
-`-p:EnableWindowsTargeting=true`.
-
----
+- [Quick start](#quick-start)
+- [Several accounts](#several-accounts)
+- [Scripts](#scripts)
+- [Keeping your settings](#keeping-your-settings)
+- [Performance](#performance)
+- [Environment variables](#environment-variables)
+- [Advanced: control API and DevTools](#advanced-control-api-and-devtools)
+- [Troubleshooting](#troubleshooting)
+- [Building the image yourself](#building-the-image-yourself)
 
 ## Quick start
 
-```bash
-# Cross-compile (any Docker host). Output lands in ./Build/AnyCPU
-docker compose run --rm build
+1. Save [`docker-compose.minimal.yml`](docker-compose.minimal.yml) as
+   `docker-compose.yml` in an empty folder, and set the image to the published
+   one (`ghcr.io/OWNER/vibeskua-web:latest`).
+2. Set `PUID`/`PGID` to your user's (`id -u`, `id -g`) and change `PASSWORD`.
+3. Start it and open the desktop:
 
-# Toolchain-exact build (Windows container host only)
-docker compose run --rm build-windows
+   ```bash
+   docker compose up -d
+   # then browse to http://<this-host>:3000 and log in with CUSTOM_USER / PASSWORD
+   ```
 
-# Toolchain-exact build + Velopack installer. Output in ./Build and ./Releases
-docker compose run --rm package-windows
+The first start takes a minute: Skua downloads the community scripts, then
+its window opens with the AQW login screen in it. Log in there, or set
+`AQW_USER_1` / `AQW_PASS_1` to have it done for you (and again after a
+disconnect).
+
+Only port **3000** (HTTP) is needed; **3001** serves the same over HTTPS with
+a self-signed certificate. Anyone who can open it controls the bot and the
+logged-in accounts, so keep it on your LAN, or put it behind a reverse proxy
+with HTTPS and a login.
+
+## Several accounts
+
+Each tab is one account with its own Skua and its own game; **+** opens
+another, **✕** closes one. The tab title becomes the character's name once
+it is logged in.
+
+- **Army Control** sends every tab the same command: start/stop scripts, load
+  a script everywhere, the Army Scheduler (one playlist, run by every tab),
+  log in/out all, jump all to a map or player, accept a quest, and the Misc
+  Options toggles (Lag Killer, Hide Players, ...).
+- **Grid View** shows every tab's game at once. Click a tab to go back.
+- Tabs not on screen keep playing, slowed to 2 fps to save CPU.
+
+To have accounts log in by themselves, number them. Skua opens one tab per
+account at start:
+
+```yaml
+environment:
+  AQW_USER_1: "first account"
+  AQW_PASS_1: "..."
+  AQW_USER_2: "second account"
+  AQW_PASS_2: "..."
+  AQW_SERVER: "Twilly"              # every tab's server (first online one if unset)
+  AQW_SERVER_2: "Safiria"           # this tab's own server
+  SKUA_SCRIPT_2: "Farm/GoldFarm"    # load this script in tab 2 at start
+  SKUA_SCRIPT_AUTO_START_2: "1"     # and start it once logged in
 ```
 
-Without compose, using BuildKit's direct output (no image is kept at all):
+`AQW_USER` / `AQW_PASS` (no number) also work for the first tab. Put the
+passwords in an `.env` file or your orchestrator's secrets rather than in the
+compose file. Only the game pages see them; Skua never does.
+
+Every tab costs about as much memory and CPU as the first (a browser page
+plus a Skua process, roughly 0.5-1 GB of RAM each), so size the container
+for the number of accounts you run.
+
+## Scripts
+
+At start Skua syncs its Scripts folder with the community scripts
+([auqw/Scripts](https://github.com/auqw/Scripts), branch `Skua`), as the
+Windows app does. With **Options > Application > Auto Update Scripts** on it
+downloads missing and outdated scripts silently; otherwise it asks
+(**Update all** / **Only missing** / **Skip**). Scripts that fail to download
+are listed in a pop-up.
+
+- **Your own fork of the scripts:** `SKUA_SCRIPTS_REPO` (a GitHub or Gitea
+  repository URL) and `SKUA_SCRIPTS_BRANCH`.
+- **Your own scripts folder:** mount it at `/config/.config/Skua/Scripts`.
+  Skua then always asks before syncing, since "Update all" replaces outdated
+  scripts, local edits included.
+- **Load a script at start:** `SKUA_SCRIPT: "Farm/GoldFarm"` (a path in the
+  scripts repository, or an absolute path). It shows in the Script Loader,
+  ready to start; `SKUA_SCRIPT_AUTO_START: "1"` also starts it once logged
+  in. Per tab: `SKUA_SCRIPT_2`, `SKUA_SCRIPT_AUTO_START_2`, ...
+
+## Keeping your settings
+
+Mount `/config` (the minimal compose file does). Everything worth keeping is
+in it:
+
+| Path in the container | What |
+| :--- | :--- |
+| `/config/.config/Skua/Skua.settings.json` | Skua's options, hotkeys, theme |
+| `/config/.config/Skua/options/` | CoreBots options, one `CBO_Storage(<character>).txt` each |
+| `/config/.config/Skua/Scripts/` | the scripts |
+| `/config/.config/Skua/plugins/`, `themes/` | plugins and themes |
+| `/config/.config/vibeskua-web/` | the game pages' saved data (one partition per tab) |
+
+The folder on the host must belong to `PUID`:`PGID`. If it does not, Skua
+cannot write there; see [Troubleshooting](#troubleshooting).
+
+## Performance
+
+Without a GPU, Ruffle draws the game on the CPU, and AQW in software keeps a
+couple of cores busy per account.
+
+- **Give it the GPU** if the host has one (Intel/AMD):
+  `devices: ["/dev/dri:/dev/dri"]`. That is the biggest improvement.
+- `RUFFLE_RENDERER: "webgl"` is much lighter than the default `wgpu-webgl`,
+  at the cost of some effects (skill cooldown shading, aura fades).
+- `MAX_RENDER_FPS` caps how often the game is drawn (the game itself still
+  runs at full speed); `0` draws nothing at all. `RENDER_SCALE: "0.75"` draws
+  at a lower resolution. All three can also be changed live from the bar
+  under the game.
+- `ENABLE_MODULES: "DisableFX,HidePlayers"` switches on Skua's own
+  performance modules.
+- Ruffle keeps every SWF it ever loads (each map, every player's gear), so a
+  long session grows. `RECYCLE_AFTER_MINUTES` (e.g. `"120"`) reloads the game
+  when out of combat, logs back in and returns to the same map. It needs the
+  account's login in the environment.
+- `cpus: 4` in the compose file stops it from starving the rest of the host.
+
+## Environment variables
+
+LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
+`CUSTOM_USER`, `PASSWORD`, `TITLE`, ...); see its documentation.
+
+| Variable | Default | What |
+| :--- | :--- | :--- |
+| `AQW_USER_<N>`, `AQW_PASS_<N>` | | Account for tab N; logs it in automatically. `AQW_USER`/`AQW_PASS` also work for tab 1. |
+| `AQW_SERVER`, `AQW_SERVER_<N>` | first online | Server to log in to, for every tab or for tab N. |
+| `RECYCLE_AFTER_MINUTES`, `RECYCLE_AFTER_MAP_CHANGES` | off | Reload the game after this long / this many map changes (out of combat), then log back in and return. |
+| `SKUA_TABS` | `1` | `0`: one Skua, no tabs. `N`: open N tabs at start (at least one per configured account). |
+| `SKUA_SCRIPT`, `SKUA_SCRIPT_<N>` | | Script to load at start (tab 1 / tab N). |
+| `SKUA_SCRIPT_AUTO_START`, `SKUA_SCRIPT_AUTO_START_<N>` | `0` | `1`: also start it once logged in. |
+| `SKUA_SCRIPT_SYNC` | `auto` | `auto` (follow Skua's options), `ask`, or `off`. |
+| `SKUA_SCRIPTS_REPO`, `SKUA_SCRIPTS_BRANCH` | `https://github.com/auqw/Scripts`, `Skua` | Where scripts sync from (GitHub or Gitea). |
+| `SKUA_HOST` | `1` | `0`: the game only, without Skua. |
+| `SKUA_UI` | `1` | `0`: Skua without windows, driven through its control API only. |
+| `SKUA_EMBED_GAME` | `1` | `0`: the game in its own window below Skua's instead of inside it (no tabs). |
+| `RUFFLE_RENDERER` | `wgpu-webgl` | `webgl` is lighter; see [Performance](#performance). |
+| `RUFFLE_QUALITY` | `low` | `low`, `medium`, `high`. |
+| `RENDER_SCALE` | `1` | Fraction of the window's resolution to draw at. |
+| `MAX_RENDER_FPS` | `Infinity` | Frames drawn per second; `0` draws nothing. |
+| `ENABLE_MODULES`, `DISABLE_MODULES` | `""`, `QuestRequirementWiki,QuestItemRates` | Skua modules to switch on / off once the game loads. |
+| `SKUA_API_PREFIX` | `http://127.0.0.1:8791/` | Where the first tab's control API listens (see below). |
+| `REMOTE_DEBUG_PORT` | off | Chrome DevTools port (see below). |
+
+## Advanced: control API and DevTools
+
+Neither needs a port unless you want it, and **neither has any
+authentication**. Whoever reaches them controls the bot, so keep them on a
+LAN address, never on the internet.
+
+- **Control API** (start/stop scripts, status, logs, Army commands): each tab's
+  Skua has one inside the container, tab 1 on port 8791, tab N on
+  `8791 + 10*(N-1)`. From the host:
+
+  ```bash
+  docker exec vibeskua curl -s localhost:8791/status
+  docker exec vibeskua curl -s -X POST 'localhost:8791/script/start?path=Farm/GoldFarm'
+  ```
+
+  To reach tab 1's from your LAN, set `SKUA_API_PREFIX: "http://+:8791/"` and
+  publish it on a LAN address only: `"192.168.1.10:8791:8791"`. The routes
+  are listed in [Skua.Host/README.md](Skua.Host/README.md) and
+  [Skua.Linux/ArmyApi.cs](Skua.Linux/ArmyApi.cs).
+- **Chrome DevTools** (drive the game pages with Puppeteer and the like):
+  `REMOTE_DEBUG_PORT: "9222"` and `"192.168.1.10:9222:9222"`.
+
+## Troubleshooting
+
+- **"Skua cannot write to its Scripts folder" / "Access denied"**: the mounted
+  folder does not belong to the container's user. Set `PUID`/`PGID` to the
+  folder's owner (`stat -c '%u:%g' <folder>`) or `chown` the folder to them.
+- **A blank grey area instead of the game**: the game window is still
+  starting (it takes a few seconds after Skua's window), or crashed and is
+  being reopened; check `docker logs vibeskua`.
+- **Very slow, or the host fans spin up**: see [Performance](#performance);
+  above all the GPU and `RUFFLE_RENDERER: "webgl"`.
+- **Logs**: `docker logs -f vibeskua`. Lines start with `[skua]` (Skua; `[tab N]`
+  for other tabs), `[page]` / `[page N]` (the game pages) and `[host]`.
+
+## Building the image yourself
 
 ```bash
-docker build -f docker/Dockerfile.linux --target export \
-  --output type=local,dest=./Build .
+docker build -f docker/Dockerfile.kasm -t vibeskua-web .
 ```
 
-Pin a version for Velopack packaging instead of reading
-`Directory.Build.props`:
+By default the image uses the official Ruffle release. VibeSkua works best
+with the patched Ruffle build (Loader and renderer fixes AQW needs, and the
+renderer/fps controls). Pass a zip of its web build as `RUFFLE_WEB_URL`:
 
 ```bash
-docker build -f docker/Dockerfile.windows --target export-package \
-  --build-arg VERSION=1.8.6 -t vibeskua:release .
+docker build -f docker/Dockerfile.kasm \
+  --build-arg RUFFLE_WEB_URL=https://github.com/OWNER/ruffle/releases/download/<tag>/ruffle-web.zip \
+  -t vibeskua-web .
 ```
 
----
+If that download needs a login, pass it as a BuildKit secret, never as a
+build argument (those stay in the image):
+`--secret id=ruffle_web_auth,env=RUFFLE_WEB_AUTH` with `RUFFLE_WEB_AUTH=user:token`.
 
-## What the build does
-
-Both Dockerfiles follow the same shape as `.github/workflows/release.yml`:
-
-1. **restore stage** — copies only `Skua.sln`, `Directory.Build.props`,
-   `Shared/`, the 13 `.csproj` files and `Skua.App.WPF/Assemblies/`, then runs
-   `dotnet restore`. Editing source code does not invalidate the NuGet layer.
-2. **build stage** — copies the tree and runs
-   `dotnet build Skua.sln -c Release -p:WarningLevel=0`. The `PostBuild`
-   targets in the `.csproj` files assemble `Build/AnyCPU` themselves, including
-   the `FFDec/` copy and the `Assemblies/` flattening.
-3. **package stage** (Windows only) — `dotnet tool install -g vpk` then
-   `vpk pack -u VibeSkua -v <version> -p Build\AnyCPU -e Skua.exe -o Releases`.
-4. **export stage** — a thin image that carries only the artifacts and copies
-   them to the bind-mounted output directory.
-
-### The AS3 / `skua.swf` step is skipped
-
-`Build-VibeSkua.ps1` recompiles `Skua.AS3` with the Flex SDK (`mxmlc`). The
-containers **do not**, because `Skua.AS3/skua/bin/skua.swf` is committed to the
-repo and the GitHub release workflow already relies on that prebuilt file. If
-you change anything under `Skua.AS3/`, recompile the SWF on the host first
-(FlashDevelop / IntelliJ / `Skua.AS3/compile-as3.ps1`) and commit it before
-building the image.
-
----
-
-## Known caveats
-
-**Linux cross-compile — case-sensitive MSBuild globs.** The `PostBuild` target
-in `Skua.App.WPF.csproj` excludes `$(TargetDir)assemblies\**` from its `Move`,
-but the directory on disk is `Assemblies`. MSBuild globs are case-insensitive
-on Windows and case-sensitive on Linux, so on Linux the exclude misses and the
-COM interop DLLs end up at `Build/AnyCPU/Assemblies/Assemblies/`. Confirmed on
-Ubuntu 20.04; the Linux Dockerfile flattens that back after the build. Fixing the casing in
-`Skua.App.WPF.csproj` would remove the need for the workaround and is harmless
-on Windows.
-
-**`$(AppData)` in `Skua.Plugin.DailyTracker.csproj`.** Its `PostBuild` target
-writes the plugin DLL into `$(AppData)\Skua\plugins`. There is no `%APPDATA%`
-on Linux, so the image sets `APPDATA=/tmp/appdata` to keep that write out of
-the container root. The release copy into `Build/AnyCPU/plugins` is unaffected.
-
-**Windows container base image tags.** Process isolation requires the container
-base to match the host build. The Dockerfile defaults to `ltsc2022`; override
-both args if your host needs something else:
-
-```bash
-docker build -f docker/Dockerfile.windows \
-  --build-arg SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0-windowsservercore-ltsc2025 \
-  --build-arg EXPORT_IMAGE=mcr.microsoft.com/windows/servercore:ltsc2025 .
-```
-
-**The Linux build cannot use `dotnet build Skua.sln`.** Verified on Ubuntu
-20.04 with SDK 10.0.401. Two SDK rules collide:
-
-* With no `RuntimeIdentifier`, no Windows apphost is emitted. `Skua.exe` and
-  `Skua.Manager.exe` are never produced, and `Skua.Manager.csproj`'s PostBuild
-  copy fails with `MSB3030: Could not copy the file "Skua.Manager.exe" because
-  it was not found`.
-* Adding `-p:RuntimeIdentifier=win-x64` to a *solution* build fails with
-  `NETSDK1134: Building a solution with a specific RuntimeIdentifier is not
-  supported`.
-
-So the two `WinExe` projects are built individually with the RID, and their
-ProjectReferences pull in the rest:
-
-```bash
-FLAGS="-c Release -p:WarningLevel=0 --nologo -p:EnableWindowsTargeting=true"
-RIDFLAGS="-p:RuntimeIdentifier=win-x64 -p:SelfContained=false"
-dotnet build Skua.App.WPF/Skua.App.WPF.csproj $FLAGS $RIDFLAGS
-dotnet build Skua.Manager/Skua.Manager.csproj  $FLAGS $RIDFLAGS
-dotnet build Skua.Plugin.DailyTracker/Skua.Plugin.DailyTracker.csproj $FLAGS
-```
-
-That produces a complete `Build/AnyCPU` — `Skua.exe`, `Skua.Manager.exe`,
-`skua.swf`, `Assemblies/`, `FFDec/`, `plugins/`, and the JSON data files — with
-0 warnings and 0 errors.
-
-**Verification status.** The build recipe above and the `Assemblies/Assemblies`
-flattening are verified on Linux. Docker itself is not installed on the machine
-where these files were written, so the **images** have not been built end to
-end — what is unproven is the Dockerfile plumbing around a recipe that is
-known-good, not the recipe. `Dockerfile.windows` is unverified in both senses;
-it mirrors `.github/workflows/release.yml` closely.
+How the pieces fit together: [web/README.md](web/README.md) (the game page and
+Electron), [Skua.App.Avalonia/README.md](Skua.App.Avalonia/README.md) (Skua's
+UI, tabs, script sync) and [Skua.Host/README.md](Skua.Host/README.md) (the
+control API). Building the **Windows** client in a container is covered in
+[docs/BUILD-DOCKER.md](docs/BUILD-DOCKER.md).
