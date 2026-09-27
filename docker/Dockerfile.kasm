@@ -120,6 +120,6 @@ RUN chmod +x /defaults/autostart /app/launch.sh \
 
 ENV TITLE="VibeSkua Web" \
     PORT=8770 \
-    SOCKET_PROXY_PORT=8181
+    SOCKET_PROXY_PORT=8181     SKUA_SCRIPTS_REPO=https://gitea.jenangmaker.cloud/jenangmaker/skua-scripts     SKUA_SCRIPTS_BRANCH=Skua
 
 EXPOSE 3000 3001

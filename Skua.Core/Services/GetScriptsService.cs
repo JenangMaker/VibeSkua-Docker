@@ -10,13 +10,10 @@ namespace Skua.Core.Services;
 public partial class GetScriptsService : ObservableObject, IGetScriptsService
 {
     private readonly IDialogService _dialogService;
-    private const string _rawScriptsJsonUrl = "auqw/Scripts/refs/heads/Skua/scripts.json";
-    private const string _skillsSetsRawUrl = "auqw/Scripts/refs/heads/Skua/Skills/AdvancedSkills.json";
-    private const string _questDataRawUrl = "auqw/Scripts/refs/heads/Skua/QuestData.json";
-    private const string _junkItemsRawUrl = "auqw/Scripts/refs/heads/Skua/JunkItems.json";
-    private const string _repoOwner = "auqw";
-    private const string _repoName = "Scripts";
-    private const string _repoBranch = "Skua";
+    private static readonly string _rawScriptsJsonUrl = ScriptsSource.Raw("scripts.json");
+    private static readonly string _skillsSetsRawUrl = ScriptsSource.Raw("Skills/AdvancedSkills.json");
+    private static readonly string _questDataRawUrl = ScriptsSource.Raw("QuestData.json");
+    private static readonly string _junkItemsRawUrl = ScriptsSource.Raw("JunkItems.json");
 
     [ObservableProperty]
     private RangedObservableCollection<ScriptInfo> _scripts = new();
@@ -77,9 +74,9 @@ public partial class GetScriptsService : ObservableObject, IGetScriptsService
         catch (HttpRequestException ex) when (ex.InnerException is System.Net.Sockets.SocketException)
         {
             _dialogService.ShowMessageBox(
-                "Unable to connect to GitHub.\r\n" +
+                $"Unable to connect to the scripts repository ({ScriptsSource.Name}).\r\n" +
                 "Please check your internet connection and try again.\r\n\r\n" +
-                "If the problem persists, GitHub may be temporarily unavailable.",
+                "If the problem persists, the server may be temporarily unavailable.",
                 "Network Error");
         }
         catch (Exception ex)
@@ -128,6 +125,11 @@ public partial class GetScriptsService : ObservableObject, IGetScriptsService
     public async Task UpdateScriptDatesAsync(IProgress<string>? progress, CancellationToken token)
     {
         string datesFile = Path.Combine(AppContext.BaseDirectory, "ScriptDates.json");
+        // Dates come from GitHub's per-file commit history; for another host it
+        // would be one API call per script (thousands), so leave them unset.
+        if (!ScriptsSource.IsGitHub)
+            return;
+
         Dictionary<string, DateTime> dict = new();
         if (File.Exists(datesFile))
         {
@@ -145,7 +147,7 @@ public partial class GetScriptsService : ObservableObject, IGetScriptsService
                 try
                 {
                     progress?.Report($"Fetching date for {script.FileName}...");
-                    using HttpResponseMessage response = await client.GetAsync($"https://api.github.com/repos/auqw/Scripts/commits?path={script.FilePath.Replace(" ", "%20")}", token);
+                    using HttpResponseMessage response = await client.GetAsync($"{ScriptsSource.ApiBase}/commits?path={script.FilePath.Replace(" ", "%20")}", token);
                     if (response.IsSuccessStatusCode)
                     {
                         string content = await response.Content.ReadAsStringAsync(token);
@@ -182,7 +184,10 @@ public partial class GetScriptsService : ObservableObject, IGetScriptsService
         if (!parent.Exists)
             parent.Create();
 
-        using HttpResponseMessage response = await ValidatedHttpExtensions.GetAsync(HttpClients.GitHubRaw, info.DownloadUrl);
+        // scripts.json's download URLs point at auqw/Scripts; for any other source
+        // fetch the file from that source by its path.
+        string url = ScriptsSource.IsDefault ? info.DownloadUrl : ScriptsSource.Raw(info.FilePath);
+        using HttpResponseMessage response = await ValidatedHttpExtensions.GetAsync(HttpClients.GitHubRaw, url);
         byte[] scriptBytes = await response.Content.ReadAsByteArrayAsync();
         await File.WriteAllBytesAsync(info.LocalFile, scriptBytes);
     }
@@ -333,7 +338,16 @@ public partial class GetScriptsService : ObservableObject, IGetScriptsService
     {
         try
         {
-            string url = $"https://api.github.com/repos/{_repoOwner}/{_repoName}/commits/{_repoBranch}";
+            string branch = Uri.EscapeDataString(ScriptsSource.Branch);
+            if (!ScriptsSource.IsGitHub)
+            {
+                // Gitea: GET /branches/{branch} -> { commit: { id } }
+                using HttpResponseMessage gitea = await ValidatedHttpExtensions.GetAsync(HttpClients.Default, $"{ScriptsSource.ApiBase}/branches/{branch}", token);
+                dynamic? info = JsonConvert.DeserializeObject<dynamic>(await gitea.Content.ReadAsStringAsync(token));
+                return (string?)info?.commit?.id;
+            }
+
+            string url = $"{ScriptsSource.ApiBase}/commits/{branch}";
             using HttpResponseMessage response = await HttpClients.MakeGitHubApiRequestAsync(url);
             string content = await response.Content.ReadAsStringAsync(token);
             GitHubCommit? commit = JsonConvert.DeserializeObject<GitHubCommit>(content);
@@ -349,7 +363,22 @@ public partial class GetScriptsService : ObservableObject, IGetScriptsService
     {
         try
         {
-            string url = $"https://api.github.com/repos/{_repoOwner}/{_repoName}/compare/{oldSha}...{newSha}";
+            if (!ScriptsSource.IsGitHub)
+            {
+                // Gitea: GET /compare/{old}...{new} -> { commits: [ { files: [ { filename, status } ] } ] }
+                using HttpResponseMessage gitea = await ValidatedHttpExtensions.GetAsync(HttpClients.Default, $"{ScriptsSource.ApiBase}/compare/{oldSha}...{newSha}", token);
+                dynamic? diff = JsonConvert.DeserializeObject<dynamic>(await gitea.Content.ReadAsStringAsync(token));
+                HashSet<string> files = new();
+                if (diff?.commits != null)
+                    foreach (dynamic c in diff.commits)
+                        if (c.files != null)
+                            foreach (dynamic f in c.files)
+                                if ((string?)f.status != "removed")
+                                    files.Add((string)f.filename);
+                return files;
+            }
+
+            string url = $"{ScriptsSource.ApiBase}/compare/{oldSha}...{newSha}";
             using HttpResponseMessage response = await HttpClients.MakeGitHubApiRequestAsync(url);
             string content = await response.Content.ReadAsStringAsync(token);
             GitHubCompare? compare = JsonConvert.DeserializeObject<GitHubCompare>(content);

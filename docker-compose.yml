@@ -145,8 +145,8 @@ services:
       # Windows app; "0" keeps them separate (Skua a bar above the game).
       # SKUA_EMBED_GAME: "1"
       # Script to load at startup (it shows in the Script Loader, ready to
-      # start): a repository path (scripts are synced from auqw/Scripts at
-      # startup) or an absolute path.
+      # start): a repository path (scripts are synced from SKUA_SCRIPTS_REPO
+      # at startup) or an absolute path.
       # SKUA_SCRIPT: "Farm/GoldFarm"
       # "1": also start it once logged in. Off by default: it only loads.
       # SKUA_SCRIPT_AUTO_START: "0"
@@ -156,12 +156,17 @@ services:
       # (see volumes below) is always asked about, since "Update all"
       # overwrites local changes to outdated scripts.
       # SKUA_SCRIPT_SYNC: "auto"
+      # Where scripts sync from: a GitHub or Gitea repository and branch. The
+      # image defaults to the jenangmaker Gitea mirror; Skua's own default is
+      # https://github.com/auqw/Scripts.
+      # SKUA_SCRIPTS_REPO: "https://gitea.jenangmaker.cloud/jenangmaker/skua-scripts"
+      # SKUA_SCRIPTS_BRANCH: "Skua"
       # To reach the API from the LAN instead, add a LAN-IP port mapping
       # ("192.168.2.20:8791:8791") and:
       # SKUA_API_PREFIX: "http://+:8791/"
     # Your own scripts: mount a host folder as Skua's Scripts folder. It must
     # be writable by the container user (PUID/PGID). Skua asks before syncing
-    # it with auqw/Scripts (SKUA_SCRIPT_SYNC above).
+    # it with the scripts repository (SKUA_SCRIPT_SYNC above).
     # volumes:
     #   - /path/on/host/skua-scripts:/config/.config/Skua/Scripts
     # Chromium needs syscalls Docker's default seccomp profile blocks.

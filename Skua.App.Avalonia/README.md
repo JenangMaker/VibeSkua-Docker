@@ -47,8 +47,11 @@ bindings on the main window, not global).
 
 ## Script sync
 
-At startup Skua syncs its Scripts folder with auqw/Scripts
-(`Skua.Linux/ScriptSync.cs`). With Options > Application > Auto Update
+At startup Skua syncs its Scripts folder with the scripts repository
+(`Skua.Linux/ScriptSync.cs`): `SKUA_SCRIPTS_REPO` / `SKUA_SCRIPTS_BRANCH`,
+a GitHub or Gitea repository (Skua's default is auqw/Scripts, branch Skua; the
+Docker image sets https://gitea.jenangmaker.cloud/jenangmaker/skua-scripts).
+Script dates are only fetched from GitHub. With Options > Application > Auto Update
 Scripts on, it downloads missing and outdated scripts silently, as the WPF
 app does; otherwise it asks: **Update all**, **Only missing** (new scripts,
 yours left alone) or **Skip**. It always asks when the Scripts folder is

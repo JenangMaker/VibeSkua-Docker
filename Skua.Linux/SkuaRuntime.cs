@@ -21,6 +21,9 @@ namespace Skua.Linux;
 ///                        it, ready to start); absolute, or a repository path
 ///                        such as Farm/GoldFarm
 ///   SKUA_SCRIPT_AUTO_START  1: also start it once logged in (default off)
+///   SKUA_SCRIPTS_REPO    repository scripts sync from, GitHub or Gitea
+///                        (https://github.com/auqw/Scripts)
+///   SKUA_SCRIPTS_BRANCH  its branch (Skua)
 /// </summary>
 public sealed class SkuaRuntime
 {

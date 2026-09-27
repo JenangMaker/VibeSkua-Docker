@@ -2,11 +2,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Skua.Core.Interfaces;
 using Skua.Core.Models;
 using Skua.Core.Models.GitHub;
+using Skua.Core.Services;
 
 namespace Skua.Linux;
 
 /// <summary>
-/// Skua's script repository (auqw/Scripts, branch Skua), as the WPF app uses
+/// Skua's script repository (auqw/Scripts, branch Skua, or SKUA_SCRIPTS_REPO /
+/// SKUA_SCRIPTS_BRANCH; see Skua.Core ScriptsSource), as the WPF app uses
 /// it at startup: fetch the index, download missing and outdated scripts into
 /// Skua/Scripts, refresh the advanced skill sets, quest data and junk list.
 /// Honours the same settings (CheckBotScriptsUpdates, AutoUpdateBotScripts,
@@ -39,7 +41,7 @@ public sealed class ScriptSync(IServiceProvider services)
             return;
 
         string message =
-            $"auqw/Scripts has {missing} script(s) you do not have and {outdated} newer than yours (of {repo.Total}).\r\n\r\n" +
+            $"{ScriptsSource.Name} has {missing} script(s) you do not have and {outdated} newer than yours (of {repo.Total}).\r\n\r\n" +
             (mounted
                 ? $"Your Scripts folder ({ClientFileSources.SkuaScriptsDIR}) is mounted from the host. \"Update all\" replaces your outdated scripts with the repository's versions, including any local changes to them; \"Only missing\" adds new scripts and leaves yours alone.\r\n\r\n"
                 : "") +
