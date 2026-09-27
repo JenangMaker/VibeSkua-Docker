@@ -77,7 +77,9 @@ const RUFFLE_RENDERER = unquoteEnv('RUFFLE_RENDERER') || (HAS_GPU ? 'webgl' : 'c
 // Fraction of display resolution to render at; the browser upscales.
 const RENDER_SCALE = Number(unquoteEnv('RENDER_SCALE') || '1');
 // Without a GPU drawing is also capped at NO_GPU_RENDER_FPS unless
-// MAX_RENDER_FPS says otherwise; the game itself still runs at full speed.
+// MAX_RENDER_FPS says otherwise. Canvas draws on the main thread, the one
+// the game runs on: a busy map takes over a second per frame on the CPU and
+// holds the game up; MAX_RENDER_FPS=0 (draw nothing) frees it entirely.
 const NO_GPU_RENDER_FPS = 15;
 // Most renders per second. 0 = headless (nothing drawn), Infinity = unlimited.
 const MAX_RENDER_FPS = Number(unquoteEnv('MAX_RENDER_FPS') || (HAS_GPU ? 'Infinity' : String(NO_GPU_RENDER_FPS)));
