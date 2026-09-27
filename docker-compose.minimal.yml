@@ -31,6 +31,13 @@ services:
       # Everything that should survive an update: Skua's settings, CoreBots
       # options, scripts, themes, plugins, and saved browser data.
       - ./config:/config
+    # The host's GPU (Intel/AMD), if it has one: by far the biggest speed-up.
+    # Without it the game is drawn on the CPU (and capped at 15 fps to spare
+    # it). Uncomment if `ls /dev/dri` on the host shows a renderD128.
+    # devices:
+    #   - /dev/dri:/dev/dri
+    # Most CPU cores it may use, so it cannot starve the rest of the host.
+    cpus: 2
     # Chromium needs more shared memory than Docker's default, and syscalls
     # Docker's default seccomp profile blocks.
     shm_size: 1gb

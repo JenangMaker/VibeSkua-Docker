@@ -30,7 +30,10 @@ container is a small desktop you open at `http://<host>:3000`.
    `docker-compose.yml` in an empty folder. It uses the published image,
    `ghcr.io/jenangmaker/vibeskua-web:latest`.
 2. Set `PUID`/`PGID` to your user's (`id -u`, `id -g`) and change `PASSWORD`.
-3. Start it and open the desktop:
+3. If the host has an Intel/AMD GPU (`ls /dev/dri` shows `renderD128`),
+   uncomment the `devices` lines. Without it the game is drawn on the CPU,
+   which is slow and heavy; see [Performance](#performance).
+4. Start it and open the desktop:
 
    ```bash
    docker compose up -d
@@ -120,24 +123,39 @@ cannot write there; see [Troubleshooting](#troubleshooting).
 
 ## Performance
 
-Without a GPU, Ruffle draws the game on the CPU, and AQW in software keeps a
-couple of cores busy per account.
+**Give it the GPU.** With the host's Intel/AMD GPU passed in, the game draws
+smoothly at little CPU cost. Without one, Chromium draws it on the CPU, which
+is slow and busy however it is tuned. If `ls /dev/dri` on the host lists a
+`renderD128`, add to the service:
 
-- **Give it the GPU** if the host has one (Intel/AMD):
-  `devices: ["/dev/dri:/dev/dri"]`. That is the biggest improvement.
-- `RUFFLE_RENDERER: "webgl"` is much lighter than the default `wgpu-webgl`,
-  at the cost of some effects (skill cooldown shading, aura fades).
-- `MAX_RENDER_FPS` caps how often the game is drawn (the game itself still
-  runs at full speed); `0` draws nothing at all. `RENDER_SCALE: "0.75"` draws
-  at a lower resolution. All three can also be changed live from the bar
-  under the game.
+```yaml
+    devices:
+      - /dev/dri:/dev/dri
+```
+
+`docker logs vibeskua` says at start whether it found the GPU (`[host] GPU
+found` / `[host] no GPU passed in`). NVIDIA cards need the NVIDIA container
+toolkit instead; that is untested here.
+
+Without a GPU the image already draws at most 15 frames a second (the game
+itself still runs at full speed). Further:
+
+- `MAX_RENDER_FPS` sets how often the game is drawn: lower saves CPU, `0`
+  draws nothing at all (fine for a bot you are not watching). With a GPU the
+  default is unlimited.
+- `RENDER_SCALE: "0.75"` (or `"0.5"`) draws at a lower resolution.
+- `RUFFLE_RENDERER` is `webgl` by default, the fast one. `wgpu-webgl` draws
+  every effect (skill cooldown shading, aura fades) but is many times slower;
+  only consider it with a GPU.
+- These three can also be changed live from the bar under the game.
 - `ENABLE_MODULES: "DisableFX,HidePlayers"` switches on Skua's own
   performance modules.
 - Ruffle keeps every SWF it ever loads (each map, every player's gear), so a
   long session grows. `RECYCLE_AFTER_MINUTES` (e.g. `"120"`) reloads the game
   when out of combat, logs back in and returns to the same map. It needs the
   account's login in the environment.
-- `cpus: 4` in the compose file stops it from starving the rest of the host.
+- `cpus` in the compose file (2 in the minimal one) stops it from starving
+  the rest of the host. Raise it for several accounts.
 
 ## Environment variables
 
@@ -157,10 +175,10 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `SKUA_HOST` | `1` | `0`: the game only, without Skua. |
 | `SKUA_UI` | `1` | `0`: Skua without windows, driven through its control API only. |
 | `SKUA_EMBED_GAME` | `1` | `0`: the game in its own window below Skua's instead of inside it (no tabs). |
-| `RUFFLE_RENDERER` | `wgpu-webgl` | `webgl` is lighter; see [Performance](#performance). |
+| `RUFFLE_RENDERER` | `webgl` | `wgpu-webgl` draws every effect but is much heavier; see [Performance](#performance). |
 | `RUFFLE_QUALITY` | `low` | `low`, `medium`, `high`. |
 | `RENDER_SCALE` | `1` | Fraction of the window's resolution to draw at. |
-| `MAX_RENDER_FPS` | `Infinity` | Frames drawn per second; `0` draws nothing. |
+| `MAX_RENDER_FPS` | unlimited with a GPU, `15` without | Frames drawn per second; `0` draws nothing. |
 | `ENABLE_MODULES`, `DISABLE_MODULES` | `""`, `QuestRequirementWiki,QuestItemRates` | Skua modules to switch on / off once the game loads. |
 | `SKUA_API_PREFIX` | `http://127.0.0.1:8791/` | Where the first tab's control API listens (see below). |
 | `REMOTE_DEBUG_PORT` | off | Chrome DevTools port (see below). |
@@ -196,7 +214,7 @@ LAN address, never on the internet.
   starting (it takes a few seconds after Skua's window), or crashed and is
   being reopened; check `docker logs vibeskua`.
 - **Very slow, or the host fans spin up**: see [Performance](#performance);
-  above all the GPU and `RUFFLE_RENDERER: "webgl"`.
+  above all, pass the GPU in.
 - **Logs**: `docker logs -f vibeskua`. Lines start with `[skua]` (Skua; `[tab N]`
   for other tabs), `[page]` / `[page N]` (the game pages) and `[host]`.
 

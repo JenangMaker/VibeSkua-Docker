@@ -57,18 +57,28 @@ const RUFFLE_QUALITY = process.env.RUFFLE_QUALITY || 'low';
 // control bar under the game, or per-load with ?renderer=&scale=&fps= in the
 // page URL.
 //
-// Tested in a logged-in Battleon: wgpu-webgl loads fully at both Max and a
-// 15 fps cap. webgl works with Ruffle 560f6f6f3 and is much lighter, but
-// anything AQW draws into a BitmapData stays blank (cooldown overlays; map
-// backgrounds are worked around in index.html), so it stays opt-in.
+// Tested in a logged-in 10-player Battleon (Intel GPU): webgl ~36 fps at Max,
+// wgpu-webgl ~2 fps (wgpu-core overhead). webgl is the default for that; what
+// it lacks is anything AQW draws into a BitmapData (skill cooldown shading,
+// aura fades; map backgrounds are worked around in index.html).
 //
-// RUFFLE_RENDERER: wgpu-webgl (full visuals) or webgl (lighter, no filters,
-// less complete).
-const RUFFLE_RENDERER = process.env.RUFFLE_RENDERER || 'wgpu-webgl';
+// RUFFLE_RENDERER: webgl (default, fast) or wgpu-webgl (full visuals, heavy).
+const RUFFLE_RENDERER = unquoteEnv('RUFFLE_RENDERER') || 'webgl';
 // Fraction of display resolution to render at; the browser upscales.
-const RENDER_SCALE = Number(process.env.RENDER_SCALE || '1');
+const RENDER_SCALE = Number(unquoteEnv('RENDER_SCALE') || '1');
+// Without a GPU (no /dev/dri render node passed in), Chromium draws on the
+// CPU (SwiftShader), and drawing as often as possible takes whole cores per
+// account. Then drawing is capped at NO_GPU_RENDER_FPS unless MAX_RENDER_FPS
+// says otherwise; the game itself still runs at full speed.
+const HAS_GPU = (() => {
+  try { return fs.readdirSync('/dev/dri').some(f => f.startsWith('renderD')); } catch { return false; }
+})();
+const NO_GPU_RENDER_FPS = 15;
 // Most renders per second. 0 = headless (nothing drawn), Infinity = unlimited.
-const MAX_RENDER_FPS = Number(process.env.MAX_RENDER_FPS || 'Infinity');
+const MAX_RENDER_FPS = Number(unquoteEnv('MAX_RENDER_FPS') || (HAS_GPU ? 'Infinity' : String(NO_GPU_RENDER_FPS)));
+function unquoteEnv(name) {
+  return (process.env[name] || '').trim().replace(/^["']|["']$/g, '').trim();
+}
 
 // Chrome DevTools Protocol, for driving the game remotely (screenshots, input,
 // calling the Skua bridge from Puppeteer). Off unless REMOTE_DEBUG_PORT is set.
@@ -379,6 +389,10 @@ app.whenReady().then(async () => {
     allow: host => discoveredHosts.has(host.toLowerCase()),
   });
   console.log(`[host] serving http://127.0.0.1:${PORT}`);
+  const fps = Number.isFinite(MAX_RENDER_FPS) ? `${MAX_RENDER_FPS} fps` : 'unlimited fps';
+  console.log(HAS_GPU
+    ? `[host] GPU found (/dev/dri); renderer ${RUFFLE_RENDERER}, ${fps}`
+    : `[host] no GPU passed in (/dev/dri): the game is drawn on the CPU; renderer ${RUFFLE_RENDERER}, ${fps}. Pass the GPU (devices: /dev/dri) for far less CPU; see DOCKER.md, Performance.`);
   if (REMOTE_DEBUG_PORT) startDebugRelay();
   if (SKUA_HOST) startSkuaHost();
   openInstance(0);

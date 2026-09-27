@@ -117,8 +117,9 @@ services:
       RUFFLE_RENDERER: webgl
       RENDER_SCALE: "1"
       # Frames drawn per second. The game always runs at full speed.
-      # 0 = headless (nothing drawn). Infinity = unlimited.
-      MAX_RENDER_FPS: "Infinity"
+      # 0 = headless (nothing drawn). Infinity = unlimited. Default:
+      # unlimited with a GPU (/dev/dri), 15 without.
+      # MAX_RENDER_FPS: "Infinity"
       # Chrome DevTools Protocol for remote testing (Puppeteer). NO AUTH:
       # whoever reaches it controls the session. Uncomment together with the
       # port mapping below, bound to the host's LAN IP -- see web/README.md.
