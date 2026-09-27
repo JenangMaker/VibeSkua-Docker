@@ -73,12 +73,41 @@ public partial class CoreBotsViewModel : BotControlViewModelBase
             if (tab.Content is IManageCBOptions cbo)
                 cbo.Save(bob);
         }
-        File.WriteAllText(ClientFileSources.SkuaOptionsDIR + $@"\CBO_Storage({_player.Username}).txt", bob.ToString());
+        string file = StorageFile(_player.Username);
+        Directory.CreateDirectory(ClientFileSources.SkuaOptionsDIR);
+        File.WriteAllText(file, bob.ToString());
         if (showDialog)
         {
-            _dialogService.ShowMessageBox($@"Saved to \options\CBO_Storage({_player.Username}).txt", "Save Successful!");
+            _dialogService.ShowMessageBox($"Saved to {file}", "Save Successful!");
         }
-        _readValues[_player.Username] = ReadValues(File.ReadAllLines(ClientFileSources.SkuaOptionsDIR + $@"\CBO_Storage({_player.Username}).txt"));
+        _readValues[_player.Username] = ReadValues(File.ReadAllLines(file));
+    }
+
+    /// <summary>
+    /// options/CBO_Storage(user).txt, where CoreBots reads it. This was built
+    /// as SkuaOptionsDIR + @"\CBO_Storage(...)", which off Windows is a file
+    /// named "options\CBO_Storage(...).txt" beside the options folder, so the
+    /// scripts never saw what was saved here; such a file is moved into place.
+    /// </summary>
+    private static string StorageFile(string username)
+    {
+        string file = Path.Combine(ClientFileSources.SkuaOptionsDIR, $"CBO_Storage({username}).txt");
+        if (!OperatingSystem.IsWindows() && !File.Exists(file))
+        {
+            string misplaced = ClientFileSources.SkuaOptionsDIR + $@"\CBO_Storage({username}).txt";
+            try
+            {
+                if (File.Exists(misplaced))
+                {
+                    Directory.CreateDirectory(ClientFileSources.SkuaOptionsDIR);
+                    File.Move(misplaced, file);
+                }
+            }
+            catch
+            {
+            }
+        }
+        return file;
     }
 
     [RelayCommand]
@@ -98,10 +127,11 @@ public partial class CoreBotsViewModel : BotControlViewModelBase
             return;
         }
 
-        if (!File.Exists(ClientFileSources.SkuaOptionsDIR + $@"\CBO_Storage({_player.Username}).txt"))
+        string file = StorageFile(_player.Username);
+        if (!File.Exists(file))
             return;
 
-        Dictionary<string, string> optionsDict = ReadValues(File.ReadAllLines(ClientFileSources.SkuaOptionsDIR + $@"\CBO_Storage({_player.Username}).txt"));
+        Dictionary<string, string> optionsDict = ReadValues(File.ReadAllLines(file));
 
         SetValues(optionsDict);
 
