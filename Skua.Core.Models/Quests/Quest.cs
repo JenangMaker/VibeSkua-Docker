@@ -138,9 +138,47 @@ public class Quest
     private List<ItemBase> _reqCache;
 
     /// <summary>
-    /// The items used to turn in the quest.
+    /// The items used to turn in the quest, in the order Flash lists them.
     /// </summary>
-    public List<ItemBase> Requirements => _reqCache ??= _reqs.Select(x => (x.Quantity = _turnin.Find(y => y.ID == x.ID).Quantity) != -1 ? x : x).ToList();
+    public List<ItemBase> Requirements => _reqCache ??= OrderLikeFlash(_reqs.Select(x => (x.Quantity = _turnin.Find(y => y.ID == x.ID).Quantity) != -1 ? x : x).ToList());
+
+    /// <summary>
+    /// A quest's requirement item ids in the order the Flash client lists
+    /// them (QuestData.json has it), or null if unknown. Set by ScriptQuest.
+    /// </summary>
+    public static Func<int, IReadOnlyList<int>?>? FlashRequirementOrder { get; set; }
+
+    // oItems is an object keyed by item id, so its order is the game
+    // runtime's property order: Flash's and Ruffle's differ. Scripts are
+    // written against Flash's (CoreStory.KillQuest pairs requirement i with
+    // monster i), so under Ruffle they would farm the wrong monster. Order by
+    // QuestData.json where it knows the quest, then by the server's turnin
+    // list, which does not depend on the runtime.
+    private List<ItemBase> OrderLikeFlash(List<ItemBase> reqs)
+    {
+        if (reqs.Count < 2)
+            return reqs;
+        IReadOnlyList<int>? flash = null;
+        try { flash = FlashRequirementOrder?.Invoke(ID); }
+        catch { }
+        int Rank(ItemBase item)
+        {
+            int i = flash is null ? -1 : IndexOf(flash, item.ID);
+            if (i >= 0)
+                return i;
+            int t = _turnin.FindIndex(y => y.ID == item.ID);
+            return t >= 0 ? 10_000 + t : 20_000;
+        }
+        return reqs.OrderBy(Rank).ToList();   // stable: ties keep their order
+    }
+
+    private static int IndexOf(IReadOnlyList<int> list, int value)
+    {
+        for (int i = 0; i < list.Count; i++)
+            if (list[i] == value)
+                return i;
+        return -1;
+    }
 
     /// <summary>
     /// The items given as a reward for completing the quest.

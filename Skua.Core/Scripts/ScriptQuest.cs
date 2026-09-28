@@ -40,6 +40,16 @@ public partial class ScriptQuest : ObservableRecipient, IScriptQuest
 
         StrongReferenceMessenger.Default.Register<ScriptQuest, ScriptStoppedMessage, int>(this, (int)MessageChannels.ScriptStatus, OnScriptStopped);
         StrongReferenceMessenger.Default.Register<ScriptQuest, LogoutMessage, int>(this, (int)MessageChannels.GameEvents, OnLogout);
+
+        // Quests read from the game list their requirements in Flash's order
+        // (see Quest.Requirements); QuestData.json was recorded from Flash.
+        Quest.FlashRequirementOrder = id =>
+        {
+            LoadCachedQuests();
+            return CachedDictionary.TryGetValue(id, out QuestData? cached) && cached.Requirements.Count > 0
+                ? cached.Requirements.Select(r => r.ID).ToList()
+                : null;
+        };
     }
 
     private readonly Lazy<IFlashUtil> _lazyFlash;
