@@ -103,7 +103,9 @@ are listed in a pop-up.
 - **Load a script at start:** `SKUA_SCRIPT: "Farm/GoldFarm"` (a path in the
   scripts repository, or an absolute path). It shows in the Script Loader,
   ready to start; `SKUA_SCRIPT_AUTO_START: "1"` also starts it once logged
-  in. Per tab: `SKUA_SCRIPT_2`, `SKUA_SCRIPT_AUTO_START_2`, ...
+  in. Without a number both apply to **every tab** (tabs opened later with
+  **+** too); `SKUA_SCRIPT_2`, `SKUA_SCRIPT_AUTO_START_2`, ... override them
+  for one tab, and `SKUA_SCRIPT_2: "none"` gives tab 2 no script.
 
 ## Keeping your settings
 
@@ -178,8 +180,8 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `AQW_SERVER`, `AQW_SERVER_<N>` | first online | Server to log in to, for every tab or for tab N. |
 | `RECYCLE_AFTER_MINUTES`, `RECYCLE_AFTER_MAP_CHANGES` | off | Reload the game after this long / this many map changes (out of combat), then log back in and return. |
 | `SKUA_TABS` | `1` | `0`: one Skua, no tabs. `N`: open N tabs at start (at least one per configured account). |
-| `SKUA_SCRIPT`, `SKUA_SCRIPT_<N>` | | Script to load at start (tab 1 / tab N). |
-| `SKUA_SCRIPT_AUTO_START`, `SKUA_SCRIPT_AUTO_START_<N>` | `0` | `1`: also start it once logged in. |
+| `SKUA_SCRIPT`, `SKUA_SCRIPT_<N>` | | Script to load at start: every tab's / tab N's (`none`: no script for that tab). |
+| `SKUA_SCRIPT_AUTO_START`, `SKUA_SCRIPT_AUTO_START_<N>` | `0` | `1`: also start it once logged in (every tab / tab N). |
 | `SKUA_SCRIPT_SYNC` | `auto` | `auto` (follow Skua's options), `ask`, or `off`. |
 | `SKUA_SCRIPTS_REPO`, `SKUA_SCRIPTS_BRANCH` | `https://github.com/auqw/Scripts`, `Skua` | Where scripts sync from (GitHub or Gitea). |
 | `SKUA_HOST` | `1` | `0`: the game only, without Skua. |

@@ -164,7 +164,8 @@ services:
       # SKUA_TABS: "1"
       # Script to load at startup (it shows in the Script Loader, ready to
       # start): a repository path (scripts are synced from SKUA_SCRIPTS_REPO
-      # at startup) or an absolute path. SKUA_SCRIPT_<N> for tab N.
+      # at startup) or an absolute path. Every tab loads it; SKUA_SCRIPT_<N>
+      # overrides it for tab N ("none": no script).
       # SKUA_SCRIPT: "Farm/GoldFarm"
       # "1": also start it once logged in. Off by default: it only loads.
       # SKUA_SCRIPT_AUTO_START_<N> for tab N.

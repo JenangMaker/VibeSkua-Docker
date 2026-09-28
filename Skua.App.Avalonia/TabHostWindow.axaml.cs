@@ -229,10 +229,12 @@ public partial class TabHostWindow : Window
         // One sync (the first tab's) is enough: they share the Scripts folder.
         if (n > 0)
             psi.Environment["SKUA_SCRIPT_SYNC"] = "off";
-        // Tab N's script: SKUA_SCRIPT_N (the first tab also takes plain
-        // SKUA_SCRIPT), started once logged in if SKUA_SCRIPT_AUTO_START_N,
-        // else SKUA_SCRIPT_AUTO_START, says so.
-        string? script = SkuaRuntime.EnvRaw($"SKUA_SCRIPT_{n + 1}") ?? (n == 0 ? SkuaRuntime.EnvRaw("SKUA_SCRIPT") : null);
+        // Tab N's script: SKUA_SCRIPT_N, else plain SKUA_SCRIPT (every tab's);
+        // SKUA_SCRIPT_N=none gives that tab none. Started once logged in if
+        // SKUA_SCRIPT_AUTO_START_N, else SKUA_SCRIPT_AUTO_START, says so.
+        string? script = SkuaRuntime.EnvRaw($"SKUA_SCRIPT_{n + 1}") ?? SkuaRuntime.EnvRaw("SKUA_SCRIPT");
+        if (script?.ToLowerInvariant() is "none" or "off" or "-")
+            script = null;
         string? autoStart = SkuaRuntime.EnvRaw($"SKUA_SCRIPT_AUTO_START_{n + 1}") ?? SkuaRuntime.EnvRaw("SKUA_SCRIPT_AUTO_START");
         SetOrRemove(psi, "SKUA_SCRIPT", script);
         SetOrRemove(psi, "SKUA_SCRIPT_AUTO_START", autoStart);
