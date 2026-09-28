@@ -714,28 +714,40 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
     private Task? _reloginTask;
     private volatile bool _waitForLogin;
     private CancellationTokenSource? _reloginCTS;
+    // 1 from the first OnLogout until its relogin has finished.
+    private int _reloginClaimed;
 
     private async Task OnLogout()
     {
         if (!Options.AutoRelogin || _waitForLogin)
             return;
 
-        if (_reloginTask is not null && !_waitForLogin)
-        {
-            Log("Re-login task already running.");
-            _waitForLogin = true;
+        // One relogin at a time. The loop calls this on every tick while the
+        // "connection lost" screen shows, and stopping the script below takes
+        // a while: _waitForLogin used to be set only after it, so each of
+        // those calls started a relogin of its own (seen: 7 at once, resetting
+        // each other's login screen until all of them gave up).
+        if (Interlocked.CompareExchange(ref _reloginClaimed, 1, 0) != 0)
             return;
-        }
-
-        Log("Auto re-login triggered.");
-        bool wasRunning = Manager.ScriptRunning;
-        await Manager.StopScript();
-        bool kicked = Player.Kicked;
         _waitForLogin = true;
-        Messenger.Send<ReloginTriggeredMessage, int>(new(kicked), (int)MessageChannels.GameEvents);
 
-        int delay = (Options.SafeRelogin && kicked) ? 70000 : Options.ReloginTryDelay;
-        Relogin(delay, wasRunning);
+        try
+        {
+            Log("Auto re-login triggered.");
+            bool wasRunning = Manager.ScriptRunning;
+            await Manager.StopScript();
+            bool kicked = Player.Kicked;
+            Messenger.Send<ReloginTriggeredMessage, int>(new(kicked), (int)MessageChannels.GameEvents);
+
+            int delay = (Options.SafeRelogin && kicked) ? 70000 : Options.ReloginTryDelay;
+            Relogin(delay, wasRunning);
+        }
+        catch
+        {
+            _waitForLogin = false;
+            Interlocked.Exchange(ref _reloginClaimed, 0);
+            throw;
+        }
     }
 
     private void Relogin(int delay, bool startScript)
@@ -745,17 +757,29 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
         _reloginCTS = new CancellationTokenSource();
         _reloginTask = Schedule(delay, async _ =>
         {
-            Stats.Relogins++;
-            bool relogged = await Servers.EnsureRelogin(_reloginCTS.Token);
-            if (startScript && relogged)
-                await Ioc.Default.GetService<IScriptManager>()!.StartScript();
-            else if (startScript && !relogged)
-                Log("Skipping script restart because re-login did not succeed.");
-            Log($"Re-login was {(relogged ? "successful" : "cancelled or unsuccessful")}.");
-            _reloginCTS.Dispose();
-            _reloginCTS = null;
-            _reloginTask = null;
-            _waitForLogin = false;
+            try
+            {
+                Stats.Relogins++;
+                bool relogged = await Servers.EnsureRelogin(_reloginCTS.Token);
+                if (startScript && relogged)
+                    await Ioc.Default.GetService<IScriptManager>()!.StartScript();
+                else if (startScript && !relogged)
+                    Log("Skipping script restart because re-login did not succeed.");
+                Log($"Re-login was {(relogged ? "successful" : "cancelled or unsuccessful")}.");
+            }
+            catch (Exception e)
+            {
+                Log($"Re-login failed: {e.Message}");
+            }
+            finally
+            {
+                // Always, or auto re-login would stay off for good.
+                _reloginCTS?.Dispose();
+                _reloginCTS = null;
+                _reloginTask = null;
+                _waitForLogin = false;
+                Interlocked.Exchange(ref _reloginClaimed, 0);
+            }
         });
     }
 
