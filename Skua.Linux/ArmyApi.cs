@@ -26,8 +26,8 @@ namespace Skua.Linux;
 ///                              playlist with it and start it
 ///   scheduler/stop
 ///   throttle?on=1|0[&amp;fps=]      the tab is off screen: low frame rate (fps, else
-///                              SKUA_HIDDEN_FPS, else 2) and a 1x1 game window
-///                              (TabThrottle.cs)
+///                              SKUA_HIDDEN_FPS, else 2) and a 1x1 game window;
+///                              Headless Mode does the same at 1 fps (TabThrottle.cs)
 /// </summary>
 public sealed partial class HostApi
 {

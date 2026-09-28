@@ -66,9 +66,57 @@
                 <TextBlock x:Name="StatusText" Classes="caption" Text="Waiting for the game page..." TextTrimming="CharacterEllipsis" />
             </DockPanel>
         </Border>
-        <Border x:Name="GameArea" Background="#111111">
-            <TextBlock x:Name="GameAreaText" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       Classes="caption" Text="Waiting for the game window..." />
-        </Border>
+        <DockPanel x:Name="GameRow">
+            <!-- GameContainerUserControl's dashboard: shown in the room the game
+                 does not need when the window is wider than the game (and not
+                 in Grid View). -->
+            <Border x:Name="Dashboard" DockPanel.Dock="Right" Width="170" Padding="14,16" IsVisible="False"
+                    Background="#161616" BorderBrush="#2A2A2A" BorderThickness="1,0,0,0">
+                <StackPanel VerticalAlignment="Center" Spacing="2">
+                    <StackPanel.Styles>
+                        <Style Selector="TextBlock.label">
+                            <Setter Property="Foreground" Value="Gray" />
+                            <Setter Property="FontSize" Value="12" />
+                        </Style>
+                        <Style Selector="TextBlock.value">
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="FontSize" Value="18" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                            <Setter Property="Margin" Value="0,0,0,8" />
+                        </Style>
+                    </StackPanel.Styles>
+                    <TextBlock Text="BOT DASHBOARD" Foreground="#D080FF" FontWeight="Bold" FontSize="14"
+                               HorizontalAlignment="Center" Margin="0,0,0,12" />
+                    <TextBlock Classes="label" Text="Kills" />
+                    <TextBlock Classes="value" Text="{Binding ScriptStats.Kills}" />
+                    <TextBlock Classes="label" Text="Drops picked" />
+                    <TextBlock Classes="value" Text="{Binding ScriptStats.Drops}" />
+                    <TextBlock Classes="label" Text="Quests completed" />
+                    <TextBlock Classes="value" Text="{Binding ScriptStats.QuestsCompleted}" />
+                    <TextBlock Classes="label" Text="Deaths" />
+                    <TextBlock Classes="value" Text="{Binding ScriptStats.Deaths}" />
+                    <TextBlock Classes="label" Text="Relogins" />
+                    <TextBlock Classes="value" Text="{Binding ScriptStats.Relogins}" />
+                    <TextBlock Classes="label" Text="Time" />
+                    <TextBlock Classes="value" Text="{Binding ScriptStats.Time, StringFormat='{}{0:hh\\:mm\\:ss}'}" />
+                </StackPanel>
+            </Border>
+            <Border x:Name="GameArea" Background="#111111">
+                <Panel>
+                    <TextBlock x:Name="GameAreaText" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Classes="caption" Text="Waiting for the game window..." />
+                    <!-- Under the (1x1) game while Headless Mode is on. -->
+                    <StackPanel x:Name="HeadlessOverlay" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Spacing="8" IsVisible="False">
+                        <TextBlock Text="Headless Mode Active" Foreground="White" FontSize="20" FontWeight="Bold"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="The game still runs, at 1 frame per second and not drawn, to save CPU."
+                                   Foreground="Gray" FontSize="14" HorizontalAlignment="Center" />
+                        <TextBlock Text="Turn Headless Mode off (Army Control > Misc Options, or its hotkey) to see it again."
+                                   Foreground="Gray" FontSize="12" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Panel>
+            </Border>
+        </DockPanel>
     </DockPanel>
 </Window>

@@ -34,8 +34,16 @@ public partial class MainWindow : Window
             _embed.Embedded += () => GameAreaText.IsVisible = false;
             _embed.Failed += () => WindowPlacement.ToTopBar(this, GameArea);
             _embed.Start();
-            Skua.Linux.HostApi.Throttled += on => Dispatcher.UIThread.Post(() => _embed?.SetShrunk(on));
-            _embed.SetShrunk(Skua.Linux.HostApi.IsThrottled);
+            Skua.Linux.HostApi.Shrunk += on => Dispatcher.UIThread.Post(() => _embed?.SetShrunk(on));
+            _embed.SetShrunk(Skua.Linux.HostApi.IsShrunk);
+        };
+        Skua.Linux.HostApi.HeadlessChanged += on => Dispatcher.UIThread.Post(() => HeadlessOverlay.IsVisible = on);
+        HeadlessOverlay.IsVisible = Skua.Linux.HostApi.IsHeadless;
+        Dashboard.DataContext = App.Service<ScriptStatsViewModel>();
+        GameRow.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == BoundsProperty)
+                UpdateDashboard();
         };
         // Before the window (and anything inside it) is destroyed.
         Closing += (_, _) => _embed?.Release();
@@ -94,8 +102,38 @@ public partial class MainWindow : Window
     /// <summary>In the tab host's Grid View only the game shows, as in WPF.</summary>
     public void SetGridView(bool on)
     {
+        _grid = on;
         MenuBar.IsVisible = !on;
         StatusBar.IsVisible = !on;
+        UpdateDashboard();
+    }
+
+    private bool _grid;
+
+    // AQW's stage; the game page letterboxes it, so wider than this is room to spare.
+    private const double GameAspect = 960.0 / 550.0;
+    // SKUA_DASHBOARD: 0 never, 1 always (outside Grid View), else when it fits.
+    private static readonly string DashboardMode = Skua.Linux.SkuaRuntime.EnvRaw("SKUA_DASHBOARD") switch
+    {
+        "0" or "false" or "no" or "off" => "off",
+        "1" or "true" or "yes" or "on" => "on",
+        _ => "auto",
+    };
+
+    /// <summary>
+    /// The dashboard beside the game, as GameContainerUserControl has it: never
+    /// in Grid View, and (on auto) only while it costs the game at most 15% of
+    /// its size. The WPF app only used spare width, which a 16:9 screen barely
+    /// has. Measured on GameRow, which the dashboard does not change, so
+    /// showing it cannot flip the decision.
+    /// </summary>
+    private void UpdateDashboard()
+    {
+        var size = GameRow.Bounds.Size;
+        double game = Math.Min(size.Width, size.Height * GameAspect);
+        double beside = Math.Min(size.Width - Dashboard.Width, size.Height * GameAspect);
+        bool fits = game > 0 && beside / game >= 0.85;
+        Dashboard.IsVisible = !_grid && DashboardMode switch { "on" => true, "off" => false, _ => fits };
     }
 
     // What Skua sees, under the menu.

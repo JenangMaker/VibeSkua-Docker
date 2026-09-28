@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Runtime;
 using System.Runtime.InteropServices;
 using Skua.Core.Interfaces;
@@ -5,52 +6,109 @@ using Skua.Core.Interfaces;
 namespace Skua.Linux;
 
 /// <summary>
-/// A tab that is not on screen (POST /army/throttle?on=1), as Skua.App.WPF's
-/// TabbedHostWindow does with WM_SKUA_THROTTLE: the game runs at a low frame
-/// rate, its window shrinks to 1x1 (see Throttled) and memory is handed back.
-/// Unlike there, the frame rate is put back every few seconds: Skua's own FPS
-/// option (Options > SetFPS) writes stage.frameRate whenever a script starts,
-/// which would otherwise leave a hidden tab at full speed.
+/// Keeping the game cheap when nobody looks at it, as Skua.App.WPF does:
+/// <list type="bullet">
+/// <item>A tab that is not on screen (POST /army/throttle?on=1, the
+/// TabbedHostWindow's WM_SKUA_THROTTLE) runs at SKUA_HIDDEN_FPS.</item>
+/// <item>Headless Mode (Options > Game, or Army Control) runs at 1 fps whether
+/// the tab is shown or not (GameContainerUserControl's HeadlessMode).</item>
+/// </list>
+/// Either way the game window shrinks to 1x1 (see <see cref="Shrunk"/>) and
+/// memory is handed back. Unlike there, the frame rate is put back every few
+/// seconds: Skua's own FPS option (Options > SetFPS) writes stage.frameRate
+/// whenever a script starts, which would otherwise undo it.
 /// </summary>
 public sealed partial class HostApi
 {
     /// <summary>SKUA_HIDDEN_FPS: the frame rate of a tab that is not on screen (default 2).</summary>
     public static int HiddenFps { get; } = int.TryParse(SkuaRuntime.EnvRaw("SKUA_HIDDEN_FPS"), out int fps) ? Math.Clamp(fps, 1, 60) : 2;
 
-    /// <summary>Raised (on a worker thread) when the tab goes off screen (true) or back (false).</summary>
-    public static event Action<bool>? Throttled;
+    private const int HeadlessFps = 1;
 
-    /// <summary>Whether the tab is off screen now.</summary>
-    public static bool IsThrottled { get; private set; }
+    /// <summary>Raised (on any thread) when the game window should shrink to 1x1 (true) or fill its area (false).</summary>
+    public static event Action<bool>? Shrunk;
 
+    /// <summary>Raised (on any thread) when Headless Mode goes on or off.</summary>
+    public static event Action<bool>? HeadlessChanged;
+
+    /// <summary>Whether the game window is shrunk now.</summary>
+    public static bool IsShrunk { get; private set; }
+
+    /// <summary>Whether Headless Mode is on now.</summary>
+    public static bool IsHeadless { get; private set; }
+
+    private readonly object _throttleLock = new();
+    private bool _hidden;
+    private int _hiddenFps = HiddenFps;
     private int _throttleFps;
     private CancellationTokenSource? _throttleLoop;
 
+    private void WatchHeadless()
+    {
+        if (Get<IScriptOption>() is INotifyPropertyChanged options)
+            options.PropertyChanged += (_, e) =>
+            {
+                // Often raised on the UI thread; the game call must not block it.
+                if (e.PropertyName == nameof(IScriptOption.HeadlessMode))
+                    _ = Task.Run(UpdateThrottle);
+            };
+        UpdateThrottle();
+    }
+
     private object Throttle(bool on, int fps)
     {
-        bool was = _throttleFps > 0;
-        _throttleFps = on ? fps : 0;
-        IsThrottled = on;
-        if (on && !was)
+        lock (_throttleLock)
         {
-            var loop = _throttleLoop = new CancellationTokenSource();
-            _ = Task.Run(() => KeepThrottled(loop.Token));
-            Throttled?.Invoke(true);
-            _ = Task.Run(TrimMemory);
+            _hidden = on;
+            _hiddenFps = fps;
         }
-        else if (on)
+        UpdateThrottle();
+        return new { throttled = on, fps = on ? fps : (int?)null, headless = IsHeadless };
+    }
+
+    private void UpdateThrottle()
+    {
+        bool headless = Get<IScriptOption>().HeadlessMode;
+        bool shrink, restore = false;
+        int target;
+        lock (_throttleLock)
         {
-            ApplyFrameRate(fps);
+            target = headless ? HeadlessFps : _hidden ? _hiddenFps : 0;
+            shrink = target > 0;
+            if (target > 0 && _throttleLoop is null)
+            {
+                var loop = _throttleLoop = new CancellationTokenSource();
+                _ = Task.Run(() => KeepThrottled(loop.Token));
+            }
+            else if (target == 0 && _throttleLoop is not null)
+            {
+                _throttleLoop.Cancel();
+                _throttleLoop = null;
+                restore = true;
+            }
+            _throttleFps = target;
         }
-        else if (was)
+        if (target > 0)
         {
-            _throttleLoop?.Cancel();
-            _throttleLoop = null;
-            Throttled?.Invoke(false);
+            ApplyFrameRate(target);
+        }
+        else if (restore)
+        {
             int own = Get<IScriptOption>().SetFPS;
             ApplyFrameRate(own > 0 ? own : 30);
         }
-        return new { throttled = on, fps = on ? fps : (int?)null };
+        if (headless != IsHeadless)
+        {
+            IsHeadless = headless;
+            HeadlessChanged?.Invoke(headless);
+        }
+        if (shrink != IsShrunk)
+        {
+            IsShrunk = shrink;
+            Shrunk?.Invoke(shrink);
+            if (shrink)
+                _ = Task.Run(TrimMemory);
+        }
     }
 
     private async Task KeepThrottled(CancellationToken token)
@@ -65,7 +123,7 @@ public sealed partial class HostApi
 
     private void ApplyFrameRate(int fps)
     {
-        if (fps <= 0 || Get<IScriptInterface>().Options.HeadlessMode || !Get<Skua.Ruffle.RuffleBridge>().IsConnected)
+        if (fps <= 0 || !Get<Skua.Ruffle.RuffleBridge>().IsConnected)
             return;
         try { Get<IScriptInterface>().Flash.SetGameObject("stage.frameRate", fps); }
         catch { }

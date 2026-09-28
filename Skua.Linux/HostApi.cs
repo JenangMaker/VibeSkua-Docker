@@ -30,6 +30,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
         _listener.Prefixes.Add(prefix);
         _listener.Start();
         _ = Task.Run(Loop);   // off any caller's synchronization context
+        WatchHeadless();
     }
 
     private async Task Loop()
