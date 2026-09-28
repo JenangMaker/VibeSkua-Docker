@@ -125,10 +125,9 @@ cannot write there; see [Troubleshooting](#troubleshooting).
 
 **Give it the GPU.** With the host's Intel/AMD GPU passed in, the game draws
 smoothly (around 35 fps in a busy Battleon on an Intel iGPU) at little CPU
-cost. Without one there is no smooth option: AQW's characters are thousands
-of vector shapes each, and software drawing takes over a second per frame in
-a busy map. If `ls /dev/dri` on the host lists a `renderD128`, add to the
-service:
+cost. Without one it is drawn on the CPU at roughly 10 fps in a busy town
+(one core, most of it). If `ls /dev/dri` on the host lists a `renderD128`,
+add to the service:
 
 ```yaml
     devices:
@@ -141,15 +140,16 @@ toolkit instead; that is untested here.
 
 Without a GPU the image uses the `canvas` renderer, the lightest there is
 then (the WebGL renderers would run on an emulated GPU: ~8 cores for ~2 fps
-in a busy map), and draws at most 15 frames a second. Canvas leaves out some
-effects (glows, shadows), and it draws on the page's main thread, the one the
-game runs on: in a busy map every frame holds the game up, so the account
-reacts slowly too.
+in a busy map), and draws at most 15 frames a second. The AQW Ruffle build
+caches each shape once drawn, so a 10-player Battleon draws at about 10 fps
+(it was ~1 fps without the cache). Canvas leaves out some effects (glows,
+shadows), and it draws on the page's main thread, the one the game runs on,
+so in a busy map drawing slows the game's own updates a little too. Quiet
+maps draw faster.
 
 **For a bot you are not watching, draw nothing:** `MAX_RENDER_FPS: "0"` (or
 **Draw: Off** on the bar under the game). Then the game costs next to nothing
-and runs at full speed; switch drawing back on when you want to look. Quiet
-maps draw far faster than busy towns.
+and runs at full speed; switch drawing back on when you want to look.
 
 - `MAX_RENDER_FPS` sets how often the game is drawn; `0` draws nothing. With
   a GPU the default is unlimited.
