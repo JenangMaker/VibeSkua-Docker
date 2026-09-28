@@ -234,6 +234,57 @@ public sealed class ScriptSync(IServiceProvider services)
         }
     }
 
+    /// <summary>
+    /// Skua Manager's "Reset Scripts": deletes everything in the Scripts
+    /// folder (local edits and scripts of your own included) and downloads
+    /// the repository's scripts and quest data afresh. The folder itself
+    /// stays, as it may be a mount point. Refused while a script runs.
+    /// </summary>
+    public async Task<object> ResetScriptsAsync()
+    {
+        if (services.GetRequiredService<IScriptManager>().ScriptRunning)
+            return new { error = "a script is running; stop it before resetting the scripts" };
+        string dir = ClientFileSources.SkuaScriptsDIR;
+        int deleted = 0, failed = 0;
+        await _gate.WaitAsync();
+        try
+        {
+            Step("Deleting the scripts in " + dir);
+            Console.WriteLine($"[scripts] reset: deleting the contents of {dir}");
+            Directory.CreateDirectory(dir);
+            foreach (string entry in Directory.EnumerateFileSystemEntries(dir))
+            {
+                try
+                {
+                    if (Directory.Exists(entry))
+                        Directory.Delete(entry, true);
+                    else
+                        File.Delete(entry);
+                    deleted++;
+                }
+                catch (Exception e)
+                {
+                    failed++;
+                    Console.Error.WriteLine($"[scripts] reset: could not delete {entry}: {e.Message}");
+                }
+            }
+            try { File.Delete(ClientFileSources.SkuaScriptsCommitFile); } catch { }
+        }
+        finally
+        {
+            _gate.Release();
+        }
+        if (failed > 0)
+            ReportFailure($"Reset Scripts could not delete {failed} item(s) in {dir} (see the log); downloading the rest again anyway.", null);
+
+        object result = await UpdateScriptsAsync(Scope.All);
+        Step("Updating quest data");
+        await Repo.UpdateQuestDataFile();
+        Finish(Summary);
+        Console.WriteLine($"[scripts] reset: {deleted} item(s) deleted, then: {LastResult}");
+        return new { reset = true, deleted, notDeleted = failed, sync = result };
+    }
+
     // Download the matching scripts 15 at a time; one failure does not stop the rest.
     private async Task<(int Fetched, List<(ScriptInfo, Exception)> Failures)> DownloadAsync(Func<ScriptInfo, bool> pred)
     {

@@ -58,6 +58,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 ("GET", "/log") => Log(ctx.Request),
                 ("GET", "/scripts") => Scripts(ctx.Request),
                 ("POST", "/scripts/update") => await scripts.UpdateScriptsAsync(),
+                ("POST", "/scripts/reset") => await scripts.ResetScriptsAsync(),
                 ("POST", _) when path.StartsWith("/army/") => await Army(path["/army/".Length..], ctx.Request),
                 _ when Routes.TryGetValue($"{method} {path}", out var route) => await route(ctx.Request),
                 _ => NotFound(out status),

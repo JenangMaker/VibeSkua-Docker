@@ -16,7 +16,9 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         // As MainMenuUserControl did: the menu has its own view model.
-        MenuBar.DataContext = App.Service<MainMenuViewModel>();
+        var menu = App.Service<MainMenuViewModel>();
+        AddResetScripts(menu);
+        MenuBar.DataContext = menu;
         _status = new DispatcherTimer(TimeSpan.FromSeconds(0.5), DispatcherPriority.Background, (_, _) => { UpdateSync(); UpdateStatus(); });
         Opened += (_, _) =>
         {
@@ -52,6 +54,39 @@ public partial class MainWindow : Window
             };
         }
         StrongReferenceMessenger.Default.Register<MainWindow, ShowMainWindowMessage>(this, (w, _) => { w.Show(); w.Activate(); });
+    }
+
+    /// <summary>
+    /// Scripts > Reset Scripts..., as Skua Manager has it (the Manager is not
+    /// part of this port): empty the Scripts folder and download it all again.
+    /// </summary>
+    private static void AddResetScripts(MainMenuViewModel menu)
+    {
+        var scripts = menu.MainMenuItems.FirstOrDefault(i => i.Header == "Scripts");
+        if (scripts?.SubItems is not { } items || items.Any(i => i.Header == "Reset Scripts..."))
+            return;
+        items.Add(new MainMenuItemViewModel("Reset Scripts...", new CommunityToolkit.Mvvm.Input.RelayCommand(() =>
+        {
+            if (App.Runtime?.Scripts is not { } sync)
+                return;
+            string dir = Skua.Core.Models.ClientFileSources.SkuaScriptsDIR;
+            bool mounted = Skua.Linux.ScriptSync.ScriptsFolderMounted;
+            var answer = App.Service<IDialogService>().ShowMessageBox(
+                $"This deletes EVERYTHING in {dir}, including scripts of your own and any changes you made, " +
+                $"then downloads all scripts from {Skua.Core.Services.ScriptsSource.Name} again (a few minutes)." +
+                (mounted ? "\r\n\r\nThat folder is mounted from the host: the files are deleted there too." : "") +
+                "\r\n\r\nOnly do this if you were told to, or the scripts are broken. Reset the scripts?",
+                "Reset Scripts", true);
+            if (answer != true)
+                return;
+            _ = Task.Run(async () =>
+            {
+                var result = await sync.ResetScriptsAsync();
+                string? error = result.GetType().GetProperty("error")?.GetValue(result) as string;
+                if (error is not null)
+                    App.Service<IDialogService>().ShowMessageBox($"Scripts were not reset: {error}.", "Reset Scripts");
+            });
+        })));
     }
 
     /// <summary>In the tab host's Grid View only the game shows, as in WPF.</summary>

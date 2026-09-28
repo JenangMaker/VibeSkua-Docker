@@ -59,7 +59,12 @@ case-insensitively, with or without `.cs`:
 curl -s 'localhost:8791/scripts?q=gold farm'                 # search: path, name, tags
 curl -s -X POST -d '' 'localhost:8791/script/start?path=Farm/GoldFarm'
 curl -s -X POST -d '' localhost:8791/scripts/update            # sync again
+curl -s -X POST -d '' localhost:8791/scripts/reset             # delete ALL scripts, download afresh
 ```
+
+`/scripts/reset` is Skua Manager's "Reset Scripts": it empties the Scripts
+folder (scripts of your own included), then downloads everything again. It
+refuses while a script is running.
 
 `SKUA_SCRIPT=Farm/GoldFarm` works the same way.
 
