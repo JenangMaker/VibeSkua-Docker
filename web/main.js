@@ -124,7 +124,7 @@ if (REMOTE_DEBUG_PORT) {
 // change), so a long session only gets bigger and slower; a reload resets it.
 const AQW_USER = process.env.AQW_USER || '';
 const AQW_PASS = process.env.AQW_PASS || '';
-const AQW_SERVER = process.env.AQW_SERVER || '';
+const AQW_SERVER = unquoteEnv('AQW_SERVER');   // every tab's, unless AQW_SERVER_<N>
 const RECYCLE_AFTER_MINUTES = Number(process.env.RECYCLE_AFTER_MINUTES || 0) || 0;
 const RECYCLE_AFTER_MAP_CHANGES = Number(process.env.RECYCLE_AFTER_MAP_CHANGES || 0) || 0;
 
