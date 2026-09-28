@@ -46,15 +46,46 @@ public sealed class ScriptSync(IServiceProvider services)
                 ? $"Your Scripts folder ({ClientFileSources.SkuaScriptsDIR}) is mounted from the host. \"Update all\" replaces your outdated scripts with the repository's versions, including any local changes to them; \"Only missing\" adds new scripts and leaves yours alone.\r\n\r\n"
                 : "") +
             "Download them now?";
+        Step($"{missing + outdated} script updates available: waiting for your choice");
         DialogResult choice = Dialogs.ShowMessageBox(message, "Script Updates", "Update all", "Only missing", "Skip");
         Scope scope = choice.Value switch { 0 => Scope.All, 1 => Scope.Missing, _ => Scope.None };
         Console.WriteLine($"[scripts] {missing} missing, {outdated} outdated; chose: {(choice.Value < 0 ? "Skip" : choice.Text)}");
         if (scope != Scope.None)
             await UpdateScriptsAsync(scope, refresh: false);
+        else
+            Finish($"Script updates skipped ({missing} missing, {outdated} outdated)");
     }
 
     public bool Syncing { get; private set; }
     public string LastResult { get; private set; } = "not run";
+
+    // ---- progress, for the status bar (MainWindow) ----
+    private int _done;
+
+    /// <summary>What the sync is doing right now; null when idle.</summary>
+    public string? Activity { get; private set; }
+
+    /// <summary>Items done / to do in the current step; <see cref="Total"/> 0 when it has no count.</summary>
+    public int Done => Volatile.Read(ref _done);
+    public int Total { get; private set; }
+
+    /// <summary>One line on how the last sync went, and when it finished.</summary>
+    public string Summary { get; private set; } = "";
+    public DateTime FinishedAt { get; private set; }
+
+    private void Step(string? activity, int total = 0)
+    {
+        Interlocked.Exchange(ref _done, 0);
+        Total = total;
+        Activity = activity;
+    }
+
+    private void Finish(string summary)
+    {
+        Summary = summary;
+        FinishedAt = DateTime.UtcNow;
+        Step(null);
+    }
 
     /// <summary>Completes once the startup sync has finished, whatever its outcome.</summary>
     public Task FirstSync => _firstSync.Task;
@@ -100,6 +131,8 @@ public sealed class ScriptSync(IServiceProvider services)
                     await UpdateScriptsAsync(Scope.All);
             }
 
+            string summary = Summary;
+            Step("Checking the advanced skill sets");
             if (Settings.Get<bool>("CheckAdvanceSkillSetsUpdates")
                 && Settings.Get<bool>("AutoUpdateAdvanceSkillSetsUpdates")
                 && await Repo.CheckAdvanceSkillSetsUpdates() > 0
@@ -109,7 +142,10 @@ public sealed class ScriptSync(IServiceProvider services)
                 Console.WriteLine("[scripts] advanced skill sets updated");
             }
 
+            Step("Updating quest data");
             await Repo.UpdateQuestDataFile();
+
+            Step("Checking the junk item list");
 
             if (Settings.Get<bool>("CheckJunkItemsUpdates")
                 && await Repo.CheckJunkItemsUpdates() > 0
@@ -120,13 +156,17 @@ public sealed class ScriptSync(IServiceProvider services)
                 services.GetRequiredService<IJunkService>().Load();
                 Console.WriteLine("[scripts] junk item list updated");
             }
+            // The scripts' own result is the news; the rest is housekeeping.
+            Finish(summary.Length > 0 && FinishedAt != default ? summary : LastResult);
         }
         catch (Exception e)
         {
             Console.Error.WriteLine($"[scripts] startup sync: {e.Message}");
+            Finish($"Script sync failed: {e.Message}");
         }
         finally
         {
+            Step(null);
             _firstSync.TrySetResult();
         }
     }
@@ -144,6 +184,7 @@ public sealed class ScriptSync(IServiceProvider services)
         {
             if (refresh || Repo.Total == 0)
             {
+                Step($"Fetching the script list from {ScriptsSource.Name}");
                 Console.WriteLine("[scripts] fetching the script index");
                 await Repo.RefreshScriptsAsync(null, default);
             }
@@ -165,6 +206,16 @@ public sealed class ScriptSync(IServiceProvider services)
             if (failures.Count > 0)
                 ReportFailures(failures, fetched);
             LastResult = $"{repo.Total} scripts; {fetched} downloaded" + (failures.Count > 0 ? $", {failures.Count} failed" : "") + $" at {DateTime.UtcNow:u}";
+            if (repo.Total == 0)
+                Finish($"Could not get the script list from {ScriptsSource.Name}");
+            else if (failures.Count > 0)
+                Finish($"{fetched} scripts downloaded, {failures.Count} failed");
+            else if (fetched > 0)
+                Finish($"{fetched} scripts downloaded ({repo.Total} in all)");
+            else if (scope == Scope.None && (missing > 0 || outdated > 0))
+                Step(null);   // AskAndUpdateAsync takes it from here
+            else
+                Finish($"Scripts up to date ({repo.Total})");
             Console.WriteLine($"[scripts] {LastResult}");
             return new { total = repo.Total, missing, outdated, downloaded = fetched, failed = failures.Count };
         }
@@ -172,6 +223,7 @@ public sealed class ScriptSync(IServiceProvider services)
         {
             LastResult = $"failed: {e.Message}";
             Console.Error.WriteLine($"[scripts] {LastResult}");
+            Finish($"Script sync failed: {e.Message}");
             ReportFailure($"Syncing scripts from {ScriptsSource.Name} failed:\r\n{e.Message}", e);
             return new { error = e.Message };
         }
@@ -188,13 +240,14 @@ public sealed class ScriptSync(IServiceProvider services)
         var repo = Repo;
         List<ScriptInfo> targets = repo.Scripts.ToList().Where(pred).ToList();
         List<(ScriptInfo, Exception)> failures = new();
+        Step("Downloading scripts", targets.Count);
         using SemaphoreSlim slots = new(15);
         await Task.WhenAll(targets.Select(async s =>
         {
             await slots.WaitAsync();
             try { await repo.DownloadScriptAsync(s); }
             catch (Exception e) { lock (failures) failures.Add((s, e)); }
-            finally { slots.Release(); }
+            finally { Interlocked.Increment(ref _done); slots.Release(); }
         }));
         return (targets.Count - failures.Count, failures);
     }

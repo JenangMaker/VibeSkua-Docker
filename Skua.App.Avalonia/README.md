@@ -60,7 +60,10 @@ forces asking or skips the sync. The junk item list asks as in WPF when its
 auto update is off. Without windows (`SKUA_UI=0`) the questions answer Skip /
 No; `POST /scripts/update` on the control API syncs everything on demand.
 Scripts that fail to download (a Scripts folder the container user cannot
-write, say) are listed in a pop-up.
+write, say) are listed in a pop-up. The right end of the main window's status
+line shows the sync as it runs (fetching the list, "Downloading scripts
+120 / 451" with a progress bar, quest data, junk list, or waiting for your
+answer), then its outcome for 15 s.
 
 ## Tabs, Army Control, Grid View
 

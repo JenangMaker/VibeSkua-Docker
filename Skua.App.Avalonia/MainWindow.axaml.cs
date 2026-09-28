@@ -17,7 +17,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         // As MainMenuUserControl did: the menu has its own view model.
         MenuBar.DataContext = App.Service<MainMenuViewModel>();
-        _status = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, (_, _) => UpdateStatus());
+        _status = new DispatcherTimer(TimeSpan.FromSeconds(0.5), DispatcherPriority.Background, (_, _) => { UpdateSync(); UpdateStatus(); });
         Opened += (_, _) =>
         {
             _status.Start();
@@ -62,6 +62,39 @@ public partial class MainWindow : Window
     }
 
     // What Skua sees, under the menu.
+    // Script sync, on the right of the status line: the current step (with a
+    // count and progress bar while downloading), then the outcome for 15 s.
+    private void UpdateSync()
+    {
+        if (App.Runtime?.Scripts is not { } sync)
+            return;
+        if (sync.Activity is { } activity)
+        {
+            int total = sync.Total, done = Math.Min(sync.Done, total);
+            SyncText.Text = total > 0 ? $"{activity} {done:N0} / {total:N0}" : activity + "...";
+            SyncProgress.IsVisible = true;
+            SyncProgress.IsIndeterminate = total == 0;
+            SyncProgress.Maximum = Math.Max(total, 1);
+            SyncProgress.Value = done;
+            SyncIcon.Kind = Material.Icons.MaterialIconKind.CloudSync;
+            SyncPanel.IsVisible = true;
+            ToolTip.SetTip(SyncPanel, $"Syncing scripts from {Skua.Core.Services.ScriptsSource.Name}");
+        }
+        else if (sync.FinishedAt != default && DateTime.UtcNow - sync.FinishedAt < TimeSpan.FromSeconds(15))
+        {
+            SyncText.Text = sync.Summary;
+            SyncProgress.IsVisible = false;
+            bool bad = sync.Summary.Contains("fail", StringComparison.OrdinalIgnoreCase) || sync.Summary.StartsWith("Could not");
+            SyncIcon.Kind = bad ? Material.Icons.MaterialIconKind.CloudAlert : Material.Icons.MaterialIconKind.CloudCheck;
+            SyncPanel.IsVisible = true;
+            ToolTip.SetTip(SyncPanel, sync.LastResult);
+        }
+        else
+        {
+            SyncPanel.IsVisible = false;
+        }
+    }
+
     private void UpdateStatus()
     {
         if (App.Runtime is not { } runtime)

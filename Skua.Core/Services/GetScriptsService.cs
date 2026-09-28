@@ -64,8 +64,14 @@ public partial class GetScriptsService : ObservableObject, IGetScriptsService
             progress?.Report($"Fetched {scripts.Count} scripts.");
             OnPropertyChanged(nameof(Scripts));
 
-            // Fetch dates in the background and notify UI again when done
-            await UpdateScriptDatesAsync(progress, token);
+            // Fetch dates in the background and notify UI again when done. Not
+            // awaited: it is one GitHub API request per script, and the script
+            // list (and any downloads) should not wait on it.
+            _ = Task.Run(async () =>
+            {
+                try { await UpdateScriptDatesAsync(progress, token); }
+                catch { }
+            });
         }
         catch (TaskCanceledException)
         {
@@ -148,6 +154,14 @@ public partial class GetScriptsService : ObservableObject, IGetScriptsService
                 {
                     progress?.Report($"Fetching date for {script.FileName}...");
                     using HttpResponseMessage response = await client.GetAsync($"{ScriptsSource.ApiBase}/commits?path={script.FilePath.Replace(" ", "%20")}", token);
+                    // Unauthenticated, GitHub allows 60 requests an hour; past that
+                    // every further request fails too, so stop instead of trying
+                    // each of the ~2000 scripts.
+                    if (response.StatusCode is System.Net.HttpStatusCode.Forbidden or System.Net.HttpStatusCode.TooManyRequests)
+                    {
+                        progress?.Report("GitHub rate limit reached; the remaining dates will be fetched later.");
+                        break;
+                    }
                     if (response.IsSuccessStatusCode)
                     {
                         string content = await response.Content.ReadAsStringAsync(token);

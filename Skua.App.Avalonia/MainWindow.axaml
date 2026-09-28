@@ -56,7 +56,15 @@
             <Panel />
         </DockPanel>
         <Border x:Name="StatusBar" DockPanel.Dock="Top" Padding="10,6" Background="{DynamicResource SkuaBarBrush}">
-            <TextBlock x:Name="StatusText" Classes="caption" Text="Waiting for the game page..." />
+            <DockPanel>
+                <!-- Script sync, while it runs and for a little while after. -->
+                <StackPanel x:Name="SyncPanel" DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" IsVisible="False">
+                    <icons:MaterialIcon x:Name="SyncIcon" Kind="CloudSync" Width="14" Height="14" />
+                    <TextBlock x:Name="SyncText" Classes="caption" VerticalAlignment="Center" />
+                    <ProgressBar x:Name="SyncProgress" Width="140" Height="6" MinHeight="6" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock x:Name="StatusText" Classes="caption" Text="Waiting for the game page..." TextTrimming="CharacterEllipsis" />
+            </DockPanel>
         </Border>
         <Border x:Name="GameArea" Background="#111111">
             <TextBlock x:Name="GameAreaText" HorizontalAlignment="Center" VerticalAlignment="Center"
