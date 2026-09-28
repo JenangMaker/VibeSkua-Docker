@@ -57,6 +57,76 @@ public sealed class ScriptSync(IServiceProvider services)
     }
 
     public bool Syncing { get; private set; }
+
+    /// <summary>
+    /// Present (holding the syncing process's id) while a sync fetches the
+    /// script list or writes script files. All tabs share the Scripts folder
+    /// but only one syncs, so the others read this to know. It is not held
+    /// while a question waits for an answer: nothing changes meanwhile.
+    /// </summary>
+    public static string BusyMarker { get; } = Path.Combine(ClientFileSources.SkuaDIR, ".scripts-syncing");
+
+    private int _busy;
+
+    private void Busy(bool on)
+    {
+        int now = on ? Interlocked.Increment(ref _busy) : Interlocked.Decrement(ref _busy);
+        try
+        {
+            if (on && now == 1)
+                File.WriteAllText(BusyMarker, ProcessStamp(Environment.ProcessId));
+            else if (!on && now == 0)
+                File.Delete(BusyMarker);
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine($"[scripts] sync marker: {e.Message}");
+        }
+    }
+
+    // "pid start-time": a container restart reuses the same small pids, so a
+    // marker left behind must not match whichever process has that pid now.
+    private static string ProcessStamp(int pid)
+    {
+        try
+        {
+            // Field 22 of /proc/<pid>/stat, after the parenthesised name.
+            string stat = File.ReadAllText($"/proc/{pid}/stat");
+            string[] rest = stat[(stat.LastIndexOf(')') + 2)..].Split(' ');
+            return $"{pid} {rest[19]}";
+        }
+        catch
+        {
+            return pid.ToString();
+        }
+    }
+
+    /// <summary>
+    /// Waits (up to <paramref name="max"/>) while some tab's sync is changing
+    /// the Scripts folder, so a script is not compiled from half-updated
+    /// files. A marker left by a process that is gone does not count. True if
+    /// the folder is quiet, false on timeout.
+    /// </summary>
+    public static async Task<bool> WaitUntilQuietAsync(TimeSpan max, Action? waiting = null)
+    {
+        DateTime giveUp = DateTime.UtcNow + max;
+        bool told = false;
+        while (DateTime.UtcNow < giveUp)
+        {
+            string? owner = null;
+            try { owner = File.ReadAllText(BusyMarker).Trim(); }
+            catch { }
+            if (owner is null || !int.TryParse(owner.Split(' ')[0], out int pid) || ProcessStamp(pid) != owner)
+                return true;
+            if (!told)
+            {
+                waiting?.Invoke();
+                told = true;
+            }
+            await Task.Delay(2000);
+        }
+        return false;
+    }
     public string LastResult { get; private set; } = "not run";
 
     // ---- progress, for the status bar (MainWindow) ----
@@ -180,6 +250,7 @@ public sealed class ScriptSync(IServiceProvider services)
     {
         await _gate.WaitAsync();
         Syncing = true;
+        Busy(true);
         try
         {
             if (refresh || Repo.Total == 0)
@@ -229,6 +300,7 @@ public sealed class ScriptSync(IServiceProvider services)
         }
         finally
         {
+            Busy(false);
             Syncing = false;
             _gate.Release();
         }
@@ -245,6 +317,30 @@ public sealed class ScriptSync(IServiceProvider services)
         if (services.GetRequiredService<IScriptManager>().ScriptRunning)
             return new { error = "a script is running; stop it before resetting the scripts" };
         string dir = ClientFileSources.SkuaScriptsDIR;
+        // Held from the first delete to the last download.
+        Busy(true);
+        try
+        {
+            var (deleted, failed) = await DeleteScriptsAsync(dir);
+            if (failed > 0)
+                ReportFailure($"Reset Scripts could not delete {failed} item(s) in {dir} (see the log); downloading the rest again anyway.", null);
+
+            object result = await UpdateScriptsAsync(Scope.All);
+            Step("Updating quest data");
+            await Repo.UpdateQuestDataFile();
+            Finish(Summary);
+            Console.WriteLine($"[scripts] reset: {deleted} item(s) deleted, then: {LastResult}");
+            return new { reset = true, deleted, notDeleted = failed, sync = result };
+        }
+        finally
+        {
+            Busy(false);
+        }
+    }
+
+    // Everything in the Scripts folder, but not the folder (a mount point, maybe).
+    private async Task<(int Deleted, int Failed)> DeleteScriptsAsync(string dir)
+    {
         int deleted = 0, failed = 0;
         await _gate.WaitAsync();
         try
@@ -274,15 +370,7 @@ public sealed class ScriptSync(IServiceProvider services)
         {
             _gate.Release();
         }
-        if (failed > 0)
-            ReportFailure($"Reset Scripts could not delete {failed} item(s) in {dir} (see the log); downloading the rest again anyway.", null);
-
-        object result = await UpdateScriptsAsync(Scope.All);
-        Step("Updating quest data");
-        await Repo.UpdateQuestDataFile();
-        Finish(Summary);
-        Console.WriteLine($"[scripts] reset: {deleted} item(s) deleted, then: {LastResult}");
-        return new { reset = true, deleted, notDeleted = failed, sync = result };
+        return (deleted, failed);
     }
 
     // Download the matching scripts 15 at a time; one failure does not stop the rest.

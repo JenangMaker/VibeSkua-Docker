@@ -106,6 +106,8 @@ are listed in a pop-up.
   in. Without a number both apply to **every tab** (tabs opened later with
   **+** too); `SKUA_SCRIPT_2`, `SKUA_SCRIPT_AUTO_START_2`, ... override them
   for one tab, and `SKUA_SCRIPT_2: "none"` gives tab 2 no script.
+  Auto-start waits while the script sync is downloading (up to 15 minutes),
+  so no tab compiles its script from half-updated files.
 
 ## Keeping your settings
 

@@ -154,6 +154,11 @@ public sealed class SkuaRuntime
                 var bot = provider.GetRequiredService<IScriptInterface>();
                 while (!(Bridge.IsConnected && bot.Player.LoggedIn))
                     await Task.Delay(2000);
+                // Not while a sync (this tab's, or the first tab's for the
+                // others) is rewriting the scripts it compiles from.
+                if (!await ScriptSync.WaitUntilQuietAsync(TimeSpan.FromMinutes(15),
+                        () => Console.WriteLine($"[host] logged in; waiting for the script sync to finish before starting {toLoad}")))
+                    Console.Error.WriteLine("[host] the script sync is still running after 15 minutes; starting anyway");
                 Console.WriteLine($"[host] logged in; starting {toLoad}");
                 if (await Api.StartLoadedAsync() is { } error)
                     Console.Error.WriteLine($"[host] script failed to start: {error}");
