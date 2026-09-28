@@ -8,6 +8,9 @@
 // reloads, logs back in and returns there.
 (function () {
   const RETURN_KEY = 'vibeskua.returnTo';
+  // After a disconnect, how long the login screen must sit untouched before
+  // this logs in itself rather than leave it to Skua (see tick).
+  const RELOGIN_GRACE_MS = 60000;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   const session = {
@@ -112,16 +115,39 @@
       if (this.busy || this.recycling) return;
       const inGame = this.loggedIn();
       if (inGame) {
+        if (this.disconnectedAt) {
+          this.say('session: back in (Skua logged in again)', 'ok');
+          this.disconnectedAt = 0;
+        }
         this.playing = true;
         const place = this.get('world.strMapName') + '#' + this.get('world.curRoom');
         if (this.lastPlace && place !== this.lastPlace) this.mapChanges++;
         this.lastPlace = place;
         if (this.dueForRecycle()) this.recycle();
-      } else if (this.playing && this.cfg.autoLogin && this.has('mcLogin.ni')) {
-        // Kicked or disconnected: back at the login screen.
-        this.playing = false;
-        this.say('session: disconnected, logging back in', 'err');
-        this.login();
+      } else if (this.playing && this.cfg.autoLogin) {
+        // Kicked or disconnected. While one of its scripts runs, Skua logs
+        // back in by itself (its AutoRelogin), and two logins at once trip
+        // each other up (a script stopped for "not logged in", a login given
+        // up on a server list that never came). So Skua gets the first go:
+        // this logs in only once the login screen has sat untouched (no
+        // server list, nothing connecting) for RELOGIN_GRACE_MS. Without
+        // Skua attached it logs in straight away.
+        const now = Date.now();
+        const skua = !!(window.skuaBridge && window.skuaBridge.transport);
+        const idle = this.has('mcLogin.ni') && !this.has('mcLogin.sl.iList');
+        if (!this.disconnectedAt) {
+          this.disconnectedAt = now;
+          this.idleSince = now;
+          this.say(skua ? 'session: disconnected; giving Skua the first try at logging back in'
+                        : 'session: disconnected, logging back in', 'err');
+        }
+        if (!idle) this.idleSince = now;
+        if (idle && (!skua || now - this.idleSince >= RELOGIN_GRACE_MS)) {
+          if (skua) this.say('session: Skua did not log back in; logging in', 'err');
+          this.playing = false;
+          this.disconnectedAt = 0;
+          this.login();
+        }
       }
     },
 
