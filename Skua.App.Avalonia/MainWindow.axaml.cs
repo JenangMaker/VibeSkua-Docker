@@ -34,6 +34,8 @@ public partial class MainWindow : Window
             _embed.Embedded += () => GameAreaText.IsVisible = false;
             _embed.Failed += () => WindowPlacement.ToTopBar(this, GameArea);
             _embed.Start();
+            Skua.Linux.HostApi.Throttled += on => Dispatcher.UIThread.Post(() => _embed?.SetShrunk(on));
+            _embed.SetShrunk(Skua.Linux.HostApi.IsThrottled);
         };
         // Before the window (and anything inside it) is destroyed.
         Closing += (_, _) => _embed?.Release();

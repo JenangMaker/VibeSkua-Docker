@@ -32,6 +32,7 @@ public sealed class GameEmbed : IDisposable
     private ulong _host;
     private ulong _game;
     private (int X, int Y, int W, int H) _placed;
+    private bool _shrunk;
     private readonly List<IDisposable> _signals = new();
     private readonly object _releaseLock = new();
 
@@ -193,6 +194,20 @@ public sealed class GameEmbed : IDisposable
         return parent;
     }
 
+    /// <summary>
+    /// While the tab is off screen, keep the game at 1x1 (Skua.App.WPF shrinks
+    /// hidden tabs the same way): it still runs, but draws next to nothing and
+    /// sends the X server no full-size frames.
+    /// </summary>
+    public void SetShrunk(bool shrunk)
+    {
+        if (_shrunk == shrunk)
+            return;
+        _shrunk = shrunk;
+        _placed = default;
+        Place();
+    }
+
     /// <summary>Keeps the game window over the game area.</summary>
     private void Place()
     {
@@ -203,7 +218,8 @@ public sealed class GameEmbed : IDisposable
         if (origin is not { } o)
             return;
         var rect = ((int)(o.X * scale), (int)(o.Y * scale),
-                    Math.Max(1, (int)(_area.Bounds.Width * scale)), Math.Max(1, (int)(_area.Bounds.Height * scale)));
+                    _shrunk ? 1 : Math.Max(1, (int)(_area.Bounds.Width * scale)),
+                    _shrunk ? 1 : Math.Max(1, (int)(_area.Bounds.Height * scale)));
         if (rect == _placed)
             return;
         _placed = rect;

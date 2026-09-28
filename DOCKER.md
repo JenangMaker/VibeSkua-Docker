@@ -160,6 +160,10 @@ and runs at full speed; switch drawing back on when you want to look.
   `wgpu-webgl` draws every effect but is many times slower; only consider it
   with a GPU.
 - These three can also be changed live from the bar under the game.
+- Tabs you are not looking at run at 2 frames per second with their game
+  drawn at 1x1, as in the Windows VibeSkua; switching to a tab (or Grid View)
+  puts it back. Map changes, moving and fighting are not slowed by this.
+  `SKUA_HIDDEN_FPS` changes the rate.
 - `ENABLE_MODULES: "DisableFX,HidePlayers"` switches on Skua's own
   performance modules.
 - Ruffle keeps every SWF it ever loads (each map, every player's gear), so a
@@ -190,6 +194,7 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `RUFFLE_RENDERER` | `webgl` with a GPU, `canvas` without | `wgpu-webgl` draws every effect but is much heavier; see [Performance](#performance). |
 | `RUFFLE_QUALITY` | `low` | `low`, `medium`, `high`. |
 | `RENDER_SCALE` | `1` | Fraction of the window's resolution to draw at. |
+| `SKUA_HIDDEN_FPS` | `2` | Game frame rate of tabs not on screen (1-60). |
 | `MAX_RENDER_FPS` | unlimited with a GPU, `15` without | Frames drawn per second; `0` draws nothing. |
 | `ENABLE_MODULES`, `DISABLE_MODULES` | `""`, `QuestRequirementWiki,QuestItemRates` | Skua modules to switch on / off once the game loads. |
 | `SKUA_API_PREFIX` | `http://127.0.0.1:8791/` | Where the first tab's control API listens (see below). |

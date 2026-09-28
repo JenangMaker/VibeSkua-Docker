@@ -25,7 +25,9 @@ namespace Skua.Linux;
 ///   scheduler                  body: [{path,id,name}]; replace the Scheduler's
 ///                              playlist with it and start it
 ///   scheduler/stop
-///   throttle?on=1|0            frame rate 2 while the tab is not on screen
+///   throttle?on=1|0[&amp;fps=]      the tab is off screen: low frame rate (fps, else
+///                              SKUA_HIDDEN_FPS, else 2) and a 1x1 game window
+///                              (TabThrottle.cs)
 /// </summary>
 public sealed partial class HostApi
 {
@@ -154,15 +156,8 @@ public sealed partial class HostApi
                 return new { stopped = true };
             }
             case "throttle":
-            {
-                bool on = Q("on") is "1" or "true";
-                if (!bot.Options.HeadlessMode && Get<Skua.Ruffle.RuffleBridge>().IsConnected)
-                {
-                    try { bot.Flash.SetGameObject("stage.frameRate", on ? 2 : 24); }
-                    catch { }
-                }
-                return new { throttled = on };
-            }
+                return Throttle(Q("on") is "1" or "true",
+                    int.TryParse(Q("fps"), out int fps) && fps > 0 ? Math.Min(fps, 60) : HiddenFps);
             default:
                 return new { error = $"unknown army action '{action}'" };
         }
