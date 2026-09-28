@@ -238,6 +238,8 @@ public partial class TabHostWindow : Window
         string? autoStart = SkuaRuntime.EnvRaw($"SKUA_SCRIPT_AUTO_START_{n + 1}") ?? SkuaRuntime.EnvRaw("SKUA_SCRIPT_AUTO_START");
         SetOrRemove(psi, "SKUA_SCRIPT", script);
         SetOrRemove(psi, "SKUA_SCRIPT_AUTO_START", autoStart);
+        // CoreBots room: SKUA_ROOM_NUMBER_N, else SKUA_ROOM_NUMBER (every tab's).
+        SetOrRemove(psi, "SKUA_ROOM_NUMBER", SkuaRuntime.EnvRaw($"SKUA_ROOM_NUMBER_{n + 1}") ?? SkuaRuntime.EnvRaw("SKUA_ROOM_NUMBER"));
 
         Process process;
         try

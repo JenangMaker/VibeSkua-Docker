@@ -108,6 +108,11 @@ are listed in a pop-up.
   for one tab, and `SKUA_SCRIPT_2: "none"` gives tab 2 no script.
   Auto-start waits while the script sync is downloading (up to 15 minutes),
   so no tab compiles its script from half-updated files.
+- **Private room for CoreBots scripts:** `SKUA_ROOM_NUMBER: "9721"` puts
+  every account in room 9721 (`SKUA_ROOM_NUMBER_2` for one tab). It is written
+  into each account's CoreBots Options (Private Rooms on, that room number)
+  when the account logs in, so it works for any CoreBots script; a room you
+  set in CoreBots Options yourself lasts until the account next logs in.
 
 ## Keeping your settings
 
@@ -191,6 +196,7 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `SKUA_TABS` | `1` | `0`: one Skua, no tabs. `N`: open N tabs at start (at least one per configured account). |
 | `SKUA_SCRIPT`, `SKUA_SCRIPT_<N>` | | Script to load at start: every tab's / tab N's (`none`: no script for that tab). |
 | `SKUA_SCRIPT_AUTO_START`, `SKUA_SCRIPT_AUTO_START_<N>` | `0` | `1`: also start it once logged in (every tab / tab N). |
+| `SKUA_ROOM_NUMBER`, `SKUA_ROOM_NUMBER_<N>` | unset (CoreBots Options) | Private room number (1-999999) CoreBots scripts use, for every tab / tab N. |
 | `SKUA_SCRIPT_SYNC` | `auto` | `auto` (follow Skua's options), `ask`, or `off`. |
 | `SKUA_SCRIPTS_REPO`, `SKUA_SCRIPTS_BRANCH` | `https://github.com/auqw/Scripts`, `Skua` | Where scripts sync from (GitHub or Gitea). |
 | `SKUA_HOST` | `1` | `0`: the game only, without Skua. |

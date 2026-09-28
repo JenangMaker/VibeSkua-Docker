@@ -136,6 +136,29 @@ public sealed class SkuaRuntime
         }
         Console.WriteLine($"[host] ready: bridge {Env("SKUA_BRIDGE_PREFIX", "http://127.0.0.1:8790/")}, api {apiPrefix}");
 
+        if (RoomNumber.Value is not null)
+        {
+            // Each account that logs in gets SKUA_ROOM_NUMBER in its CoreBots options.
+            _ = Task.Run(async () =>
+            {
+                var player = provider.GetRequiredService<IScriptInterface>().Player;
+                string? last = null;
+                while (true)
+                {
+                    try
+                    {
+                        if (Bridge.IsConnected && player.LoggedIn && player.Username is { Length: > 0 } user && user != last)
+                        {
+                            RoomNumber.Apply(user);
+                            last = user;
+                        }
+                    }
+                    catch { }
+                    await Task.Delay(3000);
+                }
+            });
+        }
+
         if ((script ?? EnvRaw("SKUA_SCRIPT")) is { Length: > 0 } toLoad)
         {
             bool autoStart = script is not null || EnvRaw("SKUA_SCRIPT_AUTO_START") is { } a
@@ -159,6 +182,7 @@ public sealed class SkuaRuntime
                 if (!await ScriptSync.WaitUntilQuietAsync(TimeSpan.FromMinutes(15),
                         () => Console.WriteLine($"[host] logged in; waiting for the script sync to finish before starting {toLoad}")))
                     Console.Error.WriteLine("[host] the script sync is still running after 15 minutes; starting anyway");
+                RoomNumber.Apply(bot.Player.Username);   // before CoreBots reads its options
                 Console.WriteLine($"[host] logged in; starting {toLoad}");
                 if (await Api.StartLoadedAsync() is { } error)
                     Console.Error.WriteLine($"[host] script failed to start: {error}");

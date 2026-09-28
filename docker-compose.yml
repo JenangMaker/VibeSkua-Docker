@@ -170,6 +170,9 @@ services:
       # "1": also start it once logged in. Off by default: it only loads.
       # SKUA_SCRIPT_AUTO_START_<N> for tab N.
       # SKUA_SCRIPT_AUTO_START: "0"
+      # Private room CoreBots scripts join, for every account (written into
+      # their CoreBots Options at login). SKUA_ROOM_NUMBER_<N> for tab N.
+      # SKUA_ROOM_NUMBER: "9721"
       # Script sync at startup: "auto" follows Skua's options (Auto Update
       # Scripts on: download silently; off: ask), "ask" always asks (Update
       # all / Only missing / Skip), "off" never syncs. A mounted Scripts folder
