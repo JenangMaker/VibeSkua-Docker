@@ -16,6 +16,8 @@
                      padding: 2px 8px; font: inherit; cursor: pointer; }
   #controls button.on { background: #2d5a8c; color: #fff; border-color: #3d7ac0; }
   #controls .note { color: #888; }
+  /* SHOW_DEBUG_PANEL=0: only the game. */
+  body.no-debug #controls, body.no-debug #status { display: none !important; }
 </style>
 <div id="stage"></div>
 <div id="controls" hidden>
@@ -228,6 +230,8 @@ async function main() {
       recycleAfterMapChanges: r.recycleAfterMapChanges || 0,
     };
     skuaBridgeUrl = r.skuaBridgeUrl || null;
+    const debug = new URLSearchParams(location.search).get('debug');
+    document.body.classList.toggle('no-debug', debug ? debug === '0' : r.debugPanel === false);
   } catch (e) {
     say('could not fetch server list: ' + e, 'err');
   }

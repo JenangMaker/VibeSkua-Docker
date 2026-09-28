@@ -205,6 +205,7 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `RUFFLE_RENDERER` | `webgl` with a GPU, `canvas` without | `wgpu-webgl` draws every effect but is much heavier; see [Performance](#performance). |
 | `RUFFLE_QUALITY` | `low` | `low`, `medium`, `high`. |
 | `RENDER_SCALE` | `1` | Fraction of the window's resolution to draw at. |
+| `SHOW_DEBUG_PANEL` | `1` | `0` hides the render controls and log under the game (the log still goes to the container log; add `?debug=1` to the page URL to see them anyway). |
 | `SKUA_HIDDEN_FPS` | `2` | Game frame rate of tabs not on screen (1-60). |
 | `SKUA_DASHBOARD` | auto | Bot dashboard (kills, drops, quests, deaths, relogins, time) beside the game: `1` always, `0` never; auto shows it when the window is wide enough. |
 | `MAX_RENDER_FPS` | unlimited with a GPU, `15` without | Frames drawn per second; `0` draws nothing. |
