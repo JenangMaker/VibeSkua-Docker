@@ -9,7 +9,7 @@
 # autostart, its refresh, and /app/launch.sh) is used unchanged.
 #
 #   docker build -f docker/Dockerfile.selkies -t vibeskua-web:selkies .
-#   open http://<host>:3000   (HTTPS on 3001)
+#   open https://<host>:3000   (self-signed certificate; plain HTTP on 3002)
 
 ARG BASE_IMAGE=ghcr.io/linuxserver/baseimage-selkies:debiantrixie
 ARG NODE_VERSION=24.21.0
@@ -111,9 +111,17 @@ RUN chmod +x /defaults/autostart /app/launch.sh \
  && chmod 755 /custom-services.d/vibeskua-log \
  && chown root:root /custom-services.d/vibeskua-log
 
+# Selkies' client needs a secure context (WebCodecs), so HTTPS goes on 3000,
+# the port this image has always published; plain HTTP, for a reverse proxy
+# that adds its own TLS, moves to 3002. Not 3001: the base rewrites its nginx
+# config 3000 -> CUSTOM_PORT, then 3001 -> CUSTOM_HTTPS_PORT, so HTTP on 3001
+# would end up on 3000 as well.
+ENV CUSTOM_HTTPS_PORT=3000 \
+    CUSTOM_PORT=3002
+
 ENV TITLE="VibeSkua Web" \
     PORT=8770 \
     SOCKET_PROXY_PORT=8181 \
     SKUA_HOST=1
 
-EXPOSE 3000 3001
+EXPOSE 3000 3002
