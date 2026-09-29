@@ -3,8 +3,15 @@
 <title>VibeSkua Web</title>
 <style>
   :root { color-scheme: dark; }
-  body { margin: 0; background: #111; color: #ddd; font: 13px/1.5 system-ui, sans-serif; }
-  #stage { display: flex; justify-content: center; background: #000; }
+  /* The game fills whatever the window leaves after the panel below it (the
+     SWF scales to fit, SHOW_ALL, with black bars), so no empty strip and no
+     page scrollbar. */
+  html, body { height: 100%; }
+  body { margin: 0; background: #111; color: #ddd; font: 13px/1.5 system-ui, sans-serif;
+         display: flex; flex-direction: column; overflow: hidden; }
+  #stage { flex: 1 1 auto; min-height: 0; display: flex; background: #000; }
+  #stage > * { flex: 1 1 auto; min-width: 0; min-height: 0; }
+  #controls, #status { flex: none; }
   #status { padding: 6px 10px; font-family: ui-monospace, monospace; font-size: 12px;
             border-top: 1px solid #333; max-height: 9em; overflow-y: auto; }
   .err { color: #ff8a80; }
@@ -249,8 +256,8 @@ async function main() {
 
   const ruffle = window.RufflePlayer.newest();
   player = ruffle.createPlayer();
-  player.style.width = '958px';
-  player.style.height = '550px';
+  player.style.width = '100%';
+  player.style.height = '100%';
   player.style.display = 'block';
   document.getElementById('stage').appendChild(player);
 
@@ -275,6 +282,9 @@ async function main() {
       quality,
       preferredRenderer: renderer,
       socketProxy,
+      // Black bars, not whatever the SWF has outside its stage, where the
+      // window's shape differs from the game's.
+      letterbox: 'on',
     });
     say('skua.swf loaded', 'ok');
     say(`renderer: ${renderer}, quality: ${quality}`);

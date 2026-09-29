@@ -116,8 +116,8 @@ services:
       # gaps: no skill-cooldown darkening or aura fades. See web/TESTING.md.
       RUFFLE_RENDERER: webgl
       RENDER_SCALE: "1"
-      # "0": hide the render controls and the log under the game.
-      # SHOW_DEBUG_PANEL: "1"
+      # "1": show the render controls and the log under the game.
+      # SHOW_DEBUG_PANEL: "0"
       # Frames drawn per second (with a GPU the game runs at full speed
       # regardless; without one, drawing holds it up in busy maps).
       # 0 = headless (nothing drawn). Infinity = unlimited. Default:

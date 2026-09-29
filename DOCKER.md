@@ -162,11 +162,13 @@ and runs at full speed; switch drawing back on when you want to look.
 
 - `MAX_RENDER_FPS` sets how often the game is drawn; `0` draws nothing. With
   a GPU the default is unlimited.
-- `RENDER_SCALE: "0.75"` (or `"0.5"`) draws at a lower resolution.
+- The game scales to fill its window, so a bigger window draws more pixels.
+  `RENDER_SCALE: "0.75"` (or `"0.5"`) draws at a lower resolution.
 - `RUFFLE_RENDERER`: `webgl` by default with a GPU, `canvas` without.
   `wgpu-webgl` draws every effect but is many times slower; only consider it
   with a GPU.
-- These three can also be changed live from the bar under the game.
+- These three can also be changed live from the bar under the game, which
+  shows with `SHOW_DEBUG_PANEL: "1"` (or `?debug=1` on the game page).
 - Tabs you are not looking at run at 2 frames per second with their game
   drawn at 1x1, as in the Windows VibeSkua; switching to a tab (or Grid View)
   puts it back. Map changes, moving and fighting are not slowed by this.
@@ -205,7 +207,7 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `RUFFLE_RENDERER` | `webgl` with a GPU, `canvas` without | `wgpu-webgl` draws every effect but is much heavier; see [Performance](#performance). |
 | `RUFFLE_QUALITY` | `low` | `low`, `medium`, `high`. |
 | `RENDER_SCALE` | `1` | Fraction of the window's resolution to draw at. |
-| `SHOW_DEBUG_PANEL` | `1` | `0` hides the render controls and log under the game (the log still goes to the container log; add `?debug=1` to the page URL to see them anyway). |
+| `SHOW_DEBUG_PANEL` | `0` | `1` shows the render controls and log under the game (the log goes to the container log either way; `?debug=1` on the page URL shows them for that page). |
 | `SKUA_HIDDEN_FPS` | `2` | Game frame rate of tabs not on screen (1-60). |
 | `SKUA_DASHBOARD` | auto | Bot dashboard (kills, drops, quests, deaths, relogins, time) beside the game: `1` always, `0` never; auto shows it when the window is wide enough. |
 | `MAX_RENDER_FPS` | unlimited with a GPU, `15` without | Frames drawn per second; `0` draws nothing. |

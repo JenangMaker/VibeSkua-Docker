@@ -76,9 +76,9 @@ const HAS_GPU = (() => {
 const RUFFLE_RENDERER = unquoteEnv('RUFFLE_RENDERER') || (HAS_GPU ? 'webgl' : 'canvas');
 // Fraction of display resolution to render at; the browser upscales.
 const RENDER_SCALE = Number(unquoteEnv('RENDER_SCALE') || '1');
-// The render controls and the log under the game. "0" hides both (the log
-// still goes to the container log); ?debug=1 on the page shows them anyway.
-const SHOW_DEBUG_PANEL = !/^(0|false|no|off)$/i.test(unquoteEnv('SHOW_DEBUG_PANEL') || '1');
+// The render controls and the log under the game: hidden unless "1" (the
+// log still goes to the container log); ?debug=1 on the page shows them anyway.
+const SHOW_DEBUG_PANEL = /^(1|true|yes|on)$/i.test(unquoteEnv('SHOW_DEBUG_PANEL') || '0');
 // Without a GPU drawing is also capped at NO_GPU_RENDER_FPS unless
 // MAX_RENDER_FPS says otherwise. Canvas draws on the main thread, the one
 // the game runs on: a busy map takes over a second per frame on the CPU and
