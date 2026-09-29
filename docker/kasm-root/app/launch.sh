@@ -4,10 +4,12 @@
 cd /app
 
 # The real Electron ELF binary, not node_modules/.bin/electron. That wrapper is
-# a Node script, and Node 22 is deliberately kept off the global PATH so the
+# a Node script, and Node 24 is deliberately kept off the global PATH so the
 # base image's Node 18 stays intact for its /kclient audio component. Electron
 # bundles its own Node runtime, so the binary needs nothing on PATH.
 #
+# --ozone-platform=x11: Skua embeds the game window by its X11 id; newer
+#   Electron would pick Wayland by itself wherever one is available.
 # --no-sandbox: Chromium's setuid sandbox does not work in this container
 #   without extra privileges. The window is already confined to the container.
 # --disable-dev-shm-usage: survive a small /dev/shm if shm_size is not raised.
@@ -25,6 +27,7 @@ cd /app
 # those two from stderr; everything else passes through.
 # shellcheck disable=SC2086
 exec /app/node_modules/electron/dist/electron . \
+  --ozone-platform=x11 \
   --no-sandbox \
   --disable-dev-shm-usage \
   --disable-gpu-sandbox \

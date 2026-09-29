@@ -9,7 +9,7 @@
 #   open http://<host>:3000
 
 ARG BASE_IMAGE=ghcr.io/linuxserver/baseimage-kasmvnc:debianbookworm
-ARG NODE_VERSION=22.11.0
+ARG NODE_VERSION=24.21.0
 
 # Skua: Skua.App.Avalonia, the VibeSkua client UI ported to Avalonia over
 # Skua.Core, driving the game in the page (SKUA_HOST=1; SKUA_UI=0 runs it with
@@ -37,8 +37,9 @@ FROM ${BASE_IMAGE}
 
 ARG NODE_VERSION
 
-# Node 22 for Electron, installed to /opt/node and deliberately kept OFF the
-# global PATH.
+# Node 24 for installing Electron and running setup.js (the app itself runs
+# on the Node inside Electron), installed to /opt/node and deliberately kept
+# OFF the global PATH.
 #
 # The KasmVNC base ships its own Node 18 for its web/audio client under
 # /kclient, whose native pulseaudio2 module is built for
@@ -80,7 +81,11 @@ WORKDIR /app
 
 # Dependencies first so npm install caches independently of app source.
 COPY web/package.json ./
-RUN "$NODE_HOME/bin/npm" install --no-audit --no-fund
+# Electron's npm package no longer downloads its binary on install (it does so
+# on first require), and launch.sh runs the binary directly: fetch it here.
+RUN "$NODE_HOME/bin/npm" install --no-audit --no-fund \
+ && "$NODE_HOME/bin/node" node_modules/electron/install.js \
+ && test -x node_modules/electron/dist/electron
 
 COPY web/ ./
 
