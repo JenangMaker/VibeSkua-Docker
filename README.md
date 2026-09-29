@@ -1,12 +1,137 @@
-# VibeSkua
+# VibeSkua for Docker
 > **Note:** This project is **Vibe Coded**—built through AI-assisted development, and pure momentum.
 
-A feature-rich, high-performance fork of [auqw/skua](https://github.com/auqw/skua) built from V1.4.3.0, made for advanced automation, stability, and streamlined multi-client management.
+Run [VibeSkua](https://github.com/NinjaXz/VibeSkua), the multi-account fork of
+[auqw/skua](https://github.com/auqw/skua), on a Linux server and use it from any
+browser. No Windows, no Flash install, no VM: one container with Skua's full UI,
+the game embedded under its menu, and every account in its own tab.
 
-## Skua Architecture Comparison
-The following overview compares the systems and core features between the original `auqw/skua` repository and VibeSkua.
+The Windows app is still here and still builds as before; this fork adds a
+Linux edition next to it.
 
-### Quality of Life & Features
+## Quick start
+
+```yaml
+# docker-compose.yml
+services:
+  vibeskua:
+    image: ghcr.io/jenangmaker/vibeskua-web:latest
+    ports:
+      - "3000:3000"
+    environment:
+      PUID: "1000"            # `id -u` of the user owning ./config
+      PGID: "1000"
+      CUSTOM_USER: "vibeskua" # login for the web desktop
+      PASSWORD: "change-me"
+      # AQW_USER_1: "first account"   # optional: log in automatically,
+      # AQW_PASS_1: "..."             # one tab per account
+    volumes:
+      - ./config:/config      # settings, scripts, CoreBots options
+    # devices:                # a GPU (Intel/AMD) makes the game smooth
+    #   - /dev/dri:/dev/dri
+    shm_size: 1gb
+    security_opt:
+      - seccomp=unconfined
+    restart: unless-stopped
+```
+
+```bash
+docker compose up -d
+# then open http://<host>:3000
+```
+
+[DOCKER.md](DOCKER.md) is the full guide: several accounts, scripts, settings,
+performance, every environment variable and troubleshooting. A commented
+[docker-compose.minimal.yml](docker-compose.minimal.yml) is ready to copy.
+
+> Keep port 3000 on your LAN or behind a reverse proxy with HTTPS: whoever
+> reaches it controls the bot and the logged-in accounts.
+
+## What you get
+
+- **The whole Skua UI:** every screen of the Windows client (scripts, options,
+  CoreBots options, skills, loadouts, packets, plugins, hotkeys, ...), with the
+  game embedded under the menu.
+- **Several accounts in one window:** one tab per account, with **Army Control**
+  (log in/out, jump, start/stop scripts, the Army Scheduler across all tabs) and
+  **Grid View** to watch them all at once.
+- **Unattended by design:**
+  - log accounts in from environment variables (`AQW_USER_<N>`, `AQW_PASS_<N>`,
+    `AQW_SERVER`);
+  - load and start a script per account (`SKUA_SCRIPT`, `SKUA_SCRIPT_AUTO_START`);
+  - one private room for every account's CoreBots scripts (`SKUA_ROOM_NUMBER`);
+  - log back in after a disconnect, letting Skua's own relogin go first;
+  - reload the game client every so often to free the memory Ruffle keeps
+    (`RECYCLE_AFTER_MINUTES`).
+- **Scripts kept up to date:** synced from
+  [auqw/Scripts](https://github.com/auqw/Scripts) (or your own repository) at
+  startup, with a progress indicator, a popup if files fail, and **Scripts >
+  Reset Scripts...** like Skua Manager's. Auto-started scripts wait until the
+  sync has finished writing.
+- **Light on the host:** tabs you are not looking at run at 2 fps with their game
+  drawn at 1x1, Headless Mode does the same for the one you are, and a bot
+  dashboard (kills, drops, quests, deaths, relogins) sits beside the game.
+- **Your data in one folder:** mount `/config` and settings, scripts, CoreBots
+  options and plugins survive updates.
+
+## How it works
+
+```
+browser ── KasmVNC (port 3000) ── a small Linux desktop in the container
+                                    ├─ Skua (Avalonia port of the WPF UI, one process per tab)
+                                    │     └─ Skua.Core, unchanged scripts API
+                                    └─ Electron ── Ruffle (Flash player, WebAssembly) ── AQW
+                                          the game window is embedded under Skua's menu
+```
+
+- **Skua.App.Avalonia** is the Windows client's WPF UI ported to
+  [Avalonia](https://avaloniaui.net), on the same Skua.Core, so scripts run as
+  they do on Windows.
+- **The game** runs in [Ruffle](https://ruffle.rs) inside Electron. It uses a
+  fork with fixes for AQW (loader, canvas rendering, speed without a GPU):
+  [JenangMaker/ruffle](https://github.com/JenangMaker/ruffle), branch
+  `aqw-loader-fixes`.
+- **Skua.Linux** connects the two (a WebSocket bridge in place of Flash's COM
+  interface) and adds the container's extras: script sync, a control API, tab
+  throttling.
+
+## Differences from the Windows app
+
+- **Ruffle is not Flash.** The game plays and scripts run, but a few effects are
+  missing with the default `webgl` renderer (skill cooldown darkening, aura
+  fades). Where Ruffle behaves differently in ways scripts notice (for example
+  the order of a quest's requirements), Skua.Core corrects for it.
+- **Without a GPU** the game is drawn on the CPU: it works, but slowly and at a
+  CPU cost. Pass `/dev/dri` through if the host has an Intel or AMD GPU.
+- **Not included:** Skua Manager (accounts come from environment variables
+  instead), the Daily Tracker plugin (Windows only), and the in-game quest wiki
+  links and drop rates (switched off: they error constantly under Ruffle).
+
+## Building
+
+- **The Docker image:** see [Building the image yourself](DOCKER.md#building-the-image-yourself).
+  Pushing a `v*` tag, or running the **Publish image** workflow, publishes
+  `ghcr.io/jenangmaker/vibeskua-web` from GitHub Actions.
+- **The Windows app,** as upstream:
+  1. **Automated:** run **BuildRelease.bat** in the root folder. The output lands
+     in a new **Build** folder.
+  2. **Manual:** from the root folder run
+     ```bash
+     dotnet build Skua.sln -c Release -p:WarningLevel=0 --nologo
+     ```
+  3. **In Docker,** without the .NET SDK or Visual Studio: `docker compose run
+     --rm build`; the output still lands in **Build/AnyCPU**. See
+     [docs/BUILD-DOCKER.md](docs/BUILD-DOCKER.md).
+
+## VibeSkua features
+
+Everything VibeSkua adds over auqw/skua, as its README describes it (these are
+features of the Windows app; most carry over to the Docker edition through
+Skua.Core).
+
+<details>
+<summary>Quality of life & features</summary>
+
 | Feature | Original | This Fork |
 | :--- | :--- | :--- |
 | **Discord Integration** | Lacked native capability. | `DiscordWebhookService` integrated natively. Features rich visual embed cards (`Script Started`, `Farming Session Concluded`, `Scheduler Paused`), automatic rate-limiting (`HTTP 429`) retry loops, a threaded queue structure to prevent dropped packets, and `CachedUsername` preservation so webhooks and script status alerts always display your character's real username after disconnections. |
@@ -29,7 +154,10 @@ The following overview compares the systems and core features between the origin
 | **Wiki Integration** | Required manual searching on a browser. | Directly click on item requirements within the Quest UI to instantly redirect to the corresponding AQW Wiki page. |
 | **Custom Hotkeys** | Relied on static, hardcoded keyboard shortcuts. | Replaced static keybinds with a dynamic `IHotKeyService` leveraging `NHotkey.Wpf`. Integrates natively with `ISettingsService` to allow full user customization of core application commands across the entire WPF interface. |
 
-### Performance & Engine Optimizations
+</details>
+
+<details>
+<summary>Performance & engine optimizations</summary>
 
 * **Combat Cooldown Deadlock & Race Elimination:** Reworked Global Cooldown (`GCD`) index checks in `AdvancedSkillCommand.cs` by verifying skill readiness (`isOK` and Flash `canUseSkill`) before advancing rotation indices, completely eliminating endless Auto-Attack loops (`Only using autoattack`). Enforced a 3.5-second bounded safety ceiling in `ScriptSkill.cs` (`Wait.ForTrue`) so background threads break cleanly and trigger `OnTargetReset()` during monster death or UI lockups without deadlocking or freezing your character.
 * **ActionScript 3 (SWF) Garbage Collection & Animation Protection:** Throttled Flash display tree inspection modules (`DisableFX` and `HidePlayers`) down to synchronized 2 FPS checks, cutting string allocations and Flash garbage collection overhead by over 93% to prevent overnight out-of-memory crashes. Disabled destructive animation clipping (`OptimizePlayers`) so room and character poses keep playing smoothly during map transitions, and added strict null safety checks in `RemoteRegistry.as` (`destroy()` and `ext_destroy()`) to eliminate Flash `Error #1009` crashes during C# COM object cleanups.
@@ -48,37 +176,10 @@ The following overview compares the systems and core features between the origin
 * **Velopack Deployment Architecture:** Fully migrated the deployment infrastructure to Velopack. Enables rapid silent installations, automatic desktop shortcut provisioning, and a built-in Updater Tab within the Manager for background auto-updating via the GitHub Releases API.
 * **And Many More:** Dozens of underlying architectural, thread-safety, and runtime stability enhancements across the entire framework.
 
-## Building the Project
-
-There are three ways to build the project:
-
-1. **Automated:** Navigate to the root folder and run the **BuildRelease.bat** file. Once completed, your output files will be located in a newly created **"Build"** folder within the same directory.
-
-2. **Manual (Terminal):** Navigate to the root folder, right-click, select **"Open in Terminal"**, and run the following command:
-
-```bash
-dotnet build Skua.sln -c Release -p:WarningLevel=0 --nologo
-```
-
-3. **Docker:** Build without installing the .NET SDK or Visual Studio on your machine. Output still lands in **Build/AnyCPU**. See [docs/BUILD-DOCKER.md](docs/BUILD-DOCKER.md).
-
-```bash
-docker compose run --rm build
-```
-
-## Running in Docker (Linux, in a browser)
-
-VibeSkua also runs on Linux in a container you open in a browser: Skua's full UI with the game embedded, several accounts in tabs, Army Control and Grid View. The game runs in [Ruffle](https://ruffle.rs) instead of Flash, and the UI is ported to Avalonia. Only port 3000 is needed:
-
-```bash
-docker compose -f docker-compose.minimal.yml up -d
-# then open http://<host>:3000
-```
-
-See [DOCKER.md](DOCKER.md) for setup, several accounts, scripts, settings and performance.
+</details>
 
 ### Copyright & Disclaimer
 
-**Educational & Personal Use Only:** This project is a derivative of [auqw/skua](https://github.com/auqw/skua) and is provided "as-is" under the MIT License. I do not claim ownership of the original assets, game data, or the intellectual property of the game developers.
- 
+**Educational & Personal Use Only:** This project is a derivative of [auqw/skua](https://github.com/auqw/skua) (through [NinjaXz/VibeSkua](https://github.com/NinjaXz/VibeSkua)) and is provided "as-is" under the MIT License. The Docker edition bundles [Ruffle](https://ruffle.rs) (MIT / Apache-2.0). I do not claim ownership of the original assets, game data, or the intellectual property of the game developers.
+
 **Disclaimer:** Use of this software may violate the Terms of Service of the associated game. The author assumes no responsibility for any account actions, bans, or other consequences taken by game developers against users of this software. By using this tool, you acknowledge that you do so entirely at your own risk. If your PC decides to commit a toaster bath, that is not my problem.
