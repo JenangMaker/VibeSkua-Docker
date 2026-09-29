@@ -83,7 +83,10 @@ WORKDIR /app
 COPY web/package.json ./
 # Electron's npm package no longer downloads its binary on install (it does so
 # on first require), and launch.sh runs the binary directly: fetch it here.
-RUN "$NODE_HOME/bin/npm" install --no-audit --no-fund \
+# npm starts through `#!/usr/bin/env node`, so for this step only our Node goes
+# first on PATH; otherwise npm runs on the base image's Node 18 (Electron
+# needs 22.12+).
+RUN PATH="$NODE_HOME/bin:$PATH" npm install --no-audit --no-fund \
  && "$NODE_HOME/bin/node" node_modules/electron/install.js \
  && test -x node_modules/electron/dist/electron
 
