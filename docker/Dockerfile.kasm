@@ -118,7 +118,9 @@ COPY --from=skua /out/ /opt/skua/
 COPY docker/kasm-root/ /
 RUN chmod +x /defaults/autostart /app/launch.sh \
  && chmod 755 /custom-cont-init.d/10-vibeskua-autostart \
- && chown root:root /custom-cont-init.d/10-vibeskua-autostart
+ && chown root:root /custom-cont-init.d/10-vibeskua-autostart \
+ && chmod 755 /custom-services.d/vibeskua-log \
+ && chown root:root /custom-services.d/vibeskua-log
 
 ENV TITLE="VibeSkua Web" \
     PORT=8770 \

@@ -25,6 +25,16 @@ cd /app
 # display refresh rate every frame. KasmVNC's Xvnc has no VidMode extension,
 # so each attempt prints two harmless lines, ~35 pairs a second. Drop exactly
 # those two from stderr; everything else passes through.
+#
+# Our output (the page's and Skua's log lines) goes to the container log. The
+# KasmVNC base passes the session's output on; the Selkies base sends it to
+# /dev/null, so there it goes to /config/log/vibeskua.log instead, which the
+# vibeskua-log service follows into the container log. Appending to a file
+# never blocks the app, as a pipe with no reader would.
+if [ "$(readlink "/proc/$$/fd/1")" = /dev/null ]; then
+  mkdir -p /config/log
+  exec >>/config/log/vibeskua.log 2>&1
+fi
 # shellcheck disable=SC2086
 exec /app/node_modules/electron/dist/electron . \
   --ozone-platform=x11 \

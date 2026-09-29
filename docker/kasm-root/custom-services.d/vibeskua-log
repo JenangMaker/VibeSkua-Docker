@@ -1,0 +1,21 @@
+#!/usr/bin/with-contenv bash
+# Follows /config/log/vibeskua.log into the container log (see
+# /app/launch.sh: the Selkies base discards the session's output, so the app
+# writes there). Under KasmVNC the file stays empty and this prints nothing.
+#
+# Keeps it under ~50 MB: a copy goes to vibeskua.log.1 and the file is
+# emptied in place (the app appends, so it carries on at the start).
+LOG=/config/log/vibeskua.log
+mkdir -p /config/log
+touch "$LOG"
+chown abc:abc /config/log "$LOG"
+
+(
+  while sleep 300; do
+    if [ "$(stat -c %s "$LOG" 2>/dev/null || echo 0)" -gt 52428800 ]; then
+      cp -f "$LOG" "$LOG.1" && : > "$LOG"
+    fi
+  done
+) &
+
+exec tail -n 0 -F "$LOG" 2>/dev/null
