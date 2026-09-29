@@ -1,0 +1,117 @@
+# VibeSkua Web on LinuxServer's Selkies base: the same app as
+# docker/Dockerfile.kasm, on the base image LinuxServer now maintains (the
+# KasmVNC one was last rebuilt in July 2025). How to run it: DOCKER.md.
+#
+# Selkies in X11 mode runs Xvfb with glamor/DRI3 on the passed-in GPU, so
+# Electron renders on the GPU as under KasmVNC, and streams the screen with
+# pixelflux (GPU-encoded where VA-API allows). Its X11 session is Openbox with
+# ~/.config/openbox/autostart, like KasmVNC's, so docker/kasm-root (the
+# autostart, its refresh, and /app/launch.sh) is used unchanged.
+#
+#   docker build -f docker/Dockerfile.selkies -t vibeskua-web:selkies .
+#   open http://<host>:3000   (HTTPS on 3001)
+
+ARG BASE_IMAGE=ghcr.io/linuxserver/baseimage-selkies:debiantrixie
+ARG NODE_VERSION=24.21.0
+
+# Skua: Skua.App.Avalonia, the VibeSkua client UI ported to Avalonia over
+# Skua.Core, driving the game in the page (SKUA_HOST=1; SKUA_UI=0 runs it with
+# no windows). Self-contained, so the runtime image needs no .NET. Not
+# single-file: the script compiler (Roslyn) resolves references from assembly
+# paths on disk. See Skua.App.Avalonia/README.md.
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS skua
+WORKDIR /src
+COPY Directory.Build.props ./
+COPY Shared/ Shared/
+COPY Skua.Core/ Skua.Core/
+COPY Skua.Core.Generators/ Skua.Core.Generators/
+COPY Skua.Core.Interfaces/ Skua.Core.Interfaces/
+COPY Skua.Core.Models/ Skua.Core.Models/
+COPY Skua.Core.Utils/ Skua.Core.Utils/
+COPY Skua.Ruffle/ Skua.Ruffle/
+COPY Skua.Host.WinForms/ Skua.Host.WinForms/
+COPY Skua.Linux/ Skua.Linux/
+COPY Skua.App.Avalonia/ Skua.App.Avalonia/
+RUN dotnet publish Skua.App.Avalonia/Skua.App.Avalonia.csproj -c Release -r linux-x64 \
+      --self-contained true -p:PublishSingleFile=false -o /out \
+ && test -x /out/Skua.App.Avalonia
+
+FROM ${BASE_IMAGE}
+
+ARG NODE_VERSION
+
+# Node 24 for installing Electron and running setup.js (the app itself runs
+# on the Node inside Electron), in /opt/node and off the global PATH, as in
+# Dockerfile.kasm, so nothing the base image runs picks it up.
+ENV NODE_HOME=/opt/node
+RUN mkdir -p "$NODE_HOME" \
+ && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz" \
+      | tar -xz -C "$NODE_HOME" --strip-components=1 \
+ && "$NODE_HOME/bin/node" --version \
+ && echo "base image node: $(command -v node || echo none)"
+
+# Electron's runtime libraries, plus unzip which setup.js shells out to when
+# unpacking the Ruffle web build. Debian trixie names (the 64-bit time_t
+# transition renamed libasound2, libatspi2.0-0 and libgtk-3-0 to *t64).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      unzip \
+      libasound2t64 \
+      libatspi2.0-0t64 \
+      libgbm1 \
+      libgtk-3-0t64 \
+      libnotify4 \
+      libnss3 \
+      libsecret-1-0 \
+      libxss1 \
+      libxtst6 \
+      xdg-utils \
+      libice6 \
+      libsm6 \
+      libfontconfig1 \
+      fonts-dejavu-core \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Dependencies first so npm install caches independently of app source.
+COPY web/package.json ./
+# Electron's npm package no longer downloads its binary on install (it does so
+# on first require), and launch.sh runs the binary directly: fetch it here.
+# npm starts through `#!/usr/bin/env node`: our Node goes first on PATH for
+# this step only.
+RUN PATH="$NODE_HOME/bin:$PATH" npm install --no-audit --no-fund \
+ && "$NODE_HOME/bin/node" node_modules/electron/install.js \
+ && test -x node_modules/electron/dist/electron
+
+COPY web/ ./
+
+# setup.js normally copies this out of the repo tree, which is not at that path
+# inside the build context; stage it directly and let setup.js keep it.
+COPY Skua.AS3/skua/bin/skua.swf ./public/skua.swf
+
+# Optional: a zip of a custom Ruffle self-hosted build (see Dockerfile.kasm).
+# On a private Gitea, supply "user:token" as a BuildKit secret, never a build
+# arg:  docker build --secret id=ruffle_web_auth,env=RUFFLE_WEB_AUTH ...
+ARG RUFFLE_WEB_URL=""
+RUN --mount=type=secret,id=ruffle_web_auth \
+    RUFFLE_WEB_AUTH="$(cat /run/secrets/ruffle_web_auth 2>/dev/null || true)" \
+    RUFFLE_WEB_URL="$RUFFLE_WEB_URL" \
+    "$NODE_HOME/bin/node" setup.js
+
+COPY --from=skua /out/ /opt/skua/
+
+# The base's init copies /defaults/autostart into ~/.config/openbox (openbox
+# runs it with /bin/sh); it hands off to /app/launch.sh. The
+# custom-cont-init.d script re-copies it on every start, so a /config volume
+# from an older image does not pin an old launcher.
+COPY docker/kasm-root/ /
+RUN chmod +x /defaults/autostart /app/launch.sh \
+ && chmod 755 /custom-cont-init.d/10-vibeskua-autostart \
+ && chown root:root /custom-cont-init.d/10-vibeskua-autostart
+
+ENV TITLE="VibeSkua Web" \
+    PORT=8770 \
+    SOCKET_PROXY_PORT=8181 \
+    SKUA_HOST=1
+
+EXPOSE 3000 3001

@@ -28,6 +28,10 @@ on:
         description: "Push to the registry, or build only"
         required: false
         default: "true"
+      dockerfile:
+        description: "Dockerfile (docker/Dockerfile.kasm, or docker/Dockerfile.selkies)"
+        required: false
+        default: "docker/Dockerfile.kasm"
 
 jobs:
   image:
@@ -70,7 +74,7 @@ jobs:
           # registry credentials used to push. Passed as a BuildKit secret so
           # the token never lands in an image layer or the build log.
           export RUFFLE_WEB_AUTH="${{ vars.PACKAGE_USERNAME }}:${{ secrets.PACKAGE_TOKEN }}"
-          docker build -f docker/Dockerfile.kasm \
+          docker build -f "${{ inputs.dockerfile || 'docker/Dockerfile.kasm' }}" \
             --build-arg RUFFLE_WEB_URL="${{ vars.RUFFLE_WEB_URL }}" \
             --secret id=ruffle_web_auth,env=RUFFLE_WEB_AUTH \
             -t "$IMAGE" .
