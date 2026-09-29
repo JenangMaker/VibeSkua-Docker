@@ -82,7 +82,14 @@
         for (let i = 0; i < 60 && !this.loggedIn(); i++) await sleep(1000);
         if (!this.loggedIn()) { this.say('auto-login: server ' + server + ' did not let us in', 'err'); return; }
         this.say('auto-login: in on ' + server, 'ok');
-        await this.returnToSaved();
+        const recycled = await this.returnToSaved();
+        // A script Skua was running was left mid-loop in the game that went
+        // away; tell Skua so it restarts it (Skua.Linux/ScriptKeeper.cs).
+        // Not after the first login: auto-start covers that.
+        const reason = recycled ? 'recycle' : this.reloginReason;
+        this.reloginReason = null;
+        if (reason && window.skuaBridge && window.skuaBridge.transport)
+          window.skuaBridge.send({ ev: 'vibeskua.relogged', args: [reason] });
       } catch (e) {
         this.say('auto-login failed: ' + e, 'err');
       } finally {
@@ -93,7 +100,7 @@
     async returnToSaved() {
       const saved = JSON.parse(sessionStorage.getItem(RETURN_KEY) || 'null');
       sessionStorage.removeItem(RETURN_KEY);
-      if (!saved || !saved.map) return;
+      if (!saved || !saved.map) return false;
       await sleep(3000);
       if (this.get('world.strMapName') !== saved.map) {
         this.join(saved.map, saved.cell, saved.pad);
@@ -103,6 +110,7 @@
       this.lastPlace = null;
       this.mapChanges = 0;
       this.say(`recycle: back to ${saved.map} (${saved.cell})`, 'ok');
+      return true;
     },
 
     join(map, cell = 'Enter', pad = 'Spawn') {
@@ -146,6 +154,7 @@
           if (skua) this.say('session: Skua did not log back in; logging in', 'err');
           this.playing = false;
           this.disconnectedAt = 0;
+          this.reloginReason = 'relogin';
           this.login();
         }
       }

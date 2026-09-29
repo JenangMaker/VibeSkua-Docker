@@ -123,6 +123,7 @@ public sealed class SkuaRuntime
 
         Bridge.ConnectionChanged += up => Console.WriteLine(up ? "[host] page connected" : "[host] page disconnected");
         Bridge.Start();
+        new ScriptKeeper(provider, Bridge).Start();
         string apiPrefix = Env("SKUA_API_PREFIX", "http://127.0.0.1:8791/");
         try
         {

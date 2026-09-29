@@ -181,7 +181,9 @@ and runs at full speed; switch drawing back on when you want to look.
 - Ruffle keeps every SWF it ever loads (each map, every player's gear), so a
   long session grows. `RECYCLE_AFTER_MINUTES` (e.g. `"120"`) reloads the game
   when out of combat, logs back in and returns to the same map. It needs the
-  account's login in the environment.
+  account's login in the environment. A script that was running is restarted
+  afterwards (CoreBots scripts carry on from their saved progress), as it is
+  whenever the page logs an account back in because Skua did not.
 - `cpus` in the compose file (2 in the minimal one) stops it from starving
   the rest of the host. Raise it for several accounts.
 
