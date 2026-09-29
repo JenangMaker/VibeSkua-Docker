@@ -449,7 +449,10 @@ function createGameWindow(n = 0) {
     repeats = 0;
     flushTimer = null;
   };
-  win.webContents.on('console-message', (_e, _lvl, msg) => {
+  // Electron 35+ puts the details on the event (and warns about listeners
+  // that declare the old positional arguments).
+  win.webContents.on('console-message', e => {
+    const msg = String(e?.message ?? '');
     const line = msg.slice(0, 300);
     if (line === lastMsg) {
       repeats++;
