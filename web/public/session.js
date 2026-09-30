@@ -41,6 +41,7 @@
       if (this.cfg.autoLogin) this.login();
       else if (sessionStorage.getItem(RETURN_KEY)) sessionStorage.removeItem(RETURN_KEY);
       setInterval(() => this.tick(), 3000);
+      setInterval(() => this.watchContext(), 3000);
       const parts = [];
       if (this.cfg.autoLogin) parts.push('auto-login on');
       if (this.cfg.recycleAfterMinutes) parts.push(`recycle after ${this.cfg.recycleAfterMinutes} min`);
@@ -169,6 +170,28 @@
 
     // Reload the client once the character is out of combat (intState 2 is
     // combat, as Skua's Player.InCombat), keeping map and cell to return to.
+    // When Chromium's GPU process dies, every page loses its WebGL context.
+    // Ruffle's WebGL renderer does not rebuild on a new one: it keeps drawing
+    // into the dead one (thousands of "offscreen framebuffer incomplete"
+    // errors, a broken picture) while the game itself runs on. Seen live after
+    // a GPU process crash, and a recycle is what fixes it: reload the page
+    // (out of combat, back to the same place; Skua restarts its script).
+    // Checked every few seconds, as Ruffle may replace its canvas.
+    watchContext() {
+      const canvas = document.querySelector('ruffle-player')?.shadowRoot?.querySelector('canvas');
+      if (!canvas || canvas === this.watchedCanvas) return;
+      this.watchedCanvas = canvas;
+      canvas.addEventListener('webglcontextlost', () => {
+        if (this.recycling) return;
+        if (!this.cfg.autoLogin) {
+          this.say('session: the game lost its WebGL context (GPU process restarted); reload the page to fix the picture', 'err');
+          return;
+        }
+        this.say('session: the game lost its WebGL context (GPU process restarted); reloading it', 'err');
+        this.recycle('WebGL context lost');
+      });
+    },
+
     async recycle(reason = 'scheduled') {
       if (this.recycling) return;
       this.recycling = true;
