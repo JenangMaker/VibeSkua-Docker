@@ -119,6 +119,11 @@ RUN chmod +x /defaults/autostart /app/launch.sh \
 ENV CUSTOM_HTTPS_PORT=3000 \
     CUSTOM_PORT=3002
 
+# A browser at 125% would otherwise set the desktop to 120 DPI when it
+# connects, and Skua's and the game's windows grow by 25% for everyone after
+# it: the same desktop looks normal or zoomed depending on who opened it last.
+ENV SELKIES_SCALING_DPI="96|locked"
+
 ENV TITLE="VibeSkua Web" \
     PORT=8770 \
     SOCKET_PROXY_PORT=8181 \
