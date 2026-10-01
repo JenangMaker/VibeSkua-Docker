@@ -69,6 +69,10 @@ public partial class App : Application
             }
             var main = new MainWindow { DataContext = Service<MainViewModel>() };
             desktop.MainWindow = main;
+            // The single-account window fills the desktop; a tab's window is
+            // placed by the tab host instead.
+            if (Mode != AppMode.TabChild)
+                WindowPlacement.FillScreenOnChange(main);
             main.Show();
             // As Skua.App.WPF at startup: hotkeys bind to the main window.
             Service<Skua.Core.Interfaces.IHotKeyService>().Reload();

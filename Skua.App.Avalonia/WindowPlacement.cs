@@ -43,6 +43,28 @@ public static class WindowPlacement
         w.Position = new PixelPoint(area.X + Math.Max(0, (area.Width - width) / 2), area.Y + Math.Max(0, (area.Height - height) / 2));
     });
 
+    /// <summary>
+    /// Keeps a window that fills the desktop filling it when the desktop's size
+    /// changes. Selkies resizes the X screen to each browser that connects, and
+    /// openbox maximizes a window only when it maps, so the window would keep
+    /// the previous browser's size. Re-maximizing (via Normal, so the window
+    /// manager recomputes) follows the new size.
+    /// </summary>
+    public static void FillScreenOnChange(Window window)
+    {
+        IDisposable? pending = null;
+        window.Opened += (_, _) => window.Screens.Changed += (_, _) =>
+        {
+            // A resize arrives as a burst of changes: act on the last one.
+            pending?.Dispose();
+            pending = DispatcherTimer.RunOnce(() =>
+            {
+                window.WindowState = WindowState.Normal;
+                window.WindowState = WindowState.Maximized;
+            }, TimeSpan.FromMilliseconds(400));
+        };
+    }
+
     // The window manager maximizes at map time, which can land after Opened;
     // undo any maximize in the first few seconds, then place the window.
     private static void Apply(Window window, Action<Window> place)

@@ -119,6 +119,7 @@ public partial class TabHostWindow : Window
             DispatcherTimer.Run(() => { PumpFocus(); return !_closing; }, TimeSpan.FromMilliseconds(30));
         };
         Closing += (_, _) => StopAll();
+        WindowPlacement.FillScreenOnChange(this);
         foreach (var signal in new[] { PosixSignal.SIGTERM, PosixSignal.SIGINT, PosixSignal.SIGHUP })
             _signals.Add(PosixSignalRegistration.Create(signal, _ => StopAll()));
         AppDomain.CurrentDomain.ProcessExit += (_, _) => StopAll();
