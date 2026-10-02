@@ -183,8 +183,11 @@ public partial class MainWindow : Window
         var bot = App.Service<IScriptInterface>();
         var scripts = App.Service<IScriptManager>();
         string script = scripts.ScriptRunning ? $"running {Path.GetFileNameWithoutExtension(scripts.LoadedScript)}" : "no script running";
+        string name = bot.Options.StreamerMode
+            ? $"Player {Skua.Linux.SkuaRuntime.Instance + 1}"   // matches the tab header
+            : bot.Player.Username;
         StatusText.Text = bot.Player.LoggedIn
-            ? $"{bot.Player.Username} in {bot.Map.Name} ({bot.Player.Cell}) - HP {bot.Player.Health}/{bot.Player.MaxHealth} - {script}"
+            ? $"{name} in {bot.Map.Name} ({bot.Player.Cell}) - HP {bot.Player.Health}/{bot.Player.MaxHealth} - {script}"
             : $"Connected, not logged in - {script}";
     }
 

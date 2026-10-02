@@ -405,7 +405,11 @@ public partial class TabHostWindow : Window
             bool loggedIn = game.ValueKind == JsonValueKind.Object && game.GetProperty("loggedIn").GetBoolean();
             string? player = loggedIn ? game.GetProperty("player").GetString() : null;
             tab.LoggedIn = loggedIn;
-            tab.Title = string.IsNullOrWhiteSpace(player) ? $"Skua {tab.Number + 1}" : player!;
+            // Streamer Mode (the game option) hides the name in the tab header too
+            bool streamer = game.ValueKind == JsonValueKind.Object && game.TryGetProperty("streamer", out var s) && s.ValueKind == JsonValueKind.True;
+            tab.Title = string.IsNullOrWhiteSpace(player) ? $"Skua {tab.Number + 1}"
+                : streamer ? $"Player {tab.Number + 1}"
+                : player!;
         }
         catch
         {

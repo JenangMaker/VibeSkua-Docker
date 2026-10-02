@@ -110,6 +110,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 {
                     loggedIn,
                     player = player.Username,
+                    streamer = bot.Options.StreamerMode,
                     map = bot.Map.Name,
                     cell = player.Cell,
                     hp = player.Health,
@@ -118,6 +119,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 {
                     loggedIn,
                     player = player.Username,
+                    streamer = bot.Options.StreamerMode,
                     map = bot.Map.Name,
                     cell = player.Cell,
                     hp = player.Health,
