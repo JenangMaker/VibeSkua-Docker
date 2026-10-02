@@ -82,6 +82,12 @@ environment:
 passwords in an `.env` file or your orchestrator's secrets rather than in the
 compose file. Only the game pages see them; Skua never does.
 
+Accounts can also be added while it runs, through the tab host API (see
+[Advanced](#advanced-control-api-and-devtools)). They are kept in
+`/config/.config/vibeskua/accounts.json`, readable by the container user only,
+and take a tab number the environment does not use: an account set in the
+environment always wins and cannot be changed that way.
+
 Every tab costs about as much memory and CPU as the first (a browser page
 plus a Skua process, roughly 0.5-1 GB of RAM each), so size the container
 for the number of accounts you run.
@@ -126,6 +132,7 @@ in it:
 | `/config/.config/Skua/Scripts/` | the scripts |
 | `/config/.config/Skua/plugins/`, `themes/` | plugins and themes |
 | `/config/.config/vibeskua-web/` | the game pages' saved data (one partition per tab) |
+| `/config/.config/vibeskua/accounts.json` | accounts added through the tab host API (holds their passwords) |
 
 The folder on the host must belong to `PUID`:`PGID`. If it does not, Skua
 cannot write there; see [Troubleshooting](#troubleshooting).
@@ -215,13 +222,16 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `MAX_RENDER_FPS` | unlimited with a GPU, `15` without | Frames drawn per second; `0` draws nothing. |
 | `ENABLE_MODULES`, `DISABLE_MODULES` | `""`, `QuestRequirementWiki,QuestItemRates` | Skua modules to switch on / off once the game loads. |
 | `SKUA_API_PREFIX` | `http://127.0.0.1:8791/` | Where the first tab's control API listens (see below). |
+| `SKUA_HOST_API_PREFIX` | `http://127.0.0.1:8789/` | Where the tab host API listens (see below). |
+| `SKUA_API_TOKEN` | unset | When set, every control API (the tabs' and the tab host's) requires it: `Authorization: Bearer <token>`. |
+| `VIBESKUA_ACCOUNTS_FILE` | `/config/.config/vibeskua/accounts.json` | Accounts added through the tab host API. |
 | `REMOTE_DEBUG_PORT` | off | Chrome DevTools port (see below). |
 
 ## Advanced: control API and DevTools
 
-Neither needs a port unless you want it, and **neither has any
-authentication**. Whoever reaches them controls the bot, so keep them on a
-LAN address, never on the internet.
+Neither needs a port unless you want it. **DevTools has no authentication**,
+and the control APIs have none unless `SKUA_API_TOKEN` is set. Whoever reaches
+them controls the bot, so keep them on a LAN address, never on the internet.
 
 - **Control API** (start/stop scripts, status, logs, Army commands): each tab's
   Skua has one inside the container, tab 1 on port 8791, tab N on
@@ -229,13 +239,38 @@ LAN address, never on the internet.
 
   ```bash
   docker exec vibeskua curl -s localhost:8791/status
-  docker exec vibeskua curl -s -X POST 'localhost:8791/script/start?path=Farm/GoldFarm'
+  docker exec vibeskua curl -s -X POST -d '' 'localhost:8791/script/start?path=Farm/GoldFarm'
   ```
 
   To reach tab 1's from your LAN, set `SKUA_API_PREFIX: "http://+:8791/"` and
   publish it on a LAN address only: `"192.168.1.10:8791:8791"`. The routes
   are listed in [Skua.Host/README.md](Skua.Host/README.md) and
-  [Skua.Linux/ArmyApi.cs](Skua.Linux/ArmyApi.cs).
+  [Skua.Linux/ArmyApi.cs](Skua.Linux/ArmyApi.cs). A POST needs a body, even
+  an empty one (`-d ''`), or it is refused with 411.
+- **Tab host API** (port 8789): the whole instance through one port. It lists
+  the tabs with their CPU and memory, opens, restarts and closes tabs, shows
+  the container's resources, manages the accounts added at run time, sends
+  Army commands to every tab, and passes `/tabs/<N>/api/...` on to tab N's
+  control API. This is what a remote manager uses. To publish it:
+
+  ```yaml
+  environment:
+    SKUA_HOST_API_PREFIX: "http://+:8789/"
+    SKUA_API_TOKEN: "${SKUA_API_TOKEN}"   # a long random string, from .env
+  ports:
+    - "192.168.1.10:8789:8789"
+  ```
+
+  ```bash
+  curl -s -H "Authorization: Bearer $SKUA_API_TOKEN" http://192.168.1.10:8789/tabs
+  curl -s -H "Authorization: Bearer $SKUA_API_TOKEN" http://192.168.1.10:8789/tabs/2/api/log?type=script
+  curl -s -H "Authorization: Bearer $SKUA_API_TOKEN" -X PUT http://192.168.1.10:8789/accounts/4 \
+    -d '{"user":"name","pass":"...","server":"Twilly","script":"Farm/GoldFarm","autoStart":true}'
+  ```
+
+  The routes are listed in
+  [Skua.App.Avalonia/TabHostWindow.Api.cs](Skua.App.Avalonia/TabHostWindow.Api.cs).
+  Passwords can be set but are never returned.
 - **Chrome DevTools** (drive the game pages with Puppeteer and the like):
   `REMOTE_DEBUG_PORT: "9222"` and `"192.168.1.10:9222:9222"`.
 

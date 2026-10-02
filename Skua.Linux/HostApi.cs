@@ -50,9 +50,9 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
         {
             string path = ctx.Request.Url!.AbsolutePath.TrimEnd('/');
             string method = ctx.Request.HttpMethod;
-            result = (method, path) switch
+            result = !ApiAuth.Allowed(ctx.Request) ? Unauthorized(out status) : (method, path) switch
             {
-                ("GET", "/status") => Status(),
+                ("GET", "/status") => Status(ctx.Request.QueryString["detail"] is "1" or "true"),
                 ("POST", "/script/load") => await LoadFromRequest(ctx.Request),
                 ("POST", "/script/start") => await StartFromRequest(ctx.Request),
                 ("POST", "/script/stop") => await Stop(),
@@ -84,28 +84,63 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
         return new { error = "not found" };
     }
 
-    private object Status()
+    private static object Unauthorized(out int status)
+    {
+        status = 401;
+        return new { error = "SKUA_API_TOKEN is set: send it as Authorization: Bearer <token>" };
+    }
+
+    // detail: also what a remote dashboard shows (the web manager). Each field
+    // is a call into the game, so the tab host's 1.5 s poll asks without it.
+    private object Status(bool detail = false)
     {
         var bridge = services.GetRequiredService<RuffleBridge>();
         var manager = services.GetRequiredService<IScriptManager>();
-        object? game = null;
+        object? game = null, stats = null;
         if (bridge.IsConnected)
         {
             var bot = services.GetRequiredService<IScriptInterface>();
-            game = new
+            var player = bot.Player;
+            bool loggedIn = player.LoggedIn;
+            game = !detail || !loggedIn
+                ? new
+                {
+                    loggedIn,
+                    player = player.Username,
+                    map = bot.Map.Name,
+                    cell = player.Cell,
+                    hp = player.Health,
+                }
+                : new
+                {
+                    loggedIn,
+                    player = player.Username,
+                    map = bot.Map.Name,
+                    cell = player.Cell,
+                    hp = player.Health,
+                    maxHp = player.MaxHealth,
+                    mp = player.Mana,
+                    maxMp = player.MaxMana,
+                    level = player.Level,
+                    gold = player.Gold,
+                    className = player.CurrentClass?.Name,
+                    state = player.State,
+                    hasTarget = player.HasTarget,
+                    afk = player.AFK,
+                };
+            if (detail)
             {
-                loggedIn = bot.Player.LoggedIn,
-                player = bot.Player.Username,
-                map = bot.Map.Name,
-                cell = bot.Player.Cell,
-                hp = bot.Player.Health,
-            };
+                var s = bot.Stats;
+                stats = new { kills = s.Kills, drops = s.Drops, questsCompleted = s.QuestsCompleted, deaths = s.Deaths, relogins = s.Relogins };
+            }
         }
         return new
         {
             instance = SkuaRuntime.Instance,
             bridgeConnected = bridge.IsConnected,
             game,
+            stats,
+            throttle = detail ? new { hidden = IsShrunk, headless = IsHeadless } : null,
             script = new { running = manager.ScriptRunning, loaded = manager.LoadedScript },
             scripts = new
             {

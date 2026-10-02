@@ -17,6 +17,7 @@ const net = require('net');
 const { spawn } = require('child_process');
 const readline = require('readline');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const socketProxy = require('./socket-proxy');
 
@@ -136,8 +137,9 @@ const RECYCLE_AFTER_MAP_CHANGES = Number(process.env.RECYCLE_AFTER_MAP_CHANGES |
 // through the bridge in public/skua-bridge.js. Off unless SKUA_HOST=1;
 // SKUA_UI=0 runs it without windows. Restarted if it exits.
 //
-// Its control API (start/stop scripts, status, logs) has NO authentication:
-// whatever reaches it can run arbitrary code as the bot. It binds to
+// Its control API (start/stop scripts, status, logs) has NO authentication
+// unless SKUA_API_TOKEN is set: whatever reaches it can run arbitrary code as
+// the bot. It binds to
 // 127.0.0.1 by default (use `docker exec`); SKUA_API_PREFIX=http://+:8791/
 // opens it to wherever the port is published - a LAN address only.
 const unquote = v => (v || '').trim().replace(/^["']|["']$/g, '').trim();
@@ -169,14 +171,36 @@ function bridgeUrlFor(n) {
   return u.toString();
 }
 
+// Accounts added at run time from the web manager, one per tab, kept by Skua's
+// tab host (Skua.Linux/AccountStore.cs, which documents the format). Read on
+// every use, so a change applies at the page's next login. Holds passwords:
+// never logged.
+const ACCOUNTS_FILE = unquote(process.env.VIBESKUA_ACCOUNTS_FILE) ||
+  path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'vibeskua', 'accounts.json');
+
+function fileAccount(tab) {
+  try {
+    const { accounts } = JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf8'));
+    return (Array.isArray(accounts) ? accounts : []).filter(a => a && a.tab === tab && a.user).pop() || null;
+  } catch (e) {
+    if (e.code !== 'ENOENT') console.error(`[host] ${ACCOUNTS_FILE}: ${e.message}`);
+    return null;
+  }
+}
+
 // Tab N+1's account: AQW_USER_<N+1> / AQW_PASS_<N+1> / AQW_SERVER_<N+1>; the
 // first tab also takes plain AQW_USER / AQW_PASS. AQW_SERVER is every tab's
-// default server.
+// default server. With no account in the environment, the accounts file's.
 function credsFor(n) {
   const env = k => unquote(process.env[`${k}_${n + 1}`]);
   const first = n === 0;
+  const user = env('AQW_USER') || (first ? unquote(AQW_USER) : '');
+  if (!user) {
+    const a = fileAccount(n + 1);
+    if (a) return { user: String(a.user), pass: String(a.pass || ''), server: env('AQW_SERVER') || a.server || AQW_SERVER };
+  }
   return {
-    user: env('AQW_USER') || (first ? unquote(AQW_USER) : ''),
+    user,
     pass: process.env[`AQW_PASS_${n + 1}`] || (first ? AQW_PASS : ''),   // as given: quotes may be part of it
     server: env('AQW_SERVER') || AQW_SERVER,
   };
@@ -305,6 +329,18 @@ function serve() {
         const xid = instances.get(inst)?.xid || null;
         res.writeHead(xid ? 200 : 404, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
         res.end(JSON.stringify({ xid }));
+        return;
+      }
+      // Each game window's page process, for the tab host's resource figures.
+      if (url.pathname === '/instances') {
+        if (!own || req.method !== 'GET') { res.writeHead(404); res.end(); return; }
+        const list = [...instances].map(([n, inst]) => {
+          let pid = null;
+          try { if (inst.win && !inst.win.isDestroyed()) pid = inst.win.webContents.getOSProcessId() || null; } catch {}
+          return { instance: n, pid };
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify(list));
         return;
       }
       // Skua's tabs: POST opens instance N's game window, DELETE closes it.
