@@ -312,7 +312,8 @@ function makeCard(n) {
     h('div', { class: 'actions' },
       r.startStop = h('button', { class: 'small primary', onclick: () => startStop(n) }),
       h('button', { class: 'small', onclick: () => openScriptDialog([n]) }, 'Load...'),
-      r.optionsBtn = h('button', { class: 'small', title: "The loaded script's options", onclick: () => openScriptOptions(n) }, 'Options...'),
+      r.optionsBtn = h('button', { class: 'small', title: "The loaded script's options", onclick: () => openScriptOptions(n) }, 'Script options...'),
+      h('button', { class: 'small', title: "This tab's Skua options (Lag Killer, Hide Players, Headless Mode...)", onclick: () => openSkuaOptions(n) }, 'Skua options...'),
       h('button', { class: 'small', onclick: () => openLog(n) }, 'Log'),
       h('button', { class: 'small', title: 'Show this tab on the VibeSkua desktop', onclick: () => act(`Tab ${n} shown`, () => api('POST', `/api/tabs/${n}/select`)) }, 'Show'),
       h('button', { class: 'small', title: "Restart this tab's Skua (the game stays logged in)", onclick: () => restartTab(n, false) }, 'Restart'),
@@ -499,14 +500,62 @@ $('#dlg-jump').addEventListener('close', () => {
   else if (map || cell) armyAll(`Jump to ${map || cell}`, `/api/army/jump?map=${q(map)}&cell=${q(cell)}`);
 });
 
+// Skua's options (Army Control's Misc Options). For every tab: On / Off
+// buttons, as the tabs may differ. For one tab: a checkbox each, showing its
+// current value; an older VibeSkua that cannot tell gets the buttons too.
+function onOffRows(label, send) {
+  return OPTIONS.map(([name, text]) => h('div', { class: 'opt' },
+    h('span', { text }),
+    h('button', { type: 'button', class: 'small', onclick: () => send(name, true, `${label}${text} on`) }, 'On'),
+    h('button', { type: 'button', class: 'small', onclick: () => send(name, false, `${label}${text} off`) }, 'Off')));
+}
+
 $('#options-all').addEventListener('click', () => {
-  const list = $('#options-list');
-  list.replaceChildren(...OPTIONS.map(([name, label]) => h('div', { class: 'opt' },
-    h('span', { text: label }),
-    h('button', { type: 'button', class: 'small', onclick: () => armyAll(`${label} on`, `/api/army/option?name=${name}&value=true`) }, 'On'),
-    h('button', { type: 'button', class: 'small', onclick: () => armyAll(`${label} off`, `/api/army/option?name=${name}&value=false`) }, 'Off'))));
+  $('#options-title').textContent = 'Skua options for every tab';
+  $('#options-info').textContent = '';
+  $('#options-list').replaceChildren(...onOffRows('', (name, on, label) => armyAll(label, `/api/army/option?name=${name}&value=${on}`)));
   $('#dlg-options').showModal();
 });
+
+let skuaOptionsTab = null;
+
+function setTabOption(n, name, on, label) {
+  return act(label, () => api('POST', `/api/tabs/${n}/api/army/option?name=${name}&value=${on}`));
+}
+
+async function openSkuaOptions(n) {
+  skuaOptionsTab = n;
+  $('#options-title').textContent = `Skua options, tab ${n}`;
+  $('#options-info').textContent = 'Reading...';
+  $('#options-list').replaceChildren();
+  $('#dlg-options').showModal();
+  let values = null;
+  try {
+    values = await api('GET', `/api/tabs/${n}/api/army/options`);
+  } catch (e) {
+    if (e.status === 401) return;
+  }
+  if (skuaOptionsTab !== n) return;
+  if (!values || values.error || typeof values.LagKiller !== 'boolean') {
+    $('#options-info').textContent = 'This VibeSkua cannot tell the current values (update its image); set each one on or off.';
+    $('#options-list').replaceChildren(...onOffRows(`Tab ${n}: `, (name, on, label) => setTabOption(n, name, on, label)));
+    return;
+  }
+  $('#options-info').textContent = 'Each change applies right away.';
+  $('#options-list').replaceChildren(...OPTIONS.map(([name, text]) => {
+    const box = h('input', { type: 'checkbox', id: `skopt-${name}` });
+    box.checked = values[name];
+    box.addEventListener('change', async () => {
+      box.disabled = true;
+      const ok = await setTabOption(n, name, box.checked, `Tab ${n}: ${text} ${box.checked ? 'on' : 'off'}`);
+      if (ok === undefined) box.checked = !box.checked;
+      box.disabled = false;
+    });
+    return h('div', { class: 'opt' }, h('label', { for: box.id, text }), box);
+  }));
+}
+
+$('#dlg-options').addEventListener('close', () => { skuaOptionsTab = null; });
 
 // ---- script dialog --------------------------------------------------------------
 

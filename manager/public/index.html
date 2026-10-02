@@ -52,7 +52,7 @@
           <button data-army="login">Log in all</button>
           <button data-army="logout" data-confirm="Log out every account?">Log out all</button>
           <button id="jump-all">Jump...</button>
-          <button id="options-all">Options...</button>
+          <button id="options-all" title="Skua options (Lag Killer, Hide Players...) for every tab">Skua options...</button>
           <div class="spacer"></div>
           <button id="grid-toggle" class="ghost" title="Grid View on the VibeSkua desktop">Grid View</button>
           <button id="open-tab" class="primary">+ Open tab</button>
@@ -167,7 +167,8 @@
 
   <dialog id="dlg-options">
     <form method="dialog" class="dlg">
-      <h2>Options for every account</h2>
+      <h2 id="options-title">Skua options for every tab</h2>
+      <p id="options-info" class="muted small"></p>
       <div id="options-list" class="options-list"></div>
       <div class="dlg-actions"><button type="button" data-close class="ghost">Close</button></div>
     </form>

@@ -260,7 +260,8 @@ dialog:has(.wide) { width: min(820px, calc(100vw - 32px)); }
 
 .options-list { display: grid; gap: 6px; margin-top: 10px; }
 .options-list .opt { display: flex; align-items: center; gap: 8px; }
-.options-list .opt span { flex: 1; }
+.options-list .opt span, .options-list .opt label { flex: 1; margin: 0; }
+.options-list .opt input[type=checkbox] { width: 18px; height: 18px; }
 
 .log-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .log-head h2 { margin: 0; }
