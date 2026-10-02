@@ -184,6 +184,9 @@ services:
       # Where scripts sync from: a GitHub or Gitea repository and branch.
       # SKUA_SCRIPTS_REPO: "https://github.com/auqw/Scripts"
       # SKUA_SCRIPTS_BRANCH: "Skua"
+      # More repositories, each into Scripts/<folder>: "folder=URL[#branch]",
+      # ";" between several (or SKUA_SCRIPTS_EXTRA_1, _2, ...).
+      # SKUA_SCRIPTS_EXTRA: "UltrasLW=https://github.com/l0newolf12/UltrasLW"
       # To reach the API from the LAN instead, add a LAN-IP port mapping
       # ("192.168.2.20:8791:8791") and:
       # SKUA_API_PREFIX: "http://+:8791/"

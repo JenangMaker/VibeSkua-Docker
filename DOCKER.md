@@ -104,6 +104,23 @@ are listed in a pop-up.
 
 - **Your own fork of the scripts:** `SKUA_SCRIPTS_REPO` (a GitHub or Gitea
   repository URL) and `SKUA_SCRIPTS_BRANCH`.
+- **More script repositories:** `SKUA_SCRIPTS_EXTRA` syncs other repositories
+  too, each into a folder of its own under Scripts. Write `folder=URL`,
+  optionally with `#branch` (the repository's default branch otherwise); the
+  folder defaults to the repository's name. Separate several with `;`, or use
+  `SKUA_SCRIPTS_EXTRA_1`, `SKUA_SCRIPTS_EXTRA_2`, ... one each:
+
+  ```yaml
+  # UltrasLW's scripts include "Scripts/UltrasLW/...", so that is the folder
+  SKUA_SCRIPTS_EXTRA: "UltrasLW=https://github.com/l0newolf12/UltrasLW"
+  ```
+
+  They are synced at start after the main scripts, by **Scripts > Reset
+  Scripts**, and by the control API's `POST /scripts/update`. The `.cs` files that are missing or differ
+  from the repository are downloaded without asking, local edits in that
+  folder included; files no longer in the repository are left alone. The Script
+  Loader's search (and the web manager's) finds them. `SKUA_SCRIPT_SYNC: "off"`
+  skips them too.
 - **Your own scripts folder:** mount it at `/config/.config/Skua/Scripts`.
   Skua then always asks before syncing, since "Update all" replaces outdated
   scripts, local edits included.
@@ -211,6 +228,7 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `SKUA_ROOM_NUMBER`, `SKUA_ROOM_NUMBER_<N>` | unset (CoreBots Options) | Private room number (1-999999) CoreBots scripts use, for every tab / tab N. |
 | `SKUA_SCRIPT_SYNC` | `auto` | `auto` (follow Skua's options), `ask`, or `off`. |
 | `SKUA_SCRIPTS_REPO`, `SKUA_SCRIPTS_BRANCH` | `https://github.com/auqw/Scripts`, `Skua` | Where scripts sync from (GitHub or Gitea). |
+| `SKUA_SCRIPTS_EXTRA`, `SKUA_SCRIPTS_EXTRA_<N>` | none | More repositories to sync, each `folder=URL[#branch]` into Scripts/folder; `;` between several (see [Scripts](#scripts)). |
 | `SKUA_HOST` | `1` | `0`: the game only, without Skua. |
 | `SKUA_UI` | `1` | `0`: Skua without windows, driven through its control API only. |
 | `SKUA_EMBED_GAME` | `1` | `0`: the game in its own window below Skua's instead of inside it (no tabs). |
