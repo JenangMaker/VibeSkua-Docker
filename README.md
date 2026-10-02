@@ -47,6 +47,158 @@ performance, every environment variable and troubleshooting. A commented
 > Keep port 3000 on your LAN or behind a reverse proxy with HTTPS: whoever
 > reaches it controls the bot and the logged-in accounts.
 
+Never used Docker? Follow [the step-by-step guide](#new-to-docker-step-by-step) below.
+
+## New to Docker? Step by step
+
+Docker runs VibeSkua in a sealed box (a *container*) with everything it needs
+already inside: you don't install Skua, .NET, a browser or Flash yourself. You
+download the box, start it, and open it in your web browser.
+
+### 1. What you need
+
+- **A computer that stays on while the bots run.** It must have an Intel or AMD
+  64-bit processor (most PCs, servers and mini PCs). Raspberry Pi and Apple Silicon
+  Macs are not supported.
+  - **A Linux PC or server is best.** Ubuntu and Debian work well.
+  - **Windows 10/11 works too,** through Docker Desktop. The game is then drawn
+    on the CPU, so it is slower and heavier.
+- **Memory:** about 1 GB plus about 1 GB per account you run at once.
+- **Optional, for smooth play:** an Intel or AMD graphics chip. On Linux, the
+  command `ls /dev/dri` shows `renderD128` if you have one.
+
+### 2. Install Docker
+
+**Linux (Ubuntu, Debian and most others).** Open a terminal and run:
+
+```bash
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER
+```
+
+Log out and back in, so the second line takes effect. Then check that it works:
+
+```bash
+docker run --rm hello-world
+```
+
+**Windows.** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/),
+keep the default *Use WSL 2* option, and restart when it asks. Start Docker
+Desktop and wait until it says it is running. Type the commands below in
+**PowerShell**.
+
+### 3. Make a folder with two files
+
+Make a folder for VibeSkua, for example `vibeskua` in your home folder. Everything
+VibeSkua saves (settings, scripts, CoreBots options) will be kept in it.
+
+**First file: `docker-compose.yml`.** It describes the container. Copy this into it:
+
+```yaml
+services:
+  vibeskua:
+    image: ghcr.io/jenangmaker/vibeskua-web:latest
+    container_name: vibeskua
+    ports:
+      - "3000:3000"
+    env_file: .env
+    volumes:
+      - ./config:/config
+    # Linux with a graphics chip: remove the # from the next two lines.
+    # devices:
+    #   - /dev/dri:/dev/dri
+    shm_size: 1gb
+    security_opt:
+      - seccomp=unconfined
+    restart: unless-stopped
+```
+
+**Second file: `.env`, with the dot at the start.** It holds your passwords, so
+they are not in the first file. Put your own values after each `=`, without
+quotes:
+
+```
+# Login for the VibeSkua page in your browser
+CUSTOM_USER=vibeskua
+PASSWORD=pick-a-password
+
+# Linux only: your user's numbers, from the commands `id -u` and `id -g`
+PUID=1000
+PGID=1000
+
+# Your time zone, e.g. Asia/Jakarta or Europe/London
+TZ=Etc/UTC
+
+# Optional: accounts that log in by themselves, one tab each
+AQW_USER_1=
+AQW_PASS_1=
+AQW_USER_2=
+AQW_PASS_2=
+```
+
+You can leave the accounts empty, and log in from inside Skua instead.
+
+On Windows, Notepad may save the file as `.env.txt`. In the save dialog, choose
+*All files* and type the name as `.env`.
+
+### 4. Start it
+
+In a terminal, go to the folder (`cd vibeskua`) and run:
+
+```bash
+docker compose up -d
+```
+
+The first time, this downloads VibeSkua, which is a large download and takes a
+few minutes. After that it starts in seconds. It also starts by itself when the
+computer restarts (`restart: unless-stopped`).
+
+### 5. Open it
+
+- **On the same computer:** open <http://localhost:3000> in your browser.
+- **From another device on your network** (a laptop or phone): use the
+  computer's address, such as `http://192.168.1.10:3000`. Find the address with
+  `hostname -I` on Linux, or `ipconfig` on Windows (the *IPv4 Address* line).
+
+Log in with `CUSTOM_USER` and `PASSWORD` from your `.env`. You will see Skua
+with the game under its menu, one tab per account. On the first start Skua
+fetches the bot scripts; give it a minute, and choose to update them if it asks.
+
+### 6. Everyday commands
+
+Run these from inside the folder.
+
+| To... | Run |
+| :--- | :--- |
+| Stop it | `docker compose stop` |
+| Start it again | `docker compose start` |
+| See what it is doing (Ctrl+C to quit) | `docker compose logs -f --tail 100` |
+| Apply changes to `.env` or `docker-compose.yml` | `docker compose up -d` |
+| Update to the newest VibeSkua | `docker compose pull` then `docker compose up -d` |
+| Remove the container (your `config` folder is kept) | `docker compose down` |
+
+### 7. If something goes wrong
+
+- **"permission denied" when running `docker` on Linux:** you did not log
+  out and back in after installing. Or put `sudo` in front of the command.
+- **"port is already allocated":** something else uses port 3000. Change
+  `"3000:3000"` to `"3100:3000"` and open port 3100 instead.
+- **The page does not open from another device:**
+  - Check the address.
+  - Check that both devices are on the same network.
+  - On Linux with a firewall, allow your network, for example
+    `sudo ufw allow from 192.168.0.0/16 to any port 3000`.
+- **The game is slow or choppy:** give it a graphics chip (step 3). Run fewer
+  accounts, or turn on *Headless Mode* for the ones you don't watch.
+- **It keeps restarting, or the computer runs out of memory:** run fewer
+  accounts, or add memory. Check with `docker stats`.
+- **Anything else:** run `docker compose logs --tail 200` and look for the
+  first error. [DOCKER.md](DOCKER.md#troubleshooting) has more.
+
+> **Keep it private.** Do not forward port 3000 on your router. Anyone who can
+> open the page controls your bots and the accounts logged into them. To use it
+> away from home, use a VPN such as [Tailscale](https://tailscale.com).
+
 ## What you get
 
 - **The whole Skua UI:** every screen of the Windows client (scripts, options,
