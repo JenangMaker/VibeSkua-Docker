@@ -24,7 +24,7 @@ on:
         type: boolean
         default: true
   push:
-    tags: ["v*"]
+    tags: ["v*", "!v*-selkies"]   # v*-selkies: the Selkies image (branch selkies-base)
 
 concurrency:
   group: publish-manager-${{ github.ref }}
