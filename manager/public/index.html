@@ -134,7 +134,10 @@
 
   <dialog id="dlg-sopts">
     <form method="dialog" id="sopts-form" class="dlg wide">
-      <h2 id="sopts-title">Script options</h2>
+      <div class="sopts-head">
+        <h2 id="sopts-title">Script options</h2>
+        <button type="button" id="sopts-reveal" class="small ghost" hidden>Reveal values</button>
+      </div>
       <p id="sopts-info" class="muted small"></p>
       <div id="sopts-body" class="sopts"></div>
       <label class="check sopts-skip" hidden><input id="sopts-skip" type="checkbox"> Don't open the options window when this script starts</label>

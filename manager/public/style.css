@@ -86,6 +86,9 @@ label.check input { width: auto; margin: 0; }
 
 /* ---- streamer mode ---- */
 .streamer-toggle { margin: 0; font-size: 13px; white-space: nowrap; }
+/* A value shown as dots (setMasked in app.js), where the browser can. */
+input.masked { -webkit-text-security: disc; }
+.sopts-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
 /* ---- login ---- */
 .login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }

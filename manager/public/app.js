@@ -113,6 +113,20 @@ function anonText(text) {
   return out.replace(/\b([a-z][\w]*)-\d{3,}\b/gi, '$1-****').replace(/\b(room\s*#?\s*)\d{3,}\b/gi, '$1****');
 }
 
+// Masks a text field's value as dots, like a password field, but without
+// the browser offering to save it: CSS where the browser has it (Chrome,
+// Edge, Safari), else a password field. Unmask with masked = false.
+const CSS_MASK = typeof CSS !== 'undefined' && CSS.supports('-webkit-text-security', 'disc');
+
+function setMasked(input, masked) {
+  if (CSS_MASK) {
+    input.classList.toggle('masked', masked);
+  } else {
+    if (!input.dataset.type) input.dataset.type = input.type;
+    input.type = masked ? 'password' : input.dataset.type;
+  }
+}
+
 // A map name without its room number ("yulgar-9721" -> "yulgar").
 const anonMap = map => (streamer && map ? String(map).replace(/-\d+$/, '') : map);
 
@@ -587,6 +601,8 @@ async function openScriptOptions(n) {
   soptsTab = n;
   soptsData = null;
   soptsControls = [];
+  soptsRevealed = false;
+  $('#sopts-reveal').hidden = true;
   $('#sopts-title').textContent = `Script options, tab ${n}`;
   $('#sopts-info').textContent = 'Compiling the script to read its options...';
   $('#sopts-body').replaceChildren();
@@ -642,6 +658,7 @@ function renderScriptOptions(data) {
     })));
   $('#sopts-body').replaceChildren(...sections);
   $('#sopts-save').disabled = $('#sopts-defaults').disabled = !data.editable;
+  updateReveal();
 }
 
 let soptId = 0;
@@ -655,6 +672,13 @@ function optionControl(o, readOnly) {
   } else if (o.type === 'enum') {
     el = h('select', { id }, o.values.map(v => h('option', { value: v, text: v })));
     el.value = o.values.find(v => v.toLowerCase() === String(o.value).toLowerCase()) ?? o.values[0];
+  } else if (maskOption(o)) {
+    // Masked: a text field (numbers too, which VibeSkua checks on Save),
+    // dots until Reveal values.
+    el = h('input', { id, type: 'text', autocomplete: 'off', spellcheck: 'false', inputmode: o.type === 'text' ? null : 'decimal' });
+    el.value = o.value;
+    el.dataset.masked = '1';
+    setMasked(el, true);
   } else {
     el = h('input', { id, type: o.type === 'text' ? 'text' : 'number', step: o.type === 'int' ? '1' : 'any' });
     el.value = o.value;
@@ -662,6 +686,35 @@ function optionControl(o, readOnly) {
   el.disabled = readOnly;
   return el;
 }
+
+// Options holding a player's or account's name are masked like passwords
+// (UltrasLW's "Player 1" ... "Player 4", say): by their label, or because
+// the value is one of this instance's account or character names. In
+// streamer mode every text and number option is (the room number too).
+const NAME_OPTION = /player|account|user|character/i;
+
+function maskOption(o) {
+  if (!['text', 'int', 'number'].includes(o.type)) return false;
+  if (streamer) return true;
+  if (o.type !== 'text') return false;
+  const value = String(o.value || '').toLowerCase();
+  return NAME_OPTION.test(`${o.name} ${o.displayName}`)
+    || (value.length > 0 && knownNames().some(n => n.toLowerCase() === value));
+}
+
+let soptsRevealed = false;
+
+function updateReveal() {
+  const masked = soptsControls.filter(c => c.control.dataset.masked);
+  $('#sopts-reveal').hidden = masked.length === 0;
+  $('#sopts-reveal').textContent = soptsRevealed ? 'Hide values' : 'Reveal values';
+  for (const { control } of masked) setMasked(control, !soptsRevealed);
+}
+
+$('#sopts-reveal').addEventListener('click', () => {
+  soptsRevealed = !soptsRevealed;
+  updateReveal();
+});
 
 const controlValue = ({ option, control }) =>
   option.type === 'bool' ? (control.checked ? 'True' : 'False') : control.value;
@@ -781,7 +834,7 @@ function openAccountDialog(account) {
   f.tab.value = account ? account.tab : nextFreeTab();
   f.tab.readOnly = !!account;
   f.user.value = account?.user || '';
-  f.user.type = streamer ? 'password' : 'text';   // typed as dots on stream
+  setMasked(f.user, streamer);   // typed as dots on stream
   f.server.value = account?.server || '';
   f.script.value = account?.script || '';
   f.autoStart.checked = !!account?.autoStart;
