@@ -66,13 +66,13 @@ async function act(label, fn) {
   }
 }
 
-const fmtMb = mb => mb == null ? '–' : mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`;
-const fmtCpu = c => c == null ? '–' : `${Math.round(c)}%`;
-const fmtNum = n => n == null ? '–' : Number(n).toLocaleString();
+const fmtMb = mb => mb == null ? '-' : mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`;
+const fmtCpu = c => c == null ? '-' : `${Math.round(c)}%`;
+const fmtNum = n => n == null ? '-' : Number(n).toLocaleString();
 const scriptName = p => p ? String(p).split(/[\\/]/).pop().replace(/\.cs$/i, '') : '';
 
 function fmtUptime(seconds) {
-  if (seconds == null) return '–';
+  if (seconds == null) return '-';
   const d = Math.floor(seconds / 86400), hr = Math.floor(seconds % 86400 / 3600), m = Math.floor(seconds % 3600 / 60);
   return d ? `${d}d ${hr}h` : hr ? `${hr}h ${m}m` : `${m}m`;
 }
@@ -175,7 +175,7 @@ async function refresh() {
 function setConnected(ok, host, error) {
   $('#conn-dot').className = `dot ${ok ? 'ok' : 'bad'}`;
   $('#conn-text').textContent = ok
-    ? `VibeSkua ${host.version || ''} · up ${fmtUptime(host.uptimeSeconds)} · ${host.tabs} tab${host.tabs === 1 ? '' : 's'}`
+    ? `VibeSkua ${host.version || ''} | up ${fmtUptime(host.uptimeSeconds)} | ${host.tabs} tab${host.tabs === 1 ? '' : 's'}`
     : `Not connected: ${error}`;
 }
 
@@ -195,7 +195,7 @@ function renderSummary() {
   el.append(
     h('span', {}, 'CPU ', h('b', { text: fmtCpu(r.total?.cpu) }), ` of ${r.cpus * 100}%`),
     h('span', {}, 'Memory ', h('b', { text: fmtMb(mem.containerMb ?? r.total?.memoryMb) })),
-    h('span', {}, 'Load ', h('b', { text: (r.load || []).map(v => v.toFixed(2)).join(' ') || '–' })),
+    h('span', {}, 'Load ', h('b', { text: (r.load || []).map(v => v.toFixed(2)).join(' ') || '-' })),
   );
 }
 
@@ -242,7 +242,7 @@ function makeCard(n) {
     r.usage = h('div', { class: 'usage' }),
     h('div', { class: 'actions' },
       r.startStop = h('button', { class: 'small primary', onclick: () => startStop(n) }),
-      h('button', { class: 'small', onclick: () => openScriptDialog([n]) }, 'Load…'),
+      h('button', { class: 'small', onclick: () => openScriptDialog([n]) }, 'Load...'),
       h('button', { class: 'small', onclick: () => openLog(n) }, 'Log'),
       h('button', { class: 'small', title: 'Show this tab on the VibeSkua desktop', onclick: () => act(`Tab ${n} shown`, () => api('POST', `/api/tabs/${n}/select`)) }, 'Show'),
       h('button', { class: 'small', title: "Restart this tab's Skua (the game stays logged in)", onclick: () => restartTab(n, false) }, 'Restart'),
@@ -264,14 +264,14 @@ function updateCard(card, tab, status) {
   else if (status && !status.bridgeConnected) pill = ['Game not connected', 'warn'];
   else if (game && !game.loggedIn) pill = [tab.account ? 'Logged out' : 'No account', 'warn'];
   else if (game?.loggedIn) pill = script?.running ? ['Running script', 'ok'] : ['Logged in', 'ok'];
-  if (status?.throttle?.headless) pill[0] += ' · headless';
+  if (status?.throttle?.headless) pill[0] += ' (headless)';
   r.pill.textContent = pill[0];
   r.pill.className = `pill ${pill[1]}`;
 
   const loggedIn = !!game?.loggedIn;
-  r.map.textContent = loggedIn ? `${game.map || '–'}${game.cell ? ` (${game.cell})` : ''}` : '–';
-  r.level.textContent = loggedIn ? `${game.level ?? '–'}${game.className ? ` · ${game.className}` : ''}` : '–';
-  r.gold.textContent = loggedIn ? fmtNum(game.gold) : '–';
+  r.map.textContent = loggedIn ? `${game.map || '-'}${game.cell ? ` (${game.cell})` : ''}` : '-';
+  r.level.textContent = loggedIn ? `${game.level ?? '-'}${game.className ? ` - ${game.className}` : ''}` : '-';
+  r.gold.textContent = loggedIn ? fmtNum(game.gold) : '-';
   r.script.textContent = script?.loaded ? `${scriptName(script.loaded)}${script.running ? ' (running)' : ' (loaded)'}` : 'none';
   r.script.title = script?.loaded || '';
 
@@ -290,8 +290,8 @@ function updateCard(card, tab, status) {
   r.relogins.textContent = fmtNum(stats?.relogins ?? 0);
 
   r.usage.replaceChildren(
-    h('span', { text: `Skua ${fmtCpu(tab.skua?.cpu)} · ${fmtMb(tab.skua?.memoryMb)}` }),
-    h('span', { text: `Game ${fmtCpu(tab.page?.cpu)} · ${fmtMb(tab.page?.memoryMb)}` }),
+    h('span', { text: `Skua ${fmtCpu(tab.skua?.cpu)} / ${fmtMb(tab.skua?.memoryMb)}` }),
+    h('span', { text: `Game ${fmtCpu(tab.page?.cpu)} / ${fmtMb(tab.page?.memoryMb)}` }),
     h('span', { text: `Restarts ${tab.restarts}` }),
   );
 
@@ -314,7 +314,7 @@ function updateFight(r, combat) {
   r.targetFill.style.width = `${pct}%`;
   r.targetText.textContent = target ? `${fmtNum(target.hp)} / ${fmtNum(target.maxHp)}` : '';
 
-  // Group same-named monsters: "Binky", "Treeant ×3 (2 alive)".
+  // Group same-named monsters: "Binky", "Treeant x3 (2 alive)".
   const groups = new Map();
   for (const m of mons) {
     const g = groups.get(m.name) || { name: m.name, total: 0, alive: 0 };
@@ -326,7 +326,7 @@ function updateFight(r, combat) {
     .sort((a, b) => b.alive - a.alive || a.name.localeCompare(b.name))
     .map(g => h('span', {
       class: `mon${g.alive ? '' : ' dead'}${target && g.name === target.name ? ' targeted' : ''}`,
-      text: g.total > 1 ? `${g.name} ×${g.total}${g.alive !== g.total ? ` (${g.alive} alive)` : ''}` : g.name,
+      text: g.total > 1 ? `${g.name} x${g.total}${g.alive !== g.total ? ` (${g.alive} alive)` : ''}` : g.name,
     })));
 }
 
@@ -515,8 +515,8 @@ function renderAccounts() {
     h('td', { text: a.user || '' }),
     h('td', {}, h('span', { class: 'pill', text: a.source === 'env' ? 'environment' : 'added here' })),
     h('td', { text: a.server || 'default' }),
-    h('td', { text: a.script ? scriptName(a.script) : '–', title: a.script || undefined }),
-    h('td', { text: a.autoStart == null ? '–' : a.autoStart ? 'yes' : 'no' }),
+    h('td', { text: a.script ? scriptName(a.script) : '-', title: a.script || undefined }),
+    h('td', { text: a.autoStart == null ? '-' : a.autoStart ? 'yes' : 'no' }),
     h('td', {}, h('span', {
       class: `pill ${a.loggedIn ? 'ok' : a.open ? 'warn' : ''}`,
       text: a.loggedIn ? 'logged in' : a.open ? 'open, logged out' : 'no tab',
@@ -619,7 +619,7 @@ function renderResources() {
     statCard(mem.containerLimitMb ? 'Memory (container limit)' : 'Memory (container)', `${fmtMb(mem.containerMb)}${memLimit ? ` / ${fmtMb(memLimit)}` : ''}`,
       memLimit && mem.containerMb ? mem.containerMb / memLimit : null),
     statCard('Host memory free', fmtMb(mem.hostAvailableMb), null),
-    statCard('Load (1, 5, 15 min)', (r.load || []).map(v => v.toFixed(2)).join('  ') || '–', null),
+    statCard('Load (1, 5, 15 min)', (r.load || []).map(v => v.toFixed(2)).join('  ') || '-', null),
   );
   const kinds = Object.entries(r.kinds || {}).sort((a, b) => b[1].cpu - a[1].cpu);
   $('#kinds-body').replaceChildren(...kinds.map(([k, v]) => h('tr', {},
