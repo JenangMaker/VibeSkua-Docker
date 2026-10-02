@@ -132,6 +132,13 @@ are listed in a pop-up.
   for one tab, and `SKUA_SCRIPT_2: "none"` gives tab 2 no script.
   Auto-start waits while the script sync is downloading (up to 15 minutes),
   so no tab compiles its script from half-updated files.
+- **Scripts that open their options window on every start** (UltrasLW's
+  do, for one): tick **Don't open this window when this script starts** in
+  that window, or in the web manager's Options dialog. The script then runs
+  with its saved options, without asking. The Script Loader's **Options**
+  button still opens the window, so the tick can be taken off there. The list
+  is kept in `/config/.config/Skua/options/skip-options-window.txt`;
+  `SKUA_SKIP_SCRIPT_OPTIONS: "1"` skips the window for every script.
 - **Private room for CoreBots scripts:** `SKUA_ROOM_NUMBER: "9721"` puts
   every account in room 9721 (`SKUA_ROOM_NUMBER_2` for one tab). It is written
   into each account's CoreBots Options (Private Rooms on, that room number)
@@ -226,6 +233,7 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `SKUA_SCRIPT`, `SKUA_SCRIPT_<N>` | | Script to load at start: every tab's / tab N's (`none`: no script for that tab). |
 | `SKUA_SCRIPT_AUTO_START`, `SKUA_SCRIPT_AUTO_START_<N>` | `0` | `1`: also start it once logged in (every tab / tab N). |
 | `SKUA_ROOM_NUMBER`, `SKUA_ROOM_NUMBER_<N>` | unset (CoreBots Options) | Private room number (1-999999) CoreBots scripts use, for every tab / tab N. |
+| `SKUA_SKIP_SCRIPT_OPTIONS` | `0` | `1`: a starting script's options window never opens; it runs with its saved options (per script: the window's checkbox, see [Scripts](#scripts)). |
 | `SKUA_SCRIPT_SYNC` | `auto` | `auto` (follow Skua's options), `ask`, or `off`. |
 | `SKUA_SCRIPTS_REPO`, `SKUA_SCRIPTS_BRANCH` | `https://github.com/auqw/Scripts`, `Skua` | Where scripts sync from (GitHub or Gitea). |
 | `SKUA_SCRIPTS_EXTRA`, `SKUA_SCRIPTS_EXTRA_<N>` | none | More repositories to sync, each `folder=URL[#branch]` into Scripts/folder; `;` between several (see [Scripts](#scripts)). |

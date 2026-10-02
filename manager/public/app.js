@@ -544,6 +544,8 @@ async function openScriptOptions(n) {
   $('#sopts-info').textContent = 'Compiling the script to read its options...';
   $('#sopts-body').replaceChildren();
   $('#sopts-error').textContent = '';
+  $('.sopts-skip').hidden = true;
+  $('#sopts-skip-note').textContent = '';
   $('#sopts-save').disabled = $('#sopts-defaults').disabled = true;
   $('#dlg-sopts').showModal();
   try {
@@ -561,6 +563,15 @@ function renderScriptOptions(data) {
   const file = data.file.split(/[\\/]/).pop();
   $('#sopts-info').textContent = `${scriptName(data.script)}: saved in options/${file}` +
     (data.editable ? '' : '. The script is running: stop it to change its options.');
+  // Older VibeSkua versions do not report it: no checkbox then.
+  if (data.skipWindow !== undefined) {
+    $('.sopts-skip').hidden = false;
+    $('#sopts-skip').checked = data.skipWindow || data.skipAll;
+    $('#sopts-skip').disabled = data.skipAll;
+    $('#sopts-skip-note').textContent = data.skipAll
+      ? 'Skipped for every script (SKUA_SKIP_SCRIPT_OPTIONS).'
+      : 'The script then runs with the options saved here, without asking. Applies right away.';
+  }
   if (!data.options.length) {
     $('#sopts-body').replaceChildren(h('p', { class: 'muted', text: 'This script has no options.' }));
     return;
@@ -631,6 +642,22 @@ $('#sopts-form').addEventListener('submit', async e => {
     if (err.status !== 401) $('#sopts-error').textContent = err.message;
   } finally {
     button.disabled = !soptsData?.editable;
+  }
+});
+
+$('#sopts-skip').addEventListener('change', async e => {
+  const box = e.target, tab = soptsTab, skip = box.checked;
+  if (tab === null) return;
+  box.disabled = true;
+  try {
+    const result = await api('POST', `/api/tabs/${tab}/api/script/options`, { skipWindow: skip });
+    if (result.error) throw new Error(result.error);
+    toast(skip ? `Tab ${tab}: the options window will not open at start` : `Tab ${tab}: the options window opens at start again`);
+  } catch (err) {
+    box.checked = !skip;
+    if (err.status !== 401) $('#sopts-error').textContent = err.message;
+  } finally {
+    box.disabled = false;
   }
 });
 

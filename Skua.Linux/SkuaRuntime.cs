@@ -82,6 +82,9 @@ public sealed class SkuaRuntime
         platformServices?.Invoke(services);
         services.AddCommonServices();
         services.AddScriptableObjects();
+        // Script options that can skip their window (ScriptOptionsWindow.cs);
+        // after AddScriptableObjects, which registers Skua's own.
+        services.AddTransient<IScriptOptionContainer, SkippableScriptOptionContainer>();
         services.AddCompiler();
         var provider = services.BuildServiceProvider();
         Ioc.Default.ConfigureServices(provider);

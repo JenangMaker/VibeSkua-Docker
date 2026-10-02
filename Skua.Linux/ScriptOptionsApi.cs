@@ -14,7 +14,7 @@ namespace Skua.Linux;
 ///
 ///   GET  /script/options      the options and their values; while a script
 ///                             runs, the running one's, read-only
-///   POST /script/options      body {"values":[{"category","name","value"}]};
+///   POST /script/options      body {"values":[{"category","name","value"}], "skipWindow": bool};
 ///                             saved to the script's options file (not while
 ///                             it runs, as the Options button refuses too)
 ///
@@ -45,8 +45,6 @@ public sealed partial class HostApi
         var manager = services.GetRequiredService<IScriptManager>();
         if (string.IsNullOrEmpty(manager.LoadedScript))
             return new { error = "no script loaded: load one first" };
-        if (manager.ScriptRunning)
-            return new { error = "the script is running: stop it to change its options" };
 
         OptionValuesInput? input;
         using (var reader = new StreamReader(request.InputStream, request.ContentEncoding ?? Encoding.UTF8))
@@ -54,9 +52,26 @@ public sealed partial class HostApi
             try { input = JsonSerializer.Deserialize<OptionValuesInput>(await reader.ReadToEndAsync(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
             catch (JsonException e) { return new { error = $"bad JSON: {e.Message}" }; }
         }
-        if (input?.Values is not { Count: > 0 } values)
-            return new { error = "give {\"values\":[{\"category\",\"name\",\"value\"}]}" };
+        var values = input?.Values ?? new();
+        if (values.Count == 0 && input?.SkipWindow is null)
+            return new { error = "give {\"values\":[{\"category\",\"name\",\"value\"}]} and/or {\"skipWindow\":true|false}" };
 
+        // Whether the options window opens at start: only a list entry, so
+        // also while the script runs (the running one's storage).
+        if (input!.SkipWindow is bool skip)
+        {
+            if (manager.ScriptRunning && manager.Config is { } running)
+                ScriptOptionsWindow.Set(running.Storage, skip);
+            else if (await LoadOptionsAsync(manager) is { } skipError)
+                return new { error = skipError };
+            else
+                ScriptOptionsWindow.Set(manager.Config!.Storage, skip);
+            if (values.Count == 0)
+                return new { saved = 0, skipWindow = skip };
+        }
+
+        if (manager.ScriptRunning)
+            return new { error = "the script is running: stop it to change its options" };
         if (await LoadOptionsAsync(manager) is { } loadError)
             return new { error = loadError };
         var config = manager.Config!;
@@ -91,7 +106,7 @@ public sealed partial class HostApi
             : new { saved, file = config.OptionsFile, error = string.Join("; ", problems) };
     }
 
-    private sealed record OptionValuesInput(List<OptionValueInput>? Values);
+    private sealed record OptionValuesInput(List<OptionValueInput>? Values, bool? SkipWindow);
     private sealed record OptionValueInput(string? Category, string? Name, string? Value);
 
     // Compiles the loaded script and reads its options into manager.Config,
@@ -136,7 +151,17 @@ public sealed partial class HostApi
         var options = config.Options.Select(o => Item("Options", o))
             .Concat(config.MultipleOptions.SelectMany(g => g.Value.Select(o => Item(g.Key, o))))
             .ToList();
-        return new { script, storage = config.Storage, file = config.OptionsFile, editable, options };
+        return new
+        {
+            script,
+            storage = config.Storage,
+            file = config.OptionsFile,
+            editable,
+            // The window at start: skipped for this script, or for all (SKUA_SKIP_SCRIPT_OPTIONS).
+            skipWindow = ScriptOptionsWindow.IsListed(config.Storage),
+            skipAll = ScriptOptionsWindow.SkipAll,
+            options,
+        };
     }
 
     private static string Kind(Type t) =>
