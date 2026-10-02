@@ -262,12 +262,15 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
     private async Task<object> Scripts(HttpListenerRequest request)
     {
         int limit = int.TryParse(request.QueryString["limit"], out int l) ? Math.Clamp(l, 1, 1000) : 50;
+        // The index has "null" (the text) for scripts without a header, such
+        // as the Core*.cs libraries: report them as absent.
+        static string? Known(string? v) => string.IsNullOrWhiteSpace(v) || v == "null" ? null : v;
         return (await scripts.SearchAsync(request.QueryString["q"], limit)).Select(s => new
         {
             path = s.FilePath,
-            name = s.Name,
-            description = s.Description,
-            tags = s.Tags,
+            name = Known(s.Name),
+            description = Known(s.Description),
+            tags = (s.Tags ?? []).Where(t => Known(t) is not null).ToArray(),
             downloaded = s.Downloaded,
             outdated = s.Outdated,
         }).ToList();

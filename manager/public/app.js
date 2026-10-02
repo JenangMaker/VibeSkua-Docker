@@ -475,7 +475,10 @@ async function searchScripts() {
     const scripts = await api('GET', `/api/tabs/${scriptTargets[0]}/api/scripts?limit=40${term ? `&q=${q(term)}` : ''}`);
     if (!scripts.length) { list.replaceChildren(h('li', { class: 'none', text: 'No scripts found.' })); return; }
     list.replaceChildren(...scripts.map(s => {
-      const li = h('li', {}, h('div', { text: s.name || scriptName(s.path) }), h('small', { text: s.description || s.path }));
+      // The repository's index writes "null" for scripts without a header
+      // (the Core*.cs libraries): show the file name and path instead.
+      const known = v => (v && v !== 'null' ? v : '');
+      const li = h('li', {}, h('div', { text: known(s.name) || scriptName(s.path) }), h('small', { text: known(s.description) || s.path }));
       li.addEventListener('click', () => {
         for (const x of list.children) x.classList.toggle('active', x === li);
         $('#script-path').value = s.path;
