@@ -39,7 +39,14 @@ async function api(method, path, body) {
   const res = await fetch(path, init);
   let data = null;
   try { data = await res.json(); } catch { /* empty */ }
-  if (res.status === 401 && path !== '/login') { showLogin(); throw new ApiError(401, 'Logged out'); }
+  if (res.status === 401 && path !== '/login') {
+    // The session ended while the page was open (the manager restarted, an
+    // update perhaps, or the login expired): reload rather than log in again
+    // inside this copy, which may be an older version of the page.
+    if (!$('#app-view').hidden) location.reload();
+    else showLogin();
+    throw new ApiError(401, 'Logged out');
+  }
   if (!res.ok) throw new ApiError(res.status, data?.error || `${res.status} ${res.statusText}`);
   return data;
 }
