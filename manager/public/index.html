@@ -129,6 +129,20 @@
     </form>
   </dialog>
 
+  <dialog id="dlg-sopts">
+    <form method="dialog" id="sopts-form" class="dlg wide">
+      <h2 id="sopts-title">Script options</h2>
+      <p id="sopts-info" class="muted small"></p>
+      <div id="sopts-body" class="sopts"></div>
+      <p class="error" id="sopts-error" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" data-close class="ghost">Close</button>
+        <button type="button" id="sopts-defaults" title="Fill in each option's default (saved when you press Save)">Defaults</button>
+        <button id="sopts-save" value="save" class="primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="dlg-jump">
     <form method="dialog" class="dlg">
       <h2>Jump every account</h2>

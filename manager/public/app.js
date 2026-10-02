@@ -251,6 +251,7 @@ function makeCard(n) {
     h('div', { class: 'actions' },
       r.startStop = h('button', { class: 'small primary', onclick: () => startStop(n) }),
       h('button', { class: 'small', onclick: () => openScriptDialog([n]) }, 'Load...'),
+      r.optionsBtn = h('button', { class: 'small', title: "The loaded script's options", onclick: () => openScriptOptions(n) }, 'Options...'),
       h('button', { class: 'small', onclick: () => openLog(n) }, 'Log'),
       h('button', { class: 'small', title: 'Show this tab on the VibeSkua desktop', onclick: () => act(`Tab ${n} shown`, () => api('POST', `/api/tabs/${n}/select`)) }, 'Show'),
       h('button', { class: 'small', title: "Restart this tab's Skua (the game stays logged in)", onclick: () => restartTab(n, false) }, 'Restart'),
@@ -308,6 +309,7 @@ function updateCard(card, tab, status) {
   r.startStop.textContent = card.running ? 'Stop' : 'Start';
   r.startStop.disabled = !status || (!card.running && !script?.loaded);
   r.startStop.title = !card.running && !script?.loaded ? 'Load a script first' : '';
+  r.optionsBtn.disabled = !status || !script?.loaded;
 }
 
 // The target with its HP, and the cell's monsters: alive ones first, the
@@ -527,6 +529,112 @@ $('#dlg-script').addEventListener('close', async () => {
   else toast(`${label} in ${results.length} tab(s)`);
   refresh();
 });
+
+// ---- script options dialog ------------------------------------------------------
+// The loaded script's options, as the Script Loader's Options button shows
+// them: grouped (Options, then CoreBots' and other groups), each by its type.
+
+let soptsTab = null, soptsData = null, soptsControls = [];
+
+async function openScriptOptions(n) {
+  soptsTab = n;
+  soptsData = null;
+  soptsControls = [];
+  $('#sopts-title').textContent = `Script options, tab ${n}`;
+  $('#sopts-info').textContent = 'Compiling the script to read its options...';
+  $('#sopts-body').replaceChildren();
+  $('#sopts-error').textContent = '';
+  $('#sopts-save').disabled = $('#sopts-defaults').disabled = true;
+  $('#dlg-sopts').showModal();
+  try {
+    const data = await api('GET', `/api/tabs/${n}/api/script/options`);
+    if (soptsTab !== n) return;
+    if (data.error) { $('#sopts-info').textContent = ''; $('#sopts-error').textContent = data.error; return; }
+    soptsData = data;
+    renderScriptOptions(data);
+  } catch (e) {
+    if (e.status !== 401) { $('#sopts-info').textContent = ''; $('#sopts-error').textContent = e.message; }
+  }
+}
+
+function renderScriptOptions(data) {
+  const file = data.file.split(/[\\/]/).pop();
+  $('#sopts-info').textContent = `${scriptName(data.script)}: saved in options/${file}` +
+    (data.editable ? '' : '. The script is running: stop it to change its options.');
+  if (!data.options.length) {
+    $('#sopts-body').replaceChildren(h('p', { class: 'muted', text: 'This script has no options.' }));
+    return;
+  }
+  const groups = new Map();
+  for (const o of data.options) {
+    if (!groups.has(o.group)) groups.set(o.group, []);
+    groups.get(o.group).push(o);
+  }
+  soptsControls = [];
+  const sections = [...groups].map(([group, options]) => h('section', { class: 'sopt-group' },
+    h('h3', { text: group }),
+    options.map(o => {
+      const control = optionControl(o, !data.editable);
+      soptsControls.push({ option: o, control });
+      return h('div', { class: 'sopt' },
+        h('div', { class: 'sopt-text' },
+          h('label', { for: control.id, text: o.displayName }),
+          o.description && o.description !== o.displayName ? h('small', { class: 'muted', text: o.description }) : null),
+        control);
+    })));
+  $('#sopts-body').replaceChildren(...sections);
+  $('#sopts-save').disabled = $('#sopts-defaults').disabled = !data.editable;
+}
+
+let soptId = 0;
+
+function optionControl(o, readOnly) {
+  const id = `sopt-${++soptId}`;
+  let el;
+  if (o.type === 'bool') {
+    el = h('input', { id, type: 'checkbox' });
+    el.checked = /^true$/i.test(o.value);
+  } else if (o.type === 'enum') {
+    el = h('select', { id }, o.values.map(v => h('option', { value: v, text: v })));
+    el.value = o.values.find(v => v.toLowerCase() === String(o.value).toLowerCase()) ?? o.values[0];
+  } else {
+    el = h('input', { id, type: o.type === 'text' ? 'text' : 'number', step: o.type === 'int' ? '1' : 'any' });
+    el.value = o.value;
+  }
+  el.disabled = readOnly;
+  return el;
+}
+
+const controlValue = ({ option, control }) =>
+  option.type === 'bool' ? (control.checked ? 'True' : 'False') : control.value;
+
+$('#sopts-defaults').addEventListener('click', () => {
+  for (const { option, control } of soptsControls) {
+    if (option.type === 'bool') control.checked = /^true$/i.test(option.default);
+    else control.value = option.default;
+  }
+});
+
+$('#sopts-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!soptsData?.editable || soptsTab === null) return;
+  const values = soptsControls.map(c => ({ category: c.option.category, name: c.option.name, value: controlValue(c) }));
+  const button = $('#sopts-save');
+  button.disabled = true;
+  $('#sopts-error').textContent = '';
+  try {
+    const result = await api('POST', `/api/tabs/${soptsTab}/api/script/options`, { values });
+    if (result.error) { $('#sopts-error').textContent = result.error; return; }
+    toast(`Tab ${soptsTab}: script options saved`);
+    $('#dlg-sopts').close('saved');
+  } catch (err) {
+    if (err.status !== 401) $('#sopts-error').textContent = err.message;
+  } finally {
+    button.disabled = !soptsData?.editable;
+  }
+});
+
+$('#dlg-sopts').addEventListener('close', () => { soptsTab = null; });
 
 // ---- log dialog -----------------------------------------------------------------
 

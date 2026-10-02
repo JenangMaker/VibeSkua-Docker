@@ -56,6 +56,8 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 ("POST", "/script/load") => await LoadFromRequest(ctx.Request),
                 ("POST", "/script/start") => await StartFromRequest(ctx.Request),
                 ("POST", "/script/stop") => await Stop(),
+                ("GET", "/script/options") => await ScriptOptions(),
+                ("POST", "/script/options") => await SaveScriptOptions(ctx.Request),
                 ("GET", "/log") => Log(ctx.Request),
                 ("GET", "/scripts") => await Scripts(ctx.Request),
                 ("GET", "/scripts/categories") => ScriptSync.Categories,
