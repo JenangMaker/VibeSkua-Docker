@@ -96,7 +96,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
     {
         var bridge = services.GetRequiredService<RuffleBridge>();
         var manager = services.GetRequiredService<IScriptManager>();
-        object? game = null, stats = null, combat = null;
+        object? game = null, stats = null, combat = null, quests = null;
         if (bridge.IsConnected)
         {
             var bot = services.GetRequiredService<IScriptInterface>();
@@ -133,7 +133,10 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 var s = bot.Stats;
                 stats = new { kills = s.Kills, drops = s.Drops, questsCompleted = s.QuestsCompleted, deaths = s.Deaths, relogins = s.Relogins };
                 if (loggedIn)
+                {
                     combat = Combat(bot);
+                    quests = Quests(bot);
+                }
             }
         }
         return new
@@ -143,6 +146,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
             game,
             stats,
             combat,
+            quests,
             throttle = detail ? new { hidden = IsShrunk, headless = IsHeadless } : null,
             script = new { running = manager.ScriptRunning, loaded = manager.LoadedScript },
             scripts = new
@@ -171,6 +175,50 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 target = bot.Player.Target is { Name.Length: > 0 } t ? Monster(t) : null,
                 monsters = bot.Monsters.CurrentMonsters.Take(20).Select(Monster).ToList(),
             };
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The quests in progress (at most 10), each requirement with how many
+    /// the player has, in Flash's order; registered: the script completes it
+    /// by itself (Quests.RegisterQuests). One read of the quest tree (~40 KB,
+    /// a few ms) and of the inventories. Null if the game could not say.
+    /// </summary>
+    private static object? Quests(IScriptInterface bot)
+    {
+        try
+        {
+            var active = bot.Quests.Active;
+            if (active.Count == 0)
+                return new List<object>();
+            // Held counts by item id, inventory and temporary items together.
+            var held = new Dictionary<int, int>();
+            foreach (var item in bot.Inventory.Items.Cast<Skua.Core.Models.Items.ItemBase>().Concat(bot.TempInv.Items))
+                held[item.ID] = held.GetValueOrDefault(item.ID) + item.Quantity;
+            var registered = bot.Quests.Registered.ToHashSet();
+            return active.Take(10).Select(q =>
+            {
+                var reqs = q.Requirements.Select(r => new
+                {
+                    id = r.ID,
+                    name = r.Name,
+                    have = Math.Min(held.GetValueOrDefault(r.ID), Math.Max(r.Quantity, 0)),
+                    need = r.Quantity,
+                    temp = r.Temp,
+                }).ToList();
+                return new
+                {
+                    id = q.ID,
+                    name = q.Name,
+                    registered = registered.Contains(q.ID),
+                    ready = reqs.All(r => r.have >= r.need),
+                    requirements = reqs,
+                };
+            }).ToList();
         }
         catch
         {

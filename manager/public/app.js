@@ -245,6 +245,7 @@ function makeCard(n) {
       h('div', { class: 'fight-head' }, h('span', { class: 'muted', text: 'Target' }), r.targetName = h('b'), r.targetPct = h('span', { class: 'muted' })),
       bar('target'),
       r.cellMons = h('div', { class: 'cell-mons' })),
+    r.questList = h('div', { class: 'quests' }),
     h('div', { class: 'stats' }, stat('kills', 'Kills'), stat('drops', 'Drops'), stat('quests', 'Quests'), stat('deaths', 'Deaths'), stat('relogins', 'Relogins')),
     r.usage = h('div', { class: 'usage' }),
     h('div', { class: 'actions' },
@@ -289,6 +290,7 @@ function updateCard(card, tab, status) {
   r.mpText.textContent = loggedIn ? `MP ${fmtNum(game.mp)} / ${fmtNum(game.maxMp)}` : 'MP';
 
   updateFight(r, loggedIn ? status?.combat : null);
+  updateQuests(r, loggedIn ? status?.quests : null);
 
   r.kills.textContent = fmtNum(stats?.kills ?? 0);
   r.drops.textContent = fmtNum(stats?.drops ?? 0);
@@ -335,6 +337,32 @@ function updateFight(r, combat) {
       class: `mon${g.alive ? '' : ' dead'}${target && g.name === target.name ? ' targeted' : ''}`,
       text: g.total > 1 ? `${g.name} x${g.total}${g.alive !== g.total ? ` (${g.alive} alive)` : ''}` : g.name,
     })));
+}
+
+// Quests in progress: each with its requirements as have/need, finished ones
+// dimmed. "ready": everything collected; "auto": the script turns it in.
+const MAX_QUESTS = 3;
+
+function updateQuests(r, quests) {
+  r.questList.hidden = !quests?.length;
+  if (r.questList.hidden) return;
+  const shown = quests.slice(0, MAX_QUESTS).map(q => {
+    const done = q.requirements.filter(x => x.have >= x.need).length;
+    return h('div', { class: 'quest' },
+      h('div', { class: 'quest-head' },
+        h('b', { text: q.name, title: `Quest ${q.id}` }),
+        q.ready ? h('span', { class: 'tag ok', text: 'ready' }) : null,
+        q.registered ? h('span', { class: 'tag', text: 'auto', title: 'The script turns it in when ready' }) : null,
+        h('span', { class: 'muted', text: `${done}/${q.requirements.length}` })),
+      h('ul', { class: 'reqs' }, q.requirements.map(x => h('li', { class: x.have >= x.need ? 'done' : null },
+        h('span', { class: 'req-name', text: x.name || `Item ${x.id}`, title: x.temp ? 'Temporary item' : null }),
+        h('span', { class: 'req-count', text: `${fmtNum(x.have)}/${fmtNum(x.need)}` })))));
+  });
+  const more = quests.length - MAX_QUESTS;
+  r.questList.replaceChildren(
+    h('div', { class: 'quests-title muted', text: quests.length === 1 ? 'Quest' : `Quests (${quests.length})` }),
+    ...shown,
+    ...(more > 0 ? [h('div', { class: 'muted small', text: `+${more} more` })] : []));
 }
 
 async function startStop(n) {
