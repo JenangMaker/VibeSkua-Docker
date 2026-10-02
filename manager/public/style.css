@@ -163,6 +163,16 @@ label.check input { width: auto; margin: 0; }
 .bar.hp > i { background: var(--hp); }
 .bar.mp > i { background: var(--mp); }
 .bar > span { position: relative; padding-left: 7px; line-height: 14px; color: var(--text); }
+.bar.target > i { background: var(--warn); }
+
+.fight { display: grid; gap: 5px; padding: 8px 10px; background: var(--panel-2); border-radius: 8px; }
+.fight .bar { background: var(--panel); }
+.fight-head { display: flex; align-items: baseline; gap: 8px; font-size: 13px; min-width: 0; }
+.fight-head b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cell-mons { display: flex; flex-wrap: wrap; gap: 4px; }
+.mon { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--panel); color: var(--text); }
+.mon.targeted { outline: 1px solid var(--warn); }
+.mon.dead { color: var(--muted); text-decoration: line-through; }
 
 .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; text-align: center; }
 .stats div { background: var(--panel-2); border-radius: 8px; padding: 4px 2px; }

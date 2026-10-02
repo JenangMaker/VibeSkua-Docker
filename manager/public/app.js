@@ -234,6 +234,10 @@ function makeCard(n) {
       r.pill = h('span', { class: 'pill' })),
     h('dl', { class: 'kv' }, field('map', 'Map'), field('level', 'Level'), field('gold', 'Gold'), field('script', 'Script')),
     h('div', { class: 'bars' }, bar('hp'), bar('mp')),
+    r.fight = h('div', { class: 'fight' },
+      h('div', { class: 'fight-head' }, h('span', { class: 'muted', text: 'Target' }), r.targetName = h('b'), r.targetPct = h('span', { class: 'muted' })),
+      bar('target'),
+      r.cellMons = h('div', { class: 'cell-mons' })),
     h('div', { class: 'stats' }, stat('kills', 'Kills'), stat('drops', 'Drops'), stat('quests', 'Quests'), stat('deaths', 'Deaths'), stat('relogins', 'Relogins')),
     r.usage = h('div', { class: 'usage' }),
     h('div', { class: 'actions' },
@@ -277,6 +281,8 @@ function updateCard(card, tab, status) {
   r.mpFill.style.width = `${loggedIn ? pct(game.mp, game.maxMp) : 0}%`;
   r.mpText.textContent = loggedIn ? `MP ${fmtNum(game.mp)} / ${fmtNum(game.maxMp)}` : 'MP';
 
+  updateFight(r, loggedIn ? status?.combat : null);
+
   r.kills.textContent = fmtNum(stats?.kills ?? 0);
   r.drops.textContent = fmtNum(stats?.drops ?? 0);
   r.quests.textContent = fmtNum(stats?.questsCompleted ?? 0);
@@ -293,6 +299,35 @@ function updateCard(card, tab, status) {
   r.startStop.textContent = card.running ? 'Stop' : 'Start';
   r.startStop.disabled = !status || (!card.running && !script?.loaded);
   r.startStop.title = !card.running && !script?.loaded ? 'Load a script first' : '';
+}
+
+// The target with its HP, and the cell's monsters: alive ones first, the
+// target's kind marked, dead ones (state 0) dimmed.
+function updateFight(r, combat) {
+  const target = combat?.target;
+  const mons = combat?.monsters || [];
+  r.fight.hidden = !target && !mons.length;
+  if (r.fight.hidden) return;
+  const pct = target?.maxHp ? Math.max(0, Math.min(100, target.hp / target.maxHp * 100)) : 0;
+  r.targetName.textContent = target ? target.name : 'none';
+  r.targetPct.textContent = target ? `${pct.toFixed(pct < 10 ? 1 : 0)}%` : '';
+  r.targetFill.style.width = `${pct}%`;
+  r.targetText.textContent = target ? `${fmtNum(target.hp)} / ${fmtNum(target.maxHp)}` : '';
+
+  // Group same-named monsters: "Binky", "Treeant ×3 (2 alive)".
+  const groups = new Map();
+  for (const m of mons) {
+    const g = groups.get(m.name) || { name: m.name, total: 0, alive: 0 };
+    g.total++;
+    if (m.state !== 0 && m.hp > 0) g.alive++;
+    groups.set(m.name, g);
+  }
+  r.cellMons.replaceChildren(...[...groups.values()]
+    .sort((a, b) => b.alive - a.alive || a.name.localeCompare(b.name))
+    .map(g => h('span', {
+      class: `mon${g.alive ? '' : ' dead'}${target && g.name === target.name ? ' targeted' : ''}`,
+      text: g.total > 1 ? `${g.name} ×${g.total}${g.alive !== g.total ? ` (${g.alive} alive)` : ''}` : g.name,
+    })));
 }
 
 async function startStop(n) {

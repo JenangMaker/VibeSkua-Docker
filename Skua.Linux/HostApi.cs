@@ -96,7 +96,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
     {
         var bridge = services.GetRequiredService<RuffleBridge>();
         var manager = services.GetRequiredService<IScriptManager>();
-        object? game = null, stats = null;
+        object? game = null, stats = null, combat = null;
         if (bridge.IsConnected)
         {
             var bot = services.GetRequiredService<IScriptInterface>();
@@ -132,6 +132,8 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
             {
                 var s = bot.Stats;
                 stats = new { kills = s.Kills, drops = s.Drops, questsCompleted = s.QuestsCompleted, deaths = s.Deaths, relogins = s.Relogins };
+                if (loggedIn)
+                    combat = Combat(bot);
             }
         }
         return new
@@ -140,6 +142,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
             bridgeConnected = bridge.IsConnected,
             game,
             stats,
+            combat,
             throttle = detail ? new { hidden = IsShrunk, headless = IsHeadless } : null,
             script = new { running = manager.ScriptRunning, loaded = manager.LoadedScript },
             scripts = new
@@ -149,6 +152,30 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 last = scripts.LastResult,
             },
         };
+    }
+
+    /// <summary>
+    /// The fight: the player's target and the monsters in its cell (at most 20),
+    /// each with HP and state (0 dead, 1 idle, 2 in combat). Null if the game
+    /// could not say.
+    /// </summary>
+    private static object? Combat(IScriptInterface bot)
+    {
+        static object Monster(Skua.Core.Models.Monsters.Monster m) =>
+            new { id = m.MapID, name = m.Name, hp = m.HP, maxHp = m.MaxHP, state = m.State };
+        try
+        {
+            return new
+            {
+                // No target reads as an empty monster (getTargetMonster's default).
+                target = bot.Player.Target is { Name.Length: > 0 } t ? Monster(t) : null,
+                monsters = bot.Monsters.CurrentMonsters.Take(20).Select(Monster).ToList(),
+            };
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     // ?path=<file>, or the script source as the body; null when neither is given.
