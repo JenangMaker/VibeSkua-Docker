@@ -1,10 +1,13 @@
-# Builds the VibeSkua Web image (docker/Dockerfile.kasm) and pushes it to the
-# GitHub Container Registry as ghcr.io/<owner>/vibeskua-web. How to use the
-# image: DOCKER.md.
+# Builds the Selkies edition of the VibeSkua Web image
+# (docker/Dockerfile.selkies; this is the selkies-base branch) and pushes it to
+# the GitHub Container Registry as ghcr.io/<owner>/vibeskua-web, under its own
+# tags: never :latest, which is the KasmVNC edition (branch avalonia-ui). How
+# to use the image: DOCKER.md.
 #
-#   Run it by hand (Actions > Publish image > Run workflow): tag "latest" by
-#     default, or any tag you give.
-#   Push a version tag (v1.2.3): the image gets :1.2.3, :1.2 and :latest.
+#   Run it by hand (Actions > Publish image > Run workflow, branch
+#     selkies-base): tag "selkies" by default, or any tag you give.
+#   Push a version tag ending in -selkies (v1.2.3-selkies) on this branch: the
+#     image gets :1.2.3-selkies and :selkies.
 #
 # Ruffle comes from the AQW Ruffle fork's GitHub release (its aqw.yml
 # workflow publishes it): aqw-latest by default; set the repository variable
@@ -24,7 +27,7 @@ on:
       tag:
         description: "Image tag"
         required: false
-        default: "latest"
+        default: "selkies"
       ruffle_web_url:
         description: "Ruffle web build zip (empty: the AQW Ruffle fork's aqw-latest release)"
         required: false
@@ -34,7 +37,7 @@ on:
         type: boolean
         default: true
   push:
-    tags: ["v*", "!v*-selkies"]   # v*-selkies: the Selkies image (branch selkies-base)
+    tags: ["v*-selkies"]   # the KasmVNC edition (avalonia-ui) takes the other v* tags
 
 concurrency:
   group: publish-image-${{ github.ref }}
@@ -70,12 +73,13 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/vibeskua-web
           tags: |
-            type=raw,value=${{ inputs.tag || 'latest' }},enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=raw,value=${{ inputs.tag || 'selkies' }},enable=${{ github.event_name == 'workflow_dispatch' }}
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=selkies,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+          flavor: |
+            latest=false
           labels: |
-            org.opencontainers.image.title=VibeSkua Web
+            org.opencontainers.image.title=VibeSkua Web (Selkies)
             org.opencontainers.image.description=VibeSkua (Skua + AQW on Ruffle) in a browser: several accounts in tabs, Army Control, Grid View.
 
       - name: Set up Docker Buildx
@@ -92,14 +96,14 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: docker/Dockerfile.kasm
+          file: docker/Dockerfile.selkies
           build-args: |
             RUFFLE_WEB_URL=${{ steps.ruffle.outputs.url }}
           push: ${{ github.event_name == 'push' || inputs.push }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=selkies
+          cache-to: type=gha,mode=max,scope=selkies
 
       - name: Summary
         run: |

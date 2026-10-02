@@ -1,14 +1,15 @@
 # VibeSkua in a browser: the smallest useful setup. See DOCKER.md.
 #
 #   docker compose -f docker-compose.minimal.yml up -d
-#   then open http://<this-host>:3000  (log in with CUSTOM_USER / PASSWORD)
+#   then open https://<this-host>:3000  (log in with CUSTOM_USER / PASSWORD;
+#   the certificate is self-signed: accept the browser warning once)
 #
-# Keep port 3000 on your LAN (or behind a reverse proxy with HTTPS): whoever
+# Keep port 3000 on your LAN (or behind a reverse proxy, on port 3002): whoever
 # reaches it controls the bot and the logged-in accounts.
 
 services:
   vibeskua:
-    image: ghcr.io/jenangmaker/vibeskua-web:latest
+    image: ghcr.io/jenangmaker/vibeskua-web:selkies
     container_name: vibeskua
     ports:
       - "3000:3000"

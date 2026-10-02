@@ -9,13 +9,20 @@ the game embedded under its menu, and every account in its own tab.
 The Windows app is still here and still builds as before; this fork adds a
 Linux edition next to it.
 
+> **This is the Selkies edition** (branch `selkies-base`, image tag
+> `vibeskua-web:selkies`). Its desktop is streamed with
+> [Selkies](https://github.com/selkies-project/selkies), which uses far less CPU
+> while nobody is watching. It opens over **HTTPS** at
+> `https://<host>:3000`. The KasmVNC edition (branch `avalonia-ui`, image tag
+> `latest`) opens over plain HTTP instead; everything else is the same.
+
 ## Quick start
 
 ```yaml
 # docker-compose.yml
 services:
   vibeskua:
-    image: ghcr.io/jenangmaker/vibeskua-web:latest
+    image: ghcr.io/jenangmaker/vibeskua-web:selkies
     ports:
       - "3000:3000"
     environment:
@@ -37,14 +44,14 @@ services:
 
 ```bash
 docker compose up -d
-# then open http://<host>:3000
+# then open https://<host>:3000 (self-signed certificate: accept the browser warning once)
 ```
 
 [DOCKER.md](DOCKER.md) is the full guide: several accounts, scripts, settings,
 performance, every environment variable and troubleshooting. A commented
 [docker-compose.minimal.yml](docker-compose.minimal.yml) is ready to copy.
 
-> Keep port 3000 on your LAN or behind a reverse proxy with HTTPS: whoever
+> Keep port 3000 on your LAN, or put a reverse proxy in front (port 3002 serves plain HTTP for it): whoever
 > reaches it controls the bot and the logged-in accounts.
 
 Never used Docker? Follow [the step-by-step guide](#new-to-docker-step-by-step) below.
@@ -97,7 +104,7 @@ VibeSkua saves (settings, scripts, CoreBots options) will be kept in it.
 ```yaml
 services:
   vibeskua:
-    image: ghcr.io/jenangmaker/vibeskua-web:latest
+    image: ghcr.io/jenangmaker/vibeskua-web:selkies
     container_name: vibeskua
     ports:
       - "3000:3000"
@@ -155,10 +162,16 @@ computer restarts (`restart: unless-stopped`).
 
 ### 5. Open it
 
-- **On the same computer:** open <http://localhost:3000> in your browser.
+- **On the same computer:** open <https://localhost:3000> in your browser.
 - **From another device on your network** (a laptop or phone): use the
-  computer's address, such as `http://192.168.1.10:3000`. Find the address with
+  computer's address, such as `https://192.168.1.10:3000`. Find the address with
   `hostname -I` on Linux, or `ipconfig` on Windows (the *IPv4 Address* line).
+
+Mind the **`https://`**: plain `http://` on port 3000 does not work. The first
+time, the browser warns that the connection is not private. The container
+made its own certificate, and no authority has signed it. That is expected:
+choose *Advanced*, then *Proceed* (Chrome, Edge) or *Accept the risk and
+continue* (Firefox).
 
 Log in with `CUSTOM_USER` and `PASSWORD` from your `.env`. You will see Skua
 with the game under its menu, one tab per account. On the first start Skua
@@ -181,6 +194,8 @@ Run these from inside the folder.
 
 - **"permission denied" when running `docker` on Linux:** you did not log
   out and back in after installing. Or put `sudo` in front of the command.
+- **The page stays black, or does not load:** check the address starts with
+  `https://`. The stream only works over HTTPS.
 - **"port is already allocated":** something else uses port 3000. Change
   `"3000:3000"` to `"3100:3000"` and open port 3100 instead.
 - **The page does not open from another device:**
@@ -229,7 +244,7 @@ Run these from inside the folder.
 ## How it works
 
 ```
-browser ── KasmVNC (port 3000) ── a small Linux desktop in the container
+browser ── Selkies (HTTPS, port 3000) ── a small Linux desktop in the container
                                     ├─ Skua (Avalonia port of the WPF UI, one process per tab)
                                     │     └─ Skua.Core, unchanged scripts API
                                     └─ Electron ── Ruffle (Flash player, WebAssembly) ── AQW

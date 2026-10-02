@@ -7,9 +7,12 @@ Control and Grid View, as in the Windows app. Underneath, the game runs in
 Electron, and Skua is the Windows client's UI ported to
 [Avalonia](https://avaloniaui.net), on the same Skua.Core.
 
-The image is built on LinuxServer's
-[KasmVNC base](https://github.com/linuxserver/docker-baseimage-kasmvnc): the
-container is a small desktop you open at `http://<host>:3000`.
+This is the **Selkies edition** (branch `selkies-base`, image tag
+`vibeskua-web:selkies`), built on LinuxServer's
+[Selkies base](https://github.com/linuxserver/docker-baseimage-selkies): the
+container is a small desktop you open at `https://<host>:3000`. The KasmVNC
+edition (branch `avalonia-ui`, tag `latest`) is the same app on LinuxServer's
+KasmVNC base, opened over plain HTTP.
 
 > **Use at your own risk.** Botting is against AQW's terms of service; see the
 > disclaimer in the [README](README.md).
@@ -28,7 +31,7 @@ container is a small desktop you open at `http://<host>:3000`.
 
 1. Save [`docker-compose.minimal.yml`](docker-compose.minimal.yml) as
    `docker-compose.yml` in an empty folder. It uses the published image,
-   `ghcr.io/jenangmaker/vibeskua-web:latest`.
+   `ghcr.io/jenangmaker/vibeskua-web:selkies`.
 2. Set `PUID`/`PGID` to your user's (`id -u`, `id -g`) and change `PASSWORD`.
 3. If the host has an Intel/AMD GPU (`ls /dev/dri` shows `renderD128`),
    uncomment the `devices` lines. Without it the game is drawn on the CPU,
@@ -37,7 +40,7 @@ container is a small desktop you open at `http://<host>:3000`.
 
    ```bash
    docker compose up -d
-   # then browse to http://<this-host>:3000 and log in with CUSTOM_USER / PASSWORD
+   # then browse to https://<this-host>:3000 and log in with CUSTOM_USER / PASSWORD
    ```
 
 The first start takes a minute: Skua downloads the community scripts, then
@@ -45,10 +48,21 @@ its window opens with the AQW login screen in it. Log in there, or set
 `AQW_USER_1` / `AQW_PASS_1` to have it done for you (and again after a
 disconnect).
 
-Only port **3000** (HTTP) is needed; **3001** serves the same over HTTPS with
-a self-signed certificate. Anyone who can open it controls the bot and the
-logged-in accounts, so keep it on your LAN, or put it behind a reverse proxy
-with HTTPS and a login.
+Only port **3000** is needed. It serves **HTTPS** with a certificate the
+container makes itself, so the browser warns once (choose *Advanced* and
+proceed). It has to be HTTPS: the Selkies client uses browser features
+(WebCodecs) that only work on secure pages, so plain `http://` to a LAN address
+shows nothing. **3002** serves plain HTTP, for a reverse proxy that adds its
+own HTTPS. Anyone who can open it controls the bot and the logged-in
+accounts, so keep it on your LAN, or put it behind a reverse proxy with HTTPS
+and a login.
+
+The stream stops while nobody is watching, so the desktop costs almost
+nothing then. `SELKIES_*` settings from the
+[base image](https://github.com/linuxserver/docker-baseimage-selkies) also
+apply, for example `SELKIES_ENCODER`. The desktop is locked at 96 DPI
+(`SELKIES_SCALING_DPI`), so Skua does not grow when someone connects from a
+zoomed browser.
 
 ## Several accounts
 
@@ -255,7 +269,7 @@ LAN address, never on the internet.
 ## Building the image yourself
 
 ```bash
-docker build -f docker/Dockerfile.kasm -t vibeskua-web .
+docker build -f docker/Dockerfile.selkies -t vibeskua-web:selkies .
 ```
 
 By default the image uses the official Ruffle release. VibeSkua works best
@@ -265,13 +279,13 @@ renderer/fps controls), which the published image uses. Pass a zip of its web
 build as `RUFFLE_WEB_URL`:
 
 ```bash
-docker build -f docker/Dockerfile.kasm \
+docker build -f docker/Dockerfile.selkies \
   --build-arg RUFFLE_WEB_URL=https://github.com/JenangMaker/ruffle/releases/download/aqw-latest/ruffle-aqw-selfhosted.zip \
-  -t vibeskua-web .
+  -t vibeskua-web:selkies .
 ```
 
 The published image is built by `.github/workflows/publish-image.yml` (run
-it from the Actions tab, or push a `v*` tag); the Ruffle zip comes from that
+it from the Actions tab on this branch, or push a `v*-selkies` tag); the Ruffle zip comes from that
 fork's `aqw.yml` workflow.
 
 If that download needs a login, pass it as a BuildKit secret, never as a

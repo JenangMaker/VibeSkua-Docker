@@ -81,15 +81,15 @@ services:
     # Chrome needs more than the default 64MB of shared memory.
     shm_size: 1gb
 
-  # VibeSkua in a browser at :3000: Skua's UI with the game (AQW on Ruffle)
+  # VibeSkua in a browser at https://<host>:3000 (the Selkies edition): Skua's UI with the game (AQW on Ruffle)
   # embedded, one tab per account. Same pattern as linuxserver/chrome.
   # Port 3000 is all it needs. See DOCKER.md.
   vibeskua-web:
     build:
       context: .
-      dockerfile: docker/Dockerfile.kasm
-    # avalonia-ui branch: Skua with its UI. :latest is the headless base.
-    image: gitea.jenangmaker.cloud/jenangmaker/vibeskua-web:avalonia-ui
+      dockerfile: docker/Dockerfile.selkies
+    # selkies-base branch: the Selkies edition.
+    image: gitea.jenangmaker.cloud/jenangmaker/vibeskua-web:selkies
     ports:
       - "3000:3000"
       # With REMOTE_DEBUG_PORT below. Bind to the host's LAN IP, not 0.0.0.0.

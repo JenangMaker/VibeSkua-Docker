@@ -1,11 +1,11 @@
 # Builds the VibeSkua Web image and pushes it to this Gitea's container
 # registry.
 #
-#   gitea.jenangmaker.cloud/jenangmaker/vibeskua-web:avalonia-ui
+#   gitea.jenangmaker.cloud/jenangmaker/vibeskua-web:selkies
 #
-# On the avalonia-ui branch (Skua with its Avalonia UI) the tag defaults to
-# avalonia-ui, so by default it does not replace :latest, which the base branch
-# (docker-and-ruffle-test, Skua headless) publishes.
+# This is the selkies-base branch: the Selkies edition, built from
+# docker/Dockerfile.selkies and tagged :selkies unless the run says otherwise
+# (the KasmVNC edition is built from the avalonia-ui branch).
 #
 # Requires the act_runner to expose a Docker daemon to jobs. If it does not,
 # the "Check Docker access" step fails early with a clear message rather than
@@ -21,9 +21,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Image tag (default: avalonia-ui)"
+        description: "Image tag (default: selkies)"
         required: false
-        default: "avalonia-ui"
+        default: "selkies"
       push:
         description: "Push to the registry, or build only"
         required: false
@@ -31,7 +31,7 @@ on:
       dockerfile:
         description: "Dockerfile (docker/Dockerfile.kasm, or docker/Dockerfile.selkies)"
         required: false
-        default: "docker/Dockerfile.kasm"
+        default: "docker/Dockerfile.selkies"
 
 jobs:
   image:
@@ -74,7 +74,7 @@ jobs:
           # registry credentials used to push. Passed as a BuildKit secret so
           # the token never lands in an image layer or the build log.
           export RUFFLE_WEB_AUTH="${{ vars.PACKAGE_USERNAME }}:${{ secrets.PACKAGE_TOKEN }}"
-          docker build -f "${{ inputs.dockerfile || 'docker/Dockerfile.kasm' }}" \
+          docker build -f "${{ inputs.dockerfile || 'docker/Dockerfile.selkies' }}" \
             --build-arg RUFFLE_WEB_URL="${{ vars.RUFFLE_WEB_URL }}" \
             --secret id=ruffle_web_auth,env=RUFFLE_WEB_AUTH \
             -t "$IMAGE" .
