@@ -84,6 +84,9 @@ label input, label select { margin-top: 4px; color: var(--text); font-size: 14px
 label.check { display: flex; align-items: center; gap: 8px; color: var(--text); }
 label.check input { width: auto; margin: 0; }
 
+/* ---- streamer mode ---- */
+.streamer-toggle { margin: 0; font-size: 13px; white-space: nowrap; }
+
 /* ---- login ---- */
 .login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
 .login-card {

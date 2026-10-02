@@ -84,6 +84,52 @@ function fmtUptime(seconds) {
   return d ? `${d}d ${hr}h` : hr ? `${hr}h ${m}m` : `${m}m`;
 }
 
+// ---- streamer mode --------------------------------------------------------------
+// As Skua's Streamer Mode does in the game: account and character names and
+// room numbers are hidden on this page, so it can be shown on screen. A
+// setting of this browser only; it also offers to turn on the game's own.
+
+let streamer = false;
+try { streamer = localStorage.getItem('vsm-streamer') === '1'; } catch { /* private window */ }
+
+// Every name this page knows (accounts, characters), longest first so a
+// name inside another is not half-replaced.
+function knownNames() {
+  const names = new Set();
+  for (const t of state.tabs) { if (t.account) names.add(t.account); if (t.title && !/^Skua \d+$/.test(t.title)) names.add(t.title); }
+  for (const s of Object.values(state.statuses)) if (s?.game?.player) names.add(s.game.player);
+  for (const a of state.accounts?.accounts || []) if (a.user) names.add(a.user);
+  return [...names].filter(n => n.length >= 2).sort((a, b) => b.length - a.length);
+}
+
+// Text with the known names (and the manager's own login) masked.
+function anonText(text) {
+  if (!streamer || !text) return text;
+  let out = String(text);
+  for (const name of knownNames()) out = out.split(name).join('[hidden]');
+  const who = $('#who').dataset.user;
+  if (who) out = out.split(who).join('[hidden]');
+  // Room numbers: "yulgar-9721", "room 9721".
+  return out.replace(/\b([a-z][\w]*)-\d{3,}\b/gi, '$1-****').replace(/\b(room\s*#?\s*)\d{3,}\b/gi, '$1****');
+}
+
+// A map name without its room number ("yulgar-9721" -> "yulgar").
+const anonMap = map => (streamer && map ? String(map).replace(/-\d+$/, '') : map);
+
+function setStreamer(on, fromUser) {
+  streamer = on;
+  document.body.classList.toggle('streamer', on);
+  $('#streamer').checked = on;
+  try { localStorage.setItem('vsm-streamer', on ? '1' : '0'); } catch { /* private window */ }
+  $('#who').textContent = on ? '' : $('#who').dataset.user || '';
+  if (fromUser && on && confirm("Also turn on the game's own Streamer Mode in every tab (names, guild and room number in the game)?"))
+    armyAll('Streamer Mode on', '/api/army/option?name=StreamerMode&value=true');
+  if (logTab !== null) { logSince = 0; $('#log-text').textContent = ''; pollLog(); }
+  render();
+}
+
+$('#streamer').addEventListener('change', e => setStreamer(e.target.checked, true));
+
 // ---- login ----------------------------------------------------------------------
 
 let polling = null;
@@ -98,7 +144,8 @@ function showLogin() {
 async function showApp(session) {
   $('#login-view').hidden = true;
   $('#app-view').hidden = false;
-  $('#who').textContent = session.user;
+  $('#who').dataset.user = session.user;
+  setStreamer(streamer, false);
   startPolling();
 }
 
@@ -266,7 +313,7 @@ function updateCard(card, tab, status) {
   const script = status?.script;
   const stats = status?.stats;
   card.el.classList.toggle('selected', tab.selected);
-  r.name.textContent = (game?.loggedIn && game.player) || tab.account || tab.title;
+  r.name.textContent = streamer ? `Player ${tab.tab}` : (game?.loggedIn && game.player) || tab.account || tab.title;
 
   let pill = ['Not running', 'bad'];
   if (tab.running && !status) pill = ['Starting', 'warn'];
@@ -278,7 +325,7 @@ function updateCard(card, tab, status) {
   r.pill.className = `pill ${pill[1]}`;
 
   const loggedIn = !!game?.loggedIn;
-  r.map.textContent = loggedIn ? `${game.map || '-'}${game.cell ? ` (${game.cell})` : ''}` : '-';
+  r.map.textContent = loggedIn ? `${anonMap(game.map) || '-'}${game.cell ? ` (${game.cell})` : ''}` : '-';
   r.level.textContent = loggedIn ? `${game.level ?? '-'}${game.className ? ` - ${game.className}` : ''}` : '-';
   r.gold.textContent = loggedIn ? fmtNum(game.gold) : '-';
   r.script.textContent = script?.loaded ? `${scriptName(script.loaded)}${script.running ? ' (running)' : ' (loaded)'}` : 'none';
@@ -684,7 +731,7 @@ async function pollLog() {
     const pre = $('#log-text');
     if (log.total < logSince) { pre.textContent = ''; logSince = 0; return; }   // cleared
     if (log.lines.length) {
-      pre.append(log.lines.join('\n') + '\n');
+      pre.append(anonText(log.lines.join('\n')) + '\n');
       logSince = log.total;
       if ($('#log-follow').checked) pre.scrollTop = pre.scrollHeight;
     }
@@ -708,7 +755,7 @@ function renderAccounts() {
   }
   body.replaceChildren(...data.accounts.map(a => h('tr', {},
     h('td', { text: String(a.tab) }),
-    h('td', { text: a.user || '' }),
+    h('td', { text: streamer ? `Account ${a.tab}` : a.user || '' }),
     h('td', {}, h('span', { class: 'pill', text: a.source === 'env' ? 'environment' : 'added here' })),
     h('td', { text: a.server || 'default' }),
     h('td', { text: a.script ? scriptName(a.script) : '-', title: a.script || undefined }),
@@ -734,6 +781,7 @@ function openAccountDialog(account) {
   f.tab.value = account ? account.tab : nextFreeTab();
   f.tab.readOnly = !!account;
   f.user.value = account?.user || '';
+  f.user.type = streamer ? 'password' : 'text';   // typed as dots on stream
   f.server.value = account?.server || '';
   f.script.value = account?.script || '';
   f.autoStart.checked = !!account?.autoStart;
@@ -785,7 +833,7 @@ $('#account-form').addEventListener('submit', async e => {
 });
 
 async function deleteAccount(a) {
-  if (!confirm(`Remove ${a.user} (tab ${a.tab})? Its tab closes.`)) return;
+  if (!confirm(`Remove ${streamer ? 'the account' : a.user} of tab ${a.tab}? Its tab closes.`)) return;
   await act(`Tab ${a.tab}: account removed`, () => api('DELETE', `/api/accounts/${a.tab}`));
   state.accounts = null;
   refresh();
