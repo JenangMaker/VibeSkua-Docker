@@ -421,14 +421,20 @@ public partial class TabHostWindow
                     editable = !env,
                     hasPassword = env ? (bool?)null : !string.IsNullOrEmpty(a!.Pass),   // the tab host never sees env passwords
                     server = env ? SkuaRuntime.EnvRaw($"AQW_SERVER_{n}") ?? SkuaRuntime.EnvRaw("AQW_SERVER") : a!.Server,
-                    script = env ? SkuaRuntime.EnvRaw($"SKUA_SCRIPT_{n}") : a!.Script,
-                    autoStart = env ? null : a!.AutoStart,
+                    // As StartProcess picks them: the tab's own, else every tab's.
+                    script = env ? ScriptSetting(SkuaRuntime.EnvRaw($"SKUA_SCRIPT_{n}") ?? SkuaRuntime.EnvRaw("SKUA_SCRIPT")) : a!.Script,
+                    autoStart = env
+                        ? (SkuaRuntime.EnvRaw($"SKUA_SCRIPT_AUTO_START_{n}") ?? SkuaRuntime.EnvRaw("SKUA_SCRIPT_AUTO_START"))?.ToLowerInvariant() is "1" or "true" or "yes" or "on"
+                        : a!.AutoStart,
                     open = open.ContainsKey(n),
                     loggedIn = open.TryGetValue(n, out var tab) && tab.LoggedIn,
                 };
             }).ToList(),
         };
     }
+
+    private static string? ScriptSetting(string? script) =>
+        script?.ToLowerInvariant() is "none" or "off" or "-" ? null : script;
 
     private sealed record AccountInput(string? User, string? Pass, string? Server, string? Script, bool? AutoStart, bool? Open);
 
