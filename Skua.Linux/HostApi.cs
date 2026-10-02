@@ -57,7 +57,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 ("POST", "/script/start") => await StartFromRequest(ctx.Request),
                 ("POST", "/script/stop") => await Stop(),
                 ("GET", "/log") => Log(ctx.Request),
-                ("GET", "/scripts") => Scripts(ctx.Request),
+                ("GET", "/scripts") => await Scripts(ctx.Request),
                 ("POST", "/scripts/update") => await scripts.UpdateAllAsync(),
                 ("POST", "/scripts/reset") => await scripts.ResetScriptsAsync(),
                 ("POST", _) when path.StartsWith("/army/") => await Army(path["/army/".Length..], ctx.Request),
@@ -259,10 +259,10 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
         return error is null ? new { started = services.GetRequiredService<IScriptManager>().LoadedScript } : new { error };
     }
 
-    private object Scripts(HttpListenerRequest request)
+    private async Task<object> Scripts(HttpListenerRequest request)
     {
         int limit = int.TryParse(request.QueryString["limit"], out int l) ? Math.Clamp(l, 1, 1000) : 50;
-        return scripts.Search(request.QueryString["q"], limit).Select(s => new
+        return (await scripts.SearchAsync(request.QueryString["q"], limit)).Select(s => new
         {
             path = s.FilePath,
             name = s.Name,

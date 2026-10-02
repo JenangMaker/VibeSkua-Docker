@@ -502,6 +502,23 @@ public sealed class ScriptSync(IServiceProvider services)
     private static string Getegid() { try { return GetegidNative().ToString(); } catch { return "?"; } }
 
     /// <summary>
+    /// <see cref="Search"/>, after getting the repository index if this Skua
+    /// has none. Only the tab that syncs (the first) gets it at start; the
+    /// others share its Scripts folder and found nothing but the extra
+    /// repositories' scripts. Fetched once and kept, as the Script Repo window
+    /// does; nothing is downloaded.
+    /// </summary>
+    public async Task<List<ScriptInfo>> SearchAsync(string? query, int limit = 50)
+    {
+        if (Repo.Total == 0)
+        {
+            try { await Repo.GetScriptsAsync(null, default); }
+            catch (Exception e) { Console.Error.WriteLine($"[scripts] script index: {e.Message}"); }
+        }
+        return Search(query, limit).ToList();
+    }
+
+    /// <summary>
     /// Scripts in the repository index, and in the extra repositories'
     /// folders, whose path, name or tags contain every term.
     /// </summary>
