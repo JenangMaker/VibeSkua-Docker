@@ -35,7 +35,11 @@ const PORT = Number(env('PORT')) || 3040;
 const TARGET = (env('VIBESKUA_URL') || 'http://127.0.0.1:8789').replace(/\/+$/, '');
 const TOKEN = env('VIBESKUA_TOKEN');
 const USER = env('MANAGER_USER') || 'admin';
-const PASSWORD = process.env.MANAGER_PASSWORD || '';   // as given: quotes may be part of it
+// Unquoted like every other setting: in compose's list form,
+// `- MANAGER_PASSWORD="secret"` passes the quotes through, and nobody types
+// them at the login. (A password meant to start and end with the same quote
+// mark would lose them; use an .env file or the map form for that.)
+const PASSWORD = env('MANAGER_PASSWORD');
 const SESSION_MS = (Number(env('MANAGER_SESSION_HOURS')) || 12) * 3600_000;
 const TRUST_PROXY = on('MANAGER_TRUST_PROXY');
 const SECURE_COOKIE = on('MANAGER_SECURE_COOKIE');
