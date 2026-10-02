@@ -111,7 +111,14 @@
   <dialog id="dlg-script">
     <form method="dialog" class="dlg wide">
       <h2 id="script-title">Load script</h2>
-      <input id="script-search" type="search" placeholder="Search scripts (name, path or tag)" autocomplete="off">
+      <div class="search-row">
+        <input id="script-search" type="search" placeholder="Search scripts (name, path, description or tag)" autocomplete="off">
+        <select id="script-category" title="Category">
+          <option>All</option><option>Army</option><option>Classes</option><option>Dailies</option><option>Evil</option>
+          <option>Farm</option><option>Good</option><option>Legion</option><option>Local</option><option>Nation</option>
+          <option>Other</option><option>Rep</option><option>Seasonal</option><option>Story</option><option>Ultras</option>
+        </select>
+      </div>
       <ul id="script-list" class="script-list"></ul>
       <label>Path <input id="script-path" placeholder="e.g. Farm/GoldFarm or a path from the list"></label>
       <div class="dlg-actions">

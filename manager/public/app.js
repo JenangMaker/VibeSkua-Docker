@@ -455,6 +455,7 @@ function openScriptDialog(tabs) {
   scriptTargets = tabs;
   $('#script-title').textContent = tabs.length === 1 ? `Load script in tab ${tabs[0]}` : `Load script in ${tabs.length} tabs`;
   $('#script-search').value = '';
+  $('#script-category').value = 'All';
   $('#script-path').value = '';
   $('#script-list').replaceChildren();
   $('#dlg-script').returnValue = '';
@@ -468,26 +469,48 @@ $('#script-search').addEventListener('input', () => {
   searchTimer = setTimeout(searchScripts, 250);
 });
 
+$('#script-category').addEventListener('change', () => { clearTimeout(searchTimer); searchScripts(); });
+
+const SCRIPTS_SHOWN = 60;
+let searchSeq = 0;
+
+// As the Search Scripts window: by name, without the unnamed Core*.cs
+// libraries (the index's "null"), in the chosen category. VibeSkua does
+// that itself; doing it here as well keeps an older VibeSkua's reply right.
 async function searchScripts() {
   const term = $('#script-search').value.trim();
+  const category = $('#script-category').value;
   const list = $('#script-list');
+  const seq = ++searchSeq;
   try {
-    const scripts = await api('GET', `/api/tabs/${scriptTargets[0]}/api/scripts?limit=40${term ? `&q=${q(term)}` : ''}`);
+    const params = `limit=500${term ? `&q=${q(term)}` : ''}${category !== 'All' ? `&category=${q(category)}` : ''}`;
+    const reply = await api('GET', `/api/tabs/${scriptTargets[0]}/api/scripts?${params}`);
+    if (seq !== searchSeq) return;   // a newer search is under way
+    const known = v => (v && v !== 'null' ? v : '');
+    const inCategory = s => category === 'All'
+      || (category === 'Local'
+        ? (s.tags || []).includes('Local')
+        : s.path.split('/').some(part => part.toLowerCase().startsWith(category.toLowerCase())));
+    const scripts = reply.filter(s => known(s.name) && inCategory(s))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
     if (!scripts.length) { list.replaceChildren(h('li', { class: 'none', text: 'No scripts found.' })); return; }
-    list.replaceChildren(...scripts.map(s => {
-      // The repository's index writes "null" for scripts without a header
-      // (the Core*.cs libraries): show the file name and path instead.
-      const known = v => (v && v !== 'null' ? v : '');
-      const li = h('li', {}, h('div', { text: known(s.name) || scriptName(s.path) }), h('small', { text: known(s.description) || s.path }));
+    const items = scripts.slice(0, SCRIPTS_SHOWN).map(s => {
+      const li = h('li', { title: s.path },
+        h('div', { text: s.name }),
+        h('small', { text: known(s.description) || 'No description provided.' }),
+        h('small', { class: 'path', text: s.path }));
       li.addEventListener('click', () => {
         for (const x of list.children) x.classList.toggle('active', x === li);
         $('#script-path').value = s.path;
       });
       li.addEventListener('dblclick', () => { $('#script-path').value = s.path; $('#dlg-script').close('load'); });
       return li;
-    }));
+    });
+    if (scripts.length > SCRIPTS_SHOWN)
+      items.push(h('li', { class: 'none', text: `${scripts.length - SCRIPTS_SHOWN} more: type more of the name, or pick a category.` }));
+    list.replaceChildren(...items);
   } catch (e) {
-    if (e.status !== 401) list.replaceChildren(h('li', { class: 'none', text: e.message }));
+    if (e.status !== 401 && seq === searchSeq) list.replaceChildren(h('li', { class: 'none', text: e.message }));
   }
 }
 

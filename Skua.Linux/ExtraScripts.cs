@@ -259,7 +259,8 @@ public static class ExtraScripts
                 {
                     Name = name ?? Path.GetFileNameWithoutExtension(file),
                     Description = description ?? $"{s.Folder} ({s.Name})",
-                    Tags = tags,
+                    // As the Search Scripts window tags scripts outside the index.
+                    Tags = [.. tags, "Local"],
                     FilePath = relative,
                     FileName = Path.GetFileName(file),
                     Size = size,   // what is on disk is this repository's latest

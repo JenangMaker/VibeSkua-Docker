@@ -508,28 +508,57 @@ public sealed class ScriptSync(IServiceProvider services)
     /// repositories' scripts. Fetched once and kept, as the Script Repo window
     /// does; nothing is downloaded.
     /// </summary>
-    public async Task<List<ScriptInfo>> SearchAsync(string? query, int limit = 50)
+    public async Task<List<ScriptInfo>> SearchAsync(string? query, int limit = 50, string? category = null)
     {
         if (Repo.Total == 0)
         {
             try { await Repo.GetScriptsAsync(null, default); }
             catch (Exception e) { Console.Error.WriteLine($"[scripts] script index: {e.Message}"); }
         }
-        return Search(query, limit).ToList();
+        return Search(query, limit, category).ToList();
     }
 
     /// <summary>
-    /// Scripts in the repository index, and in the extra repositories'
-    /// folders, whose path, name or tags contain every term.
+    /// The Search Scripts window's categories (ScriptRepoViewModel.FilterOptions):
+    /// a script is in one when a folder (or the file) on its path starts with
+    /// that name. "Local" is the scripts that are not in the index: here, the
+    /// extra repositories' (SKUA_SCRIPTS_EXTRA).
     /// </summary>
-    public IEnumerable<ScriptInfo> Search(string? query, int limit = 50)
+    public static IReadOnlyList<string> Categories { get; } =
+        ["All", "Army", "Classes", "Dailies", "Evil", "Farm", "Good", "Legion", "Local", "Nation", "Other", "Rep", "Seasonal", "Story", "Ultras"];
+
+    /// <summary>
+    /// Searches as the Search Scripts window does (Skua.WPF ScriptRepoView,
+    /// ScriptRepoViewModel), with each word of the query matched on its own:
+    /// <list type="bullet">
+    /// <item>index entries without a name (the "null" of the Core*.cs
+    /// libraries) are left out;</item>
+    /// <item>every word must be in the name, file name, path, description or
+    /// a tag;</item>
+    /// <item><paramref name="category"/> narrows it as the window's filter;</item>
+    /// <item>sorted by name, A to Z.</item>
+    /// </list>
+    /// </summary>
+    public IEnumerable<ScriptInfo> Search(string? query, int limit = 50, string? category = null)
     {
         string[] terms = (query ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        return Repo.Scripts.ToList().Concat(ExtraScripts.Local())
+        string filter = Categories.FirstOrDefault(c => c.Equals(category?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "All";
+        static bool Named(string? v) => !string.IsNullOrWhiteSpace(v) && v != "null";
+
+        IEnumerable<ScriptInfo> index = filter == "Local"
+            ? []
+            : Repo.Scripts.ToList().Where(s => Named(s.Name)
+                && (filter == "All" || s.FilePath.Split('/').Any(part => part.StartsWith(filter, StringComparison.OrdinalIgnoreCase))));
+        IEnumerable<ScriptInfo> local = filter is "All" or "Local" ? ExtraScripts.Local() : [];
+
+        return index.Concat(local)
             .Where(s => terms.All(t =>
-                (s.FilePath?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false)
-                || (s.Name?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false)
-                || (s.Tags?.Any(tag => tag.Contains(t, StringComparison.OrdinalIgnoreCase)) ?? false)))
+                (s.Name?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (s.FileName?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (s.FilePath?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (Named(s.Description) && s.Description.Contains(t, StringComparison.OrdinalIgnoreCase))
+                || (s.Tags?.Any(tag => Named(tag) && tag.Contains(t, StringComparison.OrdinalIgnoreCase)) ?? false)))
+            .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
             .Take(limit);
     }
 

@@ -58,6 +58,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 ("POST", "/script/stop") => await Stop(),
                 ("GET", "/log") => Log(ctx.Request),
                 ("GET", "/scripts") => await Scripts(ctx.Request),
+                ("GET", "/scripts/categories") => ScriptSync.Categories,
                 ("POST", "/scripts/update") => await scripts.UpdateAllAsync(),
                 ("POST", "/scripts/reset") => await scripts.ResetScriptsAsync(),
                 ("POST", _) when path.StartsWith("/army/") => await Army(path["/army/".Length..], ctx.Request),
@@ -262,10 +263,10 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
     private async Task<object> Scripts(HttpListenerRequest request)
     {
         int limit = int.TryParse(request.QueryString["limit"], out int l) ? Math.Clamp(l, 1, 1000) : 50;
-        // The index has "null" (the text) for scripts without a header, such
-        // as the Core*.cs libraries: report them as absent.
+        // The index has "null" (the text) where a script's header leaves a
+        // field out: report it as absent.
         static string? Known(string? v) => string.IsNullOrWhiteSpace(v) || v == "null" ? null : v;
-        return (await scripts.SearchAsync(request.QueryString["q"], limit)).Select(s => new
+        return (await scripts.SearchAsync(request.QueryString["q"], limit, request.QueryString["category"])).Select(s => new
         {
             path = s.FilePath,
             name = Known(s.Name),

@@ -237,6 +237,10 @@ dialog:has(.wide) { width: min(820px, calc(100vw - 32px)); }
 .script-list li:hover, .script-list li.active { background: var(--panel-2); }
 .script-list li small { display: block; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .script-list li.none { cursor: default; color: var(--muted); }
+.script-list li small.path { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; }
+.search-row { display: flex; gap: 8px; }
+.search-row input { flex: 1; min-width: 0; }
+.search-row select { width: auto; }
 
 .options-list { display: grid; gap: 6px; margin-top: 10px; }
 .options-list .opt { display: flex; align-items: center; gap: 8px; }
