@@ -20,6 +20,7 @@ container is a small desktop you open at `http://<host>:3000`.
 - [Keeping your settings](#keeping-your-settings)
 - [Performance](#performance)
 - [Environment variables](#environment-variables)
+- [Web manager](#web-manager)
 - [Advanced: control API and DevTools](#advanced-control-api-and-devtools)
 - [Troubleshooting](#troubleshooting)
 - [Building the image yourself](#building-the-image-yourself)
@@ -226,6 +227,43 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `SKUA_API_TOKEN` | unset | When set, every control API (the tabs' and the tab host's) requires it: `Authorization: Bearer <token>`. |
 | `VIBESKUA_ACCOUNTS_FILE` | `/config/.config/vibeskua/accounts.json` | Accounts added through the tab host API. |
 | `REMOTE_DEBUG_PORT` | off | Chrome DevTools port (see below). |
+
+## Web manager
+
+[VibeSkua Manager](manager/README.md) is a web page for checking on and
+controlling the bots from a phone or another PC, without opening the desktop:
+every account's status, map, level, script and stats, with its CPU and memory,
+script and Army controls, the live logs, accounts added while it runs, and the
+container's resources. It is a separate small container
+(`ghcr.io/jenangmaker/vibeskua-manager`) with its own login, reachable from your
+LAN only by default.
+
+Add it next to VibeSkua in the same compose file:
+
+```yaml
+services:
+  vibeskua:
+    # ... as before, plus:
+    environment:
+      SKUA_HOST_API_PREFIX: "http://+:8789/"
+      SKUA_API_TOKEN: "${SKUA_API_TOKEN}"
+
+  vibeskua-manager:
+    image: ghcr.io/jenangmaker/vibeskua-manager:latest
+    environment:
+      MANAGER_PASSWORD: "${MANAGER_PASSWORD}"
+      VIBESKUA_URL: "http://vibeskua:8789"
+      VIBESKUA_TOKEN: "${SKUA_API_TOKEN}"
+    ports:
+      - "192.168.1.10:3040:3040"
+    restart: unless-stopped
+```
+
+Put both secrets in an `.env` file next to it (`SKUA_API_TOKEN` a long random
+string, for example from `openssl rand -hex 32`), then open
+`http://192.168.1.10:3040`. Port 8789 needs no publishing when both are in the
+same compose file. All the manager's settings, and its security, are in
+[manager/README.md](manager/README.md).
 
 ## Advanced: control API and DevTools
 

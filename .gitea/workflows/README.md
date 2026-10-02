@@ -9,6 +9,8 @@ toolchain-exact Windows build in `.github/workflows/release.yml`.
 | `build.yml` | any push/PR, manual | Cross-compiles, verifies the layout, uploads `Build/AnyCPU` |
 | `release.yml` | manual | Same, then publishes a portable zip as a Gitea release |
 | `ruffle-test.yml` | manual + weekly | Runs `docs/ruffle-test` against the live AQW client |
+| `publish-image.yml` | manual | Builds the VibeSkua Web image and pushes it to this registry (`vibeskua-web`) |
+| `publish-manager.yml` | manual | Builds the VibeSkua Manager image (`manager/`) and pushes it (`vibeskua-manager`) |
 
 ## Before the first run
 

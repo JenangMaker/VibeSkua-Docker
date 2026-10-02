@@ -7,6 +7,8 @@ FROM node:24-alpine
 WORKDIR /app
 COPY package.json server.js ./
 COPY public/ public/
+# A syntax error fails the build rather than the container.
+RUN node --check server.js && node --check public/app.js
 
 ENV NODE_ENV=production PORT=3040
 USER node
