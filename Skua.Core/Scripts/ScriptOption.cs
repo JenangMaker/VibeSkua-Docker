@@ -52,7 +52,7 @@ public partial class ScriptOption : ObservableRecipient, IScriptOption, IOptionD
             Task.Run(async () => 
             {
                 await Task.Delay(1000); // Give the Flash map UI time to load the string
-                var rawMapName = recipient._lazyFlash.Value.GetGameObject("world.strMapName") ?? "";
+                var rawMapName = (recipient._lazyFlash.Value.GetGameObject("world.strMapName") ?? "").Trim('"');
                 if (!string.IsNullOrEmpty(rawMapName))
                 {
                     var cleanMapName = rawMapName.Length > 1 
@@ -258,7 +258,9 @@ public partial class ScriptOption : ObservableRecipient, IScriptOption, IOptionD
                         flash.Call("setGameObject", "world.rootClass.ui.mcInterface.te.visible", false);
                         
                         // Force map UI text cleanly
-                        var rawMapName = flash.GetGameObject("world.strMapName") ?? "";
+                        // (getGameObject returns JSON: without the Trim the name
+                        // kept its quotes, "Battleon" with them in the area list.)
+                        var rawMapName = (flash.GetGameObject("world.strMapName") ?? "").Trim('"');
                         if (!string.IsNullOrEmpty(rawMapName) && rawMapName != "null")
                         {
                             var cleanMapName = rawMapName.Length > 1 
@@ -266,6 +268,11 @@ public partial class ScriptOption : ObservableRecipient, IScriptOption, IOptionD
                                 : rawMapName.ToUpper();
                             
                             flash.Call("setGameObject", "ui.mcInterface.areaList.title.t1.text", cleanMapName);
+
+                            // A house map titles itself "<owner>'s House" (txtHouse,
+                            // only on house maps, so only set there).
+                            if (rawMapName.Equals("house", StringComparison.OrdinalIgnoreCase))
+                                flash.Call("setGameObject", "world.map.txtHouse.text", "House");
                         }
                     }
                     catch { }
@@ -296,6 +303,12 @@ public partial class ScriptOption : ObservableRecipient, IScriptOption, IOptionD
                     flash.Call("setGameObject", "world.myAvatar.pMC.pname.ti.visible", true);
                     flash.Call("setGameObject", "world.rootClass.ui.mcPortrait.strName.visible", true);
                     
+                    // The house title, as the house map writes it
+                    if ((flash.GetGameObject("world.strMapName") ?? "").Trim('"').Equals("house", StringComparison.OrdinalIgnoreCase)
+                        && (flash.GetGameObject("world.objHouseData.unm") ?? "").Trim('"') is { Length: > 0 } owner && owner != "null")
+                        flash.Call("setGameObject", "world.map.txtHouse.text",
+                            System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(owner.ToLowerInvariant()) + "'s House");
+
                     // Trigger a game UI refresh to accurately restore names
                     flash.CallGameFunction("world.setUserData");
                 }
