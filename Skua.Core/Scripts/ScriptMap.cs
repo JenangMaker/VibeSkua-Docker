@@ -52,7 +52,12 @@ public partial class ScriptMap : IScriptMap
     public string FileName => string.IsNullOrEmpty(FilePath) ? string.Empty : FilePath.Split(new char[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries).Last();
     public string FlaName => string.IsNullOrEmpty(FileName) ? string.Empty : Path.GetFileNameWithoutExtension(FileName).Replace("-", "_") + "_fla";
 
-    public string FullName => Loaded ? Flash.GetGameObject("ui.mcInterface.areaList.title.t1.text")?.Split(' ').Last().Replace("\"", string.Empty) ?? string.Empty : string.Empty;
+    // From world.strAreaName ("map-room"), not the area list's title, which
+    // Streamer Mode overwrites with the bare map name to hide the room: read
+    // from there, a private room looked public (CoreBots' inPublicRoom).
+    public string FullName => !Loaded ? string.Empty
+        : Flash.GetGameObject("world.strAreaName")?.Replace("\"", string.Empty) is { Length: > 0 } area && area != "null" ? area
+        : Flash.GetGameObject("ui.mcInterface.areaList.title.t1.text")?.Split(' ').Last().Replace("\"", string.Empty) ?? string.Empty;
 
     [ObjectBinding("world.strMapName", RequireNotNull = "world", Default = "string.Empty")]
     private string _name = string.Empty;
