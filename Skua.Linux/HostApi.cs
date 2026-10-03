@@ -61,6 +61,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 ("GET", "/log") => Log(ctx.Request),
                 ("GET", "/scripts") => await Scripts(ctx.Request),
                 ("GET", "/scripts/categories") => ScriptSync.Categories,
+                ("GET", "/scripts/browse") => scripts.Browse(ctx.Request.QueryString["dir"]),
                 ("POST", "/scripts/update") => await scripts.UpdateAllAsync(),
                 ("POST", "/scripts/reset") => await scripts.ResetScriptsAsync(),
                 ("GET", "/army/options") => ArmyOptionValues(),

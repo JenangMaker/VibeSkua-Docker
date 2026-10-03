@@ -563,6 +563,66 @@ public sealed class ScriptSync(IServiceProvider services)
     }
 
     /// <summary>
+    /// One folder of the Scripts folder on disk, for the manager's file
+    /// browser: its subfolders and .cs files, paths relative to Scripts (what
+    /// loading takes). Names and descriptions come from the index, else from
+    /// the file's header. Cached-Scripts (compiled scripts) and hidden entries
+    /// are left out; a path outside Scripts is refused.
+    /// </summary>
+    public object Browse(string? dir)
+    {
+        string root = Path.GetFullPath(ClientFileSources.SkuaScriptsDIR).TrimEnd('/');
+        string relative = (dir ?? "").Replace('\\', '/').Trim('/');
+        string full = Path.GetFullPath(Path.Combine(root, relative)).TrimEnd('/');
+        if (full != root && !full.StartsWith(root + "/", StringComparison.Ordinal))
+            return new { error = "outside the Scripts folder" };
+        if (!Directory.Exists(full))
+            return new { error = $"no such folder: {relative}" };
+
+        static bool Shown(string name) => !name.StartsWith('.') && name != "Cached-Scripts";
+        static string? Known(string? v) => string.IsNullOrWhiteSpace(v) || v == "null" ? null : v;
+        string Rel(string path) => Path.GetRelativePath(root, path).Replace('\\', '/');
+        var index = Repo.Scripts.ToList()
+            .GroupBy(s => s.FilePath, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var folders = Directory.EnumerateDirectories(full)
+            .Where(d => Shown(Path.GetFileName(d)))
+            .Select(d => new
+            {
+                name = Path.GetFileName(d),
+                path = Rel(d),
+                scripts = Directory.EnumerateFiles(d, "*.cs", SearchOption.AllDirectories).Count(),
+            })
+            .OrderBy(f => f.name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var files = Directory.EnumerateFiles(full, "*.cs")
+            .Where(f => Shown(Path.GetFileName(f)))
+            .Select(f =>
+            {
+                string path = Rel(f);
+                string? name, description;
+                if (index.TryGetValue(path, out var info))
+                    (name, description) = (Known(info.Name), Known(info.Description));
+                else
+                    (name, description, _) = ExtraScripts.Header(f);
+                var file = new FileInfo(f);
+                return new
+                {
+                    file = file.Name,
+                    path,
+                    name = Known(name),
+                    description = Known(description),
+                    size = file.Length,
+                    modified = file.LastWriteTimeUtc,
+                };
+            })
+            .OrderBy(f => f.file, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return new { dir = full == root ? "" : Rel(full), folders, files };
+    }
+
+    /// <summary>
     /// A script path as given to the API: absolute, or relative to Skua's
     /// Scripts folder (the repository path, e.g. "Farm/Gold.cs"). A repository
     /// script not on disk yet is downloaded, with any other missing scripts,

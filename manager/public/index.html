@@ -114,6 +114,10 @@
   <dialog id="dlg-script">
     <form method="dialog" class="dlg wide">
       <h2 id="script-title">Load script</h2>
+      <div class="smode-row" role="tablist">
+        <button type="button" class="smode-tab active" data-smode="search" role="tab">Search</button>
+        <button type="button" class="smode-tab" data-smode="browse" role="tab" title="The Scripts folder, folder by folder">Browse</button>
+      </div>
       <div class="search-row">
         <input id="script-search" type="search" placeholder="Search scripts (name, path, description or tag)" autocomplete="off">
         <select id="script-category" title="Category">
@@ -122,6 +126,7 @@
           <option>Other</option><option>Rep</option><option>Seasonal</option><option>Story</option><option>Ultras</option>
         </select>
       </div>
+      <nav id="script-crumbs" class="crumbs" hidden></nav>
       <ul id="script-list" class="script-list"></ul>
       <label>Path <input id="script-path" placeholder="e.g. Farm/GoldFarm or a path from the list"></label>
       <div class="dlg-actions">

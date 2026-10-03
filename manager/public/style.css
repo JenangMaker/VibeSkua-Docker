@@ -245,6 +245,16 @@ dialog:has(.wide) { width: min(820px, calc(100vw - 32px)); }
 .script-list li.none { cursor: default; color: var(--muted); }
 .script-list li small.path { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; }
 .search-row { display: flex; gap: 8px; }
+.smode-row { display: flex; gap: 4px; margin: -4px 0 10px; border-bottom: 1px solid var(--border); }
+.smode-tab { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 6px 12px; color: var(--muted); }
+.smode-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; font-size: 13px; }
+.crumbs button { border: 0; background: none; padding: 2px 4px; color: var(--accent); }
+.crumbs button:disabled { color: var(--text); opacity: 1; cursor: default; }
+.crumbs .sep { color: var(--muted); }
+.script-list li.folder > div { font-weight: 600; }
+.script-list li.folder > div::before { content: ''; display: inline-block; width: 14px; height: 10px; margin-right: 8px; border: 1.5px solid var(--muted); border-radius: 2px; vertical-align: -1px; }
+.script-list li.up > div { color: var(--muted); }
 .search-row input { flex: 1; min-width: 0; }
 .search-row select { width: auto; }
 

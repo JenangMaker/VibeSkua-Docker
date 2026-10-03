@@ -572,8 +572,94 @@ function openScriptDialog(tabs) {
   $('#script-list').replaceChildren();
   $('#dlg-script').returnValue = '';
   $('#dlg-script').showModal();
-  searchScripts();
-  $('#script-search').focus();
+  setScriptMode(scriptMode);
+}
+
+// ---- script dialog: browse ------------------------------------------------------
+// The Scripts folder on disk, folder by folder, as a file picker shows it:
+// folders first, then scripts; paths are what loading takes. The folder
+// last looked at is kept while the page is open.
+
+let scriptMode = 'search', browseDir = '', browseSeq = 0;
+
+function setScriptMode(mode) {
+  scriptMode = mode;
+  for (const b of document.querySelectorAll('.smode-tab')) b.classList.toggle('active', b.dataset.smode === mode);
+  $('.search-row').hidden = mode !== 'search';
+  $('#script-crumbs').hidden = mode !== 'browse';
+  if (mode === 'browse') browseScripts(browseDir);
+  else { searchScripts(); $('#script-search').focus(); }
+}
+
+for (const b of document.querySelectorAll('.smode-tab'))
+  b.addEventListener('click', () => setScriptMode(b.dataset.smode));
+
+function scriptItem(list, s, label, description) {
+  const li = h('li', { title: s.path },
+    h('div', { text: label }),
+    h('small', { text: description || 'No description provided.' }),
+    h('small', { class: 'path', text: s.path }));
+  li.addEventListener('click', () => {
+    for (const x of list.children) x.classList.toggle('active', x === li);
+    $('#script-path').value = s.path;
+  });
+  li.addEventListener('dblclick', () => { $('#script-path').value = s.path; $('#dlg-script').close('load'); });
+  return li;
+}
+
+function renderCrumbs(dir) {
+  const parts = dir ? dir.split('/') : [];
+  const crumb = (text, path, last) => h('button', { type: 'button', disabled: last, onclick: () => browseScripts(path) }, text);
+  const items = [crumb('Scripts', '', parts.length === 0)];
+  parts.forEach((part, i) => {
+    items.push(h('span', { class: 'sep', text: '/' }));
+    items.push(crumb(part, parts.slice(0, i + 1).join('/'), i === parts.length - 1));
+  });
+  $('#script-crumbs').replaceChildren(...items);
+}
+
+async function browseScripts(dir) {
+  const list = $('#script-list');
+  const seq = ++browseSeq;
+  renderCrumbs(dir);
+  list.replaceChildren(h('li', { class: 'none', text: 'Reading the folder...' }));
+  let reply;
+  try {
+    reply = await api('GET', `/api/tabs/${scriptTargets[0]}/api/scripts/browse?dir=${q(dir)}`);
+  } catch (e) {
+    if (e.status === 401 || seq !== browseSeq || scriptMode !== 'browse') return;
+    list.replaceChildren(h('li', { class: 'none', text: e.status === 404 || /not found/i.test(e.message)
+      ? 'This VibeSkua cannot list its folders yet: update its image. Search still works.'
+      : e.message }));
+    return;
+  }
+  if (seq !== browseSeq || scriptMode !== 'browse') return;
+  if (reply?.error) {
+    if (dir) { browseDir = ''; browseScripts(''); return; }   // the folder went away
+    list.replaceChildren(h('li', { class: 'none', text: reply.error }));
+    return;
+  }
+  browseDir = reply.dir;
+  renderCrumbs(reply.dir);
+  const items = [];
+  if (reply.dir) {
+    const parent = reply.dir.split('/').slice(0, -1).join('/');
+    const up = h('li', { class: 'up', title: 'Up one folder' }, h('div', { text: '..' }), h('small', { text: 'Up one folder' }));
+    up.addEventListener('click', () => browseScripts(parent));
+    items.push(up);
+  }
+  for (const f of reply.folders) {
+    const li = h('li', { class: 'folder', title: f.path },
+      h('div', { text: f.name }),
+      h('small', { text: `${f.scripts} script${f.scripts === 1 ? '' : 's'}` }));
+    li.addEventListener('click', () => browseScripts(f.path));
+    items.push(li);
+  }
+  for (const s of reply.files)
+    items.push(scriptItem(list, s, s.name || s.file.replace(/.cs$/i, ''), s.description));
+  if (!reply.folders.length && !reply.files.length) items.push(h('li', { class: 'none', text: 'This folder has no scripts.' }));
+  list.replaceChildren(...items);
+  list.scrollTop = 0;
 }
 
 $('#script-search').addEventListener('input', () => {
@@ -597,7 +683,7 @@ async function searchScripts() {
   try {
     const params = `limit=500${term ? `&q=${q(term)}` : ''}${category !== 'All' ? `&category=${q(category)}` : ''}`;
     const reply = await api('GET', `/api/tabs/${scriptTargets[0]}/api/scripts?${params}`);
-    if (seq !== searchSeq) return;   // a newer search is under way
+    if (seq !== searchSeq || scriptMode !== 'search') return;   // a newer search, or the Browse view
     const known = v => (v && v !== 'null' ? v : '');
     const inCategory = s => category === 'All'
       || (category === 'Local'
@@ -606,23 +692,12 @@ async function searchScripts() {
     const scripts = reply.filter(s => known(s.name) && inCategory(s))
       .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
     if (!scripts.length) { list.replaceChildren(h('li', { class: 'none', text: 'No scripts found.' })); return; }
-    const items = scripts.slice(0, SCRIPTS_SHOWN).map(s => {
-      const li = h('li', { title: s.path },
-        h('div', { text: s.name }),
-        h('small', { text: known(s.description) || 'No description provided.' }),
-        h('small', { class: 'path', text: s.path }));
-      li.addEventListener('click', () => {
-        for (const x of list.children) x.classList.toggle('active', x === li);
-        $('#script-path').value = s.path;
-      });
-      li.addEventListener('dblclick', () => { $('#script-path').value = s.path; $('#dlg-script').close('load'); });
-      return li;
-    });
+    const items = scripts.slice(0, SCRIPTS_SHOWN).map(s => scriptItem(list, s, s.name, known(s.description)));
     if (scripts.length > SCRIPTS_SHOWN)
       items.push(h('li', { class: 'none', text: `${scripts.length - SCRIPTS_SHOWN} more: type more of the name, or pick a category.` }));
     list.replaceChildren(...items);
   } catch (e) {
-    if (e.status !== 401 && seq === searchSeq) list.replaceChildren(h('li', { class: 'none', text: e.message }));
+    if (e.status !== 401 && seq === searchSeq && scriptMode === 'search') list.replaceChildren(h('li', { class: 'none', text: e.message }));
   }
 }
 

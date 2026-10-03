@@ -270,7 +270,7 @@ public static class ExtraScripts
     }
 
     // "/* name: ... description: ... tags: a, b */" at the top, as auqw/Scripts writes it.
-    private static (string? Name, string? Description, string[] Tags) Header(string file)
+    internal static (string? Name, string? Description, string[] Tags) Header(string file)
     {
         try
         {
