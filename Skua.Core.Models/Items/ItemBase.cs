@@ -28,7 +28,32 @@ public class ItemBase
     /// The quantity of the item in this stack.
     /// </summary>
     [JsonProperty("iQty")]
-    public virtual int Quantity { get; set; }
+    public virtual int Quantity
+    {
+        get => _quantity;
+        set
+        {
+            _quantity = value;
+            _hasQuantity = true;
+        }
+    }
+
+    private int _quantity;
+    private bool _hasQuantity;
+
+    // An inventory entry the game rebuilt from a server item update can hold
+    // its count only in iQtyNow (seen on a scroll after quest turn-ins): use
+    // it then, else Quantity read 0. Where iQty is there too (drops: iQty is
+    // the amount added), iQty wins, whichever comes first.
+    [JsonProperty("iQtyNow")]
+    private int QuantityNow
+    {
+        set
+        {
+            if (!_hasQuantity)
+                _quantity = value;
+        }
+    }
 
     /// <summary>
     /// The maximum stack size this item can exist in.
