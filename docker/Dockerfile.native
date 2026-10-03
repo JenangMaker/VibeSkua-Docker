@@ -1,0 +1,79 @@
+# VibeSkua in native game mode: Skua.App.Avalonia with each tab's game in
+# Ruffle's desktop player (JenangMaker/ruffle, branch native-skua) instead of
+# an Electron page. No Electron, no Node, no browser GPU process, no socket
+# proxy: each tab's Skua starts its player and logs it in (SKUA_GAME=native,
+# Skua.Linux/NativeGame.cs and NativeSession.cs). Same KasmVNC desktop on :3000
+# as docker/Dockerfile.kasm, and the same environment for accounts and Skua.
+#
+# Experimental (branch native). Not supported yet: RECYCLE_AFTER_*, DevTools
+# (REMOTE_DEBUG_PORT) and the browser build's render settings (RUFFLE_RENDERER,
+# RENDER_SCALE, MAX_RENDER_FPS); see Skua.Linux/NativeGame.cs for its own.
+
+ARG BASE_IMAGE=ghcr.io/linuxserver/baseimage-kasmvnc:debianbookworm
+
+# Skua, as in Dockerfile.kasm.
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS skua
+WORKDIR /src
+COPY Directory.Build.props ./
+COPY Shared/ Shared/
+COPY Skua.Core/ Skua.Core/
+COPY Skua.Core.Generators/ Skua.Core.Generators/
+COPY Skua.Core.Interfaces/ Skua.Core.Interfaces/
+COPY Skua.Core.Models/ Skua.Core.Models/
+COPY Skua.Core.Utils/ Skua.Core.Utils/
+COPY Skua.Ruffle/ Skua.Ruffle/
+COPY Skua.Host.WinForms/ Skua.Host.WinForms/
+COPY Skua.Linux/ Skua.Linux/
+COPY Skua.App.Avalonia/ Skua.App.Avalonia/
+RUN dotnet publish Skua.App.Avalonia/Skua.App.Avalonia.csproj -c Release -r linux-x64 \
+      --self-contained true -p:PublishSingleFile=false -o /out \
+ && test -x /out/Skua.App.Avalonia
+
+# Ruffle's desktop player with the Skua bridge, built on the runtime image's
+# Debian release so it links against the same libraries. Ruffle's README lists
+# these build dependencies; Java builds its ActionScript globals.
+FROM rust:1-bookworm AS ruffle
+ARG RUFFLE_REPO=https://github.com/JenangMaker/ruffle.git
+ARG RUFFLE_REF=native-skua
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      pkg-config libasound2-dev libudev-dev libfontconfig-dev libfreetype6-dev \
+      libssl-dev default-jre-headless g++ git \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+RUN git clone --depth 1 --branch "$RUFFLE_REF" "$RUFFLE_REPO" ruffle \
+ && git -C ruffle log --oneline -1
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/build/ruffle/target \
+    cd ruffle && cargo build --release -p ruffle_desktop \
+ && install -D target/release/ruffle_desktop /out/ruffle_desktop
+
+FROM ${BASE_IMAGE}
+
+# The player's runtime libraries: sound, fonts, X11 input, and Mesa's Vulkan and
+# OpenGL drivers (Intel/AMD with /dev/dri passed in, llvmpipe on the CPU
+# without). Avalonia (Skua's UI) needs the ICE/SM and fontconfig ones.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      libasound2 libudev1 libfontconfig1 libfreetype6 libssl3 \
+      libxkbcommon-x11-0 libxcursor1 libxi6 libxrandr2 \
+      libvulkan1 mesa-vulkan-drivers libgl1-mesa-dri libegl1 libgles2 \
+      libice6 libsm6 fonts-dejavu-core \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY --from=skua /out/ /opt/skua/
+# NativeGame looks for skua.swf next to Skua's own files.
+COPY Skua.AS3/skua/bin/skua.swf /opt/skua/skua.swf
+COPY --from=ruffle /out/ruffle_desktop /opt/ruffle/ruffle_desktop
+
+# The desktop session's autostart, as in the Electron image, with this
+# launcher in place of the Electron one.
+COPY docker/kasm-root/ /
+COPY docker/native-launch.sh /app/launch.sh
+RUN chmod +x /defaults/autostart /app/launch.sh /opt/ruffle/ruffle_desktop \
+ && chmod 755 /custom-cont-init.d/10-vibeskua-autostart \
+ && chown root:root /custom-cont-init.d/10-vibeskua-autostart
+
+ENV TITLE="VibeSkua" \
+    SKUA_GAME=native \
+    SKUA_HOST=1
+
+EXPOSE 3000 3001

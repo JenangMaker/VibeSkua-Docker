@@ -43,6 +43,10 @@ on:
         description: "Push to the registry, or build only"
         required: false
         default: "true"
+      dockerfile:
+        description: "Dockerfile (default: docker/Dockerfile.native on the native branch, else docker/Dockerfile.kasm)"
+        required: false
+        default: ""
 
 concurrency:
   group: publish-image-${{ github.ref_name }}
@@ -55,6 +59,7 @@ jobs:
       # A manual run's tag, else the branch's name.
       TAG: ${{ inputs.tag || github.ref_name }}
       PUSH: ${{ inputs.push || 'true' }}
+      DOCKERFILE: ${{ inputs.dockerfile || (github.ref_name == 'native' && 'docker/Dockerfile.native' || 'docker/Dockerfile.kasm') }}
 
     steps:
       - name: Checkout
@@ -93,7 +98,8 @@ jobs:
           # registry credentials used to push. Passed as a BuildKit secret so
           # the token never lands in an image layer or the build log.
           export RUFFLE_WEB_AUTH="${{ vars.PACKAGE_USERNAME }}:${{ secrets.PACKAGE_TOKEN }}"
-          docker build -f docker/Dockerfile.kasm \
+          echo "Dockerfile: $DOCKERFILE"
+          docker build -f "$DOCKERFILE" \
             --build-arg RUFFLE_WEB_URL="${{ vars.RUFFLE_WEB_URL }}" \
             --secret id=ruffle_web_auth,env=RUFFLE_WEB_AUTH \
             -t "$IMAGE" .

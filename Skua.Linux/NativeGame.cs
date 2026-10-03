@@ -128,6 +128,8 @@ public sealed class NativeGame
             RedirectStandardOutput = true,
             RedirectStandardError = true,
         };
+        // No menu bar: the window sits inside Skua's, under Skua's own menu.
+        info.ArgumentList.Add("--no-gui");
         info.ArgumentList.Add("--tcp-connections");
         info.ArgumentList.Add("allow");
         info.ArgumentList.Add("--quality");
