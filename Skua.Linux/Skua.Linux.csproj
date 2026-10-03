@@ -18,4 +18,9 @@
     <ProjectReference Include="..\Skua.Host.WinForms\Skua.Host.WinForms.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- POST /debug/trace: CPU-samples this process (TraceApi). -->
+    <PackageReference Include="Microsoft.Diagnostics.NETCore.Client" Version="0.2.745401" />
+  </ItemGroup>
+
 </Project>

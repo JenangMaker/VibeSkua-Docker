@@ -57,6 +57,7 @@ body-less POST with 411 but may still run the handler.
 | `POST /scripts/update` | Sync the script repositories again. |
 | `POST /scripts/reset` | Delete all scripts and download them afresh (see below). |
 | `GET /army/options` | The Skua options Army Control sets (Lag Killer, Hide Players, Headless Mode...), as `{name: true|false}`. |
+| `POST /debug/trace?secs=` | CPU-sample this Skua process for `secs` seconds (5-300, default 30), as `dotnet-trace`'s cpu-sampling profile does, into `Skua/traces` in the config folder. Open it with PerfView, or `dotnet-trace convert --format Speedscope`. |
 | `POST /army/<command>` | An Army Control command for this Skua: `login`, `logout`, `jump?map=&cell=`, `goto?player=`, `option?name=&value=`, `start`, `stop` and more, listed in [ArmyApi.cs](../Skua.Linux/ArmyApi.cs). |
 
 `SKUA_SCRIPT=/path/to/Script.cs` loads a script at startup (in the UI it shows
