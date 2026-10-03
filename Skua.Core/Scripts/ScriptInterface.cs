@@ -273,9 +273,15 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
             {
                 sw.Restart();
 
-                if (Flash.IsWorldLoaded && Player.Playing)
+                // Everything below needs at most 4 answers a second; asking the game
+                // on every 20 ms pass cost about 250 bridge round trips a second.
+                _limit.LimitedRun("playing", 250, () =>
                 {
-                    Servers.LastIP = Player.ServerIP ?? Servers.LastIP;
+                    if (!Flash.IsWorldLoaded || !Player.Playing)
+                        return;
+
+                    // Only read on relogin, to pick another server; it can't change while logged in.
+                    _limit.LimitedRun("serverIP", 5000, () => Servers.LastIP = Player.ServerIP ?? Servers.LastIP);
 
                     if (Options.RestPackets && !Player.InCombat)
                         _limit.LimitedRun("rest", 1200, () => Send.Packet("%xt%zm%restRequest%1%%"));
@@ -286,8 +292,8 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
                         catching = true;
                     }
 
-                    _limit.LimitedRun("opts", 250, CheckOptions);
-                }
+                    CheckOptions();
+                });
 
                 _limit.LimitedRun("connDetail", 100, () => (lastConnChange, lastConnDetail) = CheckStuckonLoading(lastConnChange, lastConnDetail));
                 _limit.LimitedRun("loginStuck", 500, CheckStuckOnLogin);
