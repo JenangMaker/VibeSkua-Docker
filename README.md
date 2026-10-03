@@ -242,8 +242,10 @@ Run these from inside the folder.
   options and plugins survive updates.
 - **A web manager:** [VibeSkua Manager](manager/README.md), a separate small
   container, lets you watch and control every bot from a phone or another PC
-  without the remote desktop: status and stats per account, script and Army
-  controls, logs, adding accounts while it runs, and the container's resources.
+  without the remote desktop: status, stats, target and quest progress per
+  account; script and Army controls, script search and folder browsing, script
+  options and Skua options per tab; logs, adding accounts while it runs, the
+  container's resources, and a streamer mode. See [manager/README.md](manager/README.md).
 
 ## How it works
 

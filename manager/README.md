@@ -10,7 +10,8 @@ VibeSkua or on another host.
   script, load a script (search, or browse the Scripts folder), the live script or debug log, show it on
   the VibeSkua desktop, restart it, reload its game, close it.
 - **Army:** start/stop all, load a script everywhere, log in/out all, jump
-  everyone to a map or player, the Misc Options, Grid View, open a tab.
+  everyone to a map or player, Skua options for every tab, Grid View, open a
+  tab.
 - **Accounts:** add, edit and remove accounts while VibeSkua runs. A new
   account opens its tab and logs in; passwords can be set but are never shown
   again. Accounts set in VibeSkua's environment (`AQW_USER_N`) are listed,
@@ -21,6 +22,82 @@ VibeSkua or on another host.
 It talks to VibeSkua's tab host API from the server, with the API token, so
 the browser never sees the token or reaches VibeSkua directly. It has its own
 login.
+
+## Using it
+
+Log in with `MANAGER_USER` / `MANAGER_PASSWORD`. The top bar shows whether
+VibeSkua answers, its version, uptime and tab count, and the container's CPU,
+memory and load. The page refreshes itself every few seconds; there is
+nothing to reload.
+
+### Bots
+
+One card per tab:
+
+- **The header:** the tab number, the character, and its state (Logged in,
+  Running script, Not logged in), with "(headless)" when its Headless Mode is
+  on.
+- **Map, level and class, gold, script**, and HP / MP bars.
+- **Target:** what the character is fighting, with its HP, and every monster
+  in the cell (the dead ones struck through).
+- **Quest:** the active quests and each requirement as have / need, so you can
+  see a quest filling up.
+- **Kills, drops, quests, deaths, relogins** since the session started, and
+  what the tab's Skua and game cost in CPU and memory.
+
+Its buttons:
+
+| Button | What |
+| :--- | :--- |
+| **Start / Stop** | The loaded script. |
+| **Load...** | Pick a script: **Search** by name, path, description or tag, in a category, as the Search Scripts window does; or **Browse** the Scripts folder folder by folder (your own and extra repositories, such as `UltrasLW`, included). Click one to fill Path, double-click to load it; **Load & start** starts it too. |
+| **Script options...** | The loaded script's options, as its Options window shows them, grouped (the script's, then CoreBots' and the rest). Change them and **Save**; **Defaults** fills in each option's default. Not while the script runs. **Don't open the options window when this script starts** makes it run with the saved options, without asking (see `SKUA_SKIP_SCRIPT_OPTIONS` in [DOCKER.md](../DOCKER.md)). Options that hold a player or account name are hidden like passwords; **Reveal values** shows them. |
+| **Skua options...** | This tab's Skua options (Lag Killer, Hide Players, Disable FX, Skip Cutscenes, Infinite Range, Magnetise, Headless Mode, Function-based Skills, Streamer Mode) as checkboxes with their current values. Each change applies right away. |
+| **Log** | The live script, debug or Flash log, following new lines. |
+| **Show** | Bring the tab to the front on the VibeSkua desktop. |
+| **Restart** | Restart the tab's Skua; the game stays logged in. |
+| **Reload game** | Restart Skua and reload the game page (it logs in again). |
+| **Close** | Close the tab. |
+
+The **Army** bar does the same for every tab at once: start, stop, load a
+script, log in or out, jump everyone to a map or a player, and **Skua
+options...** (On / Off for each option, since the tabs may differ). **Grid
+View** switches the desktop's Grid View, **+ Open tab** opens another tab.
+
+### Accounts
+
+Every tab's account, where it comes from and its state. Accounts set in
+VibeSkua's environment (`AQW_USER_N`) are read-only here. **+ Add account**
+saves one to `accounts.json` in VibeSkua's config folder: the tab, name,
+password, server, a script and whether to start it after logging in. It opens
+its tab and logs in right away. A password can be replaced but is never shown
+again.
+
+### Resources
+
+The container's CPU, memory and load; CPU and memory by kind of process
+(Skua, game pages, GPU process, the rest of Electron, the desktop); and the
+busiest processes. CPU is in percent of one core.
+
+### Streamer mode
+
+The **Streamer mode** switch in the top bar is for showing the page on a
+stream or a screenshot. It only changes this page, in this browser:
+
+- tabs are called "Player 1", "Player 2"..., accounts "Account 1"...;
+- account and character names, and room numbers, are masked in the logs;
+- every text and number option is hidden in Script options;
+- the account name field is hidden in the Accounts dialog.
+
+Turning it on also offers to turn on the game's own Streamer Mode in every
+tab, which hides the names in the game and on the VibeSkua desktop.
+
+### Tips
+
+- **Timing-heavy scripts** (some Ultras, such as Ultra Speaker) need every tab
+  to answer fast. Keep all tabs in Headless Mode while they run, and don't
+  keep one open on the desktop: the tab on screen spends its time drawing, and
+  every Skua call to it waits.
 
 ## Setting it up
 

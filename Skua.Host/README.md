@@ -24,8 +24,10 @@ See `web/README.md` ("Skua").
 
 ## Control API
 
-Local only (`SKUA_API_PREFIX`, default `http://127.0.0.1:8791/`). There is no
-authentication: whatever can reach it can run code as the bot.
+Local only (`SKUA_API_PREFIX`, default `http://127.0.0.1:8791/`). With
+`SKUA_API_TOKEN` set, every request must carry it, as
+`Authorization: Bearer <token>` or `X-Api-Token: <token>`; without it there is
+no authentication, and whatever can reach the port can run code as the bot.
 
 ```sh
 curl -s localhost:8791/status
@@ -39,6 +41,23 @@ curl -s 'localhost:8791/log?type=script&since=0'     # script | debug | flash
 
 Always send a body with POST (`-d ''`): .NET's HttpListener on Linux answers a
 body-less POST with 411 but may still run the handler.
+
+| Route | What |
+| :--- | :--- |
+| `GET /status` | Connected, logged in, player, map, cell, HP, the script and whether it runs. `?detail=1` adds level, gold, class, MP, the session stats, the target and the cell's monsters (`combat`), and the active quests with their requirements (`quests`). |
+| `POST /script/load?path=` | Load a script (a path relative to `Skua/Scripts`, or absolute) without starting it. |
+| `POST /script/start[?path=]` | Start the loaded script, or load and start `path`, or the script sent as the body. |
+| `POST /script/stop` | Stop the script. |
+| `GET /script/options` | The loaded script's options (as its Options window shows them), each with its type, choices, value and default, and whether its options window is skipped at start. |
+| `POST /script/options` | Body `{"values":[{"category","name","value"}], "skipWindow": bool}`: save option values (refused while the script runs) and/or set "don't open the options window at start" for this script. |
+| `GET /log?type=script|debug|flash[&since=]` | The log, from line `since`. |
+| `GET /scripts?q=&category=&limit=` | Search scripts as the Search Scripts window does: name, path, description or tag, in a category, sorted by name. |
+| `GET /scripts/categories` | The categories `/scripts` takes. |
+| `GET /scripts/browse?dir=` | One folder of `Skua/Scripts` on disk: its subfolders (with script counts) and `.cs` files, named from the index or the file's header. |
+| `POST /scripts/update` | Sync the script repositories again. |
+| `POST /scripts/reset` | Delete all scripts and download them afresh (see below). |
+| `GET /army/options` | The Skua options Army Control sets (Lag Killer, Hide Players, Headless Mode...), as `{name: true|false}`. |
+| `POST /army/<command>` | An Army Control command for this Skua: `login`, `logout`, `jump?map=&cell=`, `goto?player=`, `option?name=&value=`, `start`, `stop` and more, listed in [ArmyApi.cs](../Skua.Linux/ArmyApi.cs). |
 
 `SKUA_SCRIPT=/path/to/Script.cs` loads a script at startup (in the UI it shows
 in the Script Loader, ready to start); `SKUA_SCRIPT_AUTO_START=1` also starts

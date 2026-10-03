@@ -272,9 +272,11 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 
 [VibeSkua Manager](manager/README.md) is a web page for checking on and
 controlling the bots from a phone or another PC, without opening the desktop:
-every account's status, map, level, script and stats, with its CPU and memory,
-script and Army controls, the live logs, accounts added while it runs, and the
-container's resources. It is a separate small container
+every account's status, map, level, script and stats, what it is fighting and
+its quests' progress, with its CPU and memory; script and Army controls,
+loading scripts by search or by folder, each script's options and each tab's
+Skua options, the live logs, accounts added while it runs, the container's
+resources, and a streamer mode for showing the page. It is a separate small container
 (`ghcr.io/jenangmaker/vibeskua-manager`) with its own login, reachable from your
 LAN only by default.
 
@@ -302,7 +304,7 @@ services:
 Put both secrets in an `.env` file next to it (`SKUA_API_TOKEN` a long random
 string, for example from `openssl rand -hex 32`), then open
 `http://192.168.1.10:3040`. Port 8789 needs no publishing when both are in the
-same compose file. All the manager's settings, and its security, are in
+same compose file. How to use it, all its settings and its security are in
 [manager/README.md](manager/README.md).
 
 ## Advanced: control API and DevTools
