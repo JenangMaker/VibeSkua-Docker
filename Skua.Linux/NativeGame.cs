@@ -145,6 +145,7 @@ public sealed class NativeGame
 
         info.Environment["SKUA_BRIDGE_URL"] = _bridgeUrl;
         info.Environment["RUST_LOG"] = SkuaRuntime.Env("RUFFLE_LOG", "warn,ruffle_core::avm2=off");
+        info.Environment["NO_COLOR"] = "1";
         // The player has no use for the accounts; Skua logs in (NativeSession).
         foreach (string key in info.Environment.Keys.Where(k => k.StartsWith("AQW_PASS", StringComparison.Ordinal)).ToList())
             info.Environment.Remove(key);
@@ -158,23 +159,44 @@ public sealed class NativeGame
         return process;
     }
 
-    // The player's log into Skua's, with repeats collapsed: the game can throw
-    // the same error every frame.
+    // The player's log into Skua's (and so the container's), kept small: repeats
+    // collapsed whatever their timestamps, and at most MaxLinesPerSecond lines a
+    // second. A player once logged ~100,000 audio errors a second, each with its
+    // own timestamp, and filled the server's disk with the container log.
+    private const int MaxLinesPerSecond = 20;
+    private static readonly System.Text.RegularExpressions.Regex Noise = new(
+        @"\x1b\[[0-9;]*m|^\S*\d{4}-\d\d-\d\dT[0-9:.]+Z\s*", System.Text.RegularExpressions.RegexOptions.Compiled);
+
     private static async Task Forward(StreamReader reader)
     {
         string? last = null;
-        int repeats = 0;
-        while (await reader.ReadLineAsync() is { } line)
+        int repeats = 0, inSecond = 0, dropped = 0;
+        long second = 0;
+        while (await reader.ReadLineAsync() is { } raw)
         {
+            string line = Noise.Replace(raw, "");
             if (line == last)
             {
                 repeats++;
                 continue;
             }
+            long now = Environment.TickCount64 / 1000;
+            if (now != second)
+            {
+                if (dropped > 0)
+                    Console.Error.WriteLine($"[game] ({dropped} more lines in the last second not shown)");
+                second = now;
+                inSecond = dropped = 0;
+            }
             if (repeats > 0)
                 Console.Error.WriteLine($"[game] (previous line repeated {repeats}x)");
             repeats = 0;
             last = line;
+            if (++inSecond > MaxLinesPerSecond)
+            {
+                dropped++;
+                continue;
+            }
             Console.Error.WriteLine("[game] " + (line.Length > 500 ? line[..500] : line));
         }
     }
