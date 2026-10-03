@@ -38,6 +38,12 @@ public sealed class ScriptKeeper(IServiceProvider services, RuffleBridge bridge)
         _ = Task.Run(WatchTargets);
     }
 
+    /// <summary>
+    /// The game logged in again without Skua's own relogin (NativeSession, the
+    /// native counterpart of session.js's <c>vibeskua.relogged</c>).
+    /// </summary>
+    public void Relogged(string reason) => _ = Task.Run(() => RestartAfterPageLogin(reason));
+
     private async Task RestartAfterPageLogin(string? reason)
     {
         if (Interlocked.Exchange(ref _restarting, 1) == 1)

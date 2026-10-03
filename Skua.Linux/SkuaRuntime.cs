@@ -126,8 +126,16 @@ public sealed class SkuaRuntime
 
         Bridge.ConnectionChanged += up => Console.WriteLine(up ? "[host] page connected" : "[host] page disconnected");
         Bridge.Start();
-        new ScriptKeeper(provider, Bridge).Start();
+        var keeper = new ScriptKeeper(provider, Bridge);
+        keeper.Start();
         new OptionKeeper(provider, Bridge).Start();
+        if (NativeGame.Enabled)
+        {
+            // No Electron page: this tab runs the game itself and logs it in.
+            Step("native game");
+            new NativeGame(Env("SKUA_BRIDGE_PREFIX", "http://127.0.0.1:8790/")).Start();
+            new NativeSession(provider, Bridge, keeper).Start();
+        }
         string apiPrefix = Env("SKUA_API_PREFIX", "http://127.0.0.1:8791/");
         try
         {

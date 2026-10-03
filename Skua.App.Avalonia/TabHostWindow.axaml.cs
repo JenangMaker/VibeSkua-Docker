@@ -190,12 +190,20 @@ public partial class TabHostWindow : Window
         Console.WriteLine($"[tabs] closing tab {tab.Number + 1}");
         // Skua hands the game window back as it stops; then main.js closes it.
         await Task.Run(() => Stop(tab.Process, TimeSpan.FromSeconds(5)));
+        if (NativeGame.Enabled)
+            return;   // the game went with the tab's Skua
         try { await _quick.SendAsync(Electron(HttpMethod.Delete, tab.Number)); }
         catch (Exception e) { Console.Error.WriteLine($"[tabs] closing game window {tab.Number}: {e.Message}"); }
     }
 
     private async Task OpenGame(SkuaTab tab)
     {
+        if (NativeGame.Enabled)
+        {
+            // Each tab's Skua starts its own game (Skua.Linux/NativeGame.cs).
+            tab.GameOpened = true;
+            return;
+        }
         try
         {
             using var reply = await _quick.SendAsync(Electron(HttpMethod.Post, tab.Number));

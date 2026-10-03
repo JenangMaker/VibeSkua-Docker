@@ -73,18 +73,23 @@ public sealed class GameEmbed : IDisposable
     }
 
     // Find the game window and keep it embedded: Electron can recreate it,
-    // and a Skua restart starts from scratch.
+    // and a Skua restart starts from scratch. The native player (NativeGame)
+    // says which window is its own over the bridge (page.windowId), and is
+    // started again, with a new window, if it exits.
     private async Task Watch()
     {
         using HttpClient http = new() { Timeout = TimeSpan.FromSeconds(3) };
-        DateTime giveUp = DateTime.UtcNow.AddSeconds(45);
+        bool native = NativeGame.Enabled;
+        DateTime giveUp = DateTime.UtcNow.AddSeconds(native ? 90 : 45);
         bool failed = false;
         while (!_cts.IsCancellationRequested)
         {
             try
             {
-                var reply = await http.GetFromJsonAsync<GameWindow>(_endpoint, _cts.Token);
-                if (reply?.Xid is { } text && ulong.TryParse(text, out ulong xid) && xid != 0)
+                string? text = native
+                    ? (App.Runtime?.Bridge is { IsConnected: true } bridge ? bridge.Invoke("page.windowId")?.GetString() : null)
+                    : (await http.GetFromJsonAsync<GameWindow>(_endpoint, _cts.Token))?.Xid;
+                if (text is not null && ulong.TryParse(text, out ulong xid) && xid != 0)
                     await Dispatcher.UIThread.InvokeAsync(() => Embed(xid));
             }
             catch (Exception) when (!_cts.IsCancellationRequested)

@@ -244,7 +244,8 @@ public partial class TabHostWindow
             tab.RestartRequested = true;
             await Task.Run(() => Stop(process, TimeSpan.FromSeconds(5)));
         }
-        if (game)
+        // Native: the game is the tab Skua's child and restarts with it.
+        if (game && !NativeGame.Enabled)
         {
             try { using var _ = await _quick.SendAsync(Electron(HttpMethod.Delete, tab.Number)); }
             catch (Exception e) { Console.Error.WriteLine($"[tabs] closing game window {tab.Number}: {e.Message}"); }
@@ -351,9 +352,12 @@ public partial class TabHostWindow
         }
     }
 
-    // main.js's GET /instances: each game page's renderer process.
+    // main.js's GET /instances: each game page's renderer process. Native:
+    // each tab's player, the ruffle_desktop child of the tab's Skua.
     private async Task<Dictionary<int, int>> PagePids()
     {
+        if (NativeGame.Enabled)
+            return NativePlayerPids();
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, $"{_electron}/instances");
@@ -368,6 +372,33 @@ public partial class TabHostWindow
         {
             return _pagePids;
         }
+    }
+
+    private Dictionary<int, int> NativePlayerPids()
+    {
+        var tabOf = Tabs.Where(t => t.Process is { HasExited: false })
+            .ToDictionary(t => t.Process!.Id, t => t.Number);
+        var pids = new Dictionary<int, int>();
+        foreach (string dir in Directory.EnumerateDirectories("/proc"))
+        {
+            if (!int.TryParse(Path.GetFileName(dir), out int pid))
+                continue;
+            try
+            {
+                if (File.ReadAllText($"{dir}/comm").Trim() != "ruffle_desktop")
+                    continue;
+                // stat: "pid (comm) state ppid ..."
+                string stat = File.ReadAllText($"{dir}/stat");
+                string[] after = stat[(stat.LastIndexOf(')') + 2)..].Split(' ');
+                if (int.TryParse(after[1], out int ppid) && tabOf.TryGetValue(ppid, out int tab))
+                    pids[tab] = pid;
+            }
+            catch
+            {
+                // gone meanwhile
+            }
+        }
+        return pids;
     }
 
     /// <summary>What each kind of process uses: Skua (the tabs' and this one), the game pages, Electron's GPU process and the rest of it, and the desktop.</summary>

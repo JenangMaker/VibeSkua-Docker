@@ -125,4 +125,34 @@ public static class AccountStore
     /// <summary>Tab's account name, from the environment or this file.</summary>
     public static string? UserFor(int tab) =>
         SkuaRuntime.EnvRaw($"AQW_USER_{tab}") ?? (tab == 1 ? SkuaRuntime.EnvRaw("AQW_USER") : null) ?? Get(tab)?.User;
+
+    /// <summary>
+    /// Tab's login, as web/main.js's credsFor has it: AQW_USER_N / AQW_PASS_N /
+    /// AQW_SERVER_N (tab 1 also AQW_USER / AQW_PASS), else this file's account;
+    /// AQW_SERVER is every tab's default server. The password is taken as given,
+    /// quotes and all. Null without a user and password.
+    /// </summary>
+    public static (string User, string Pass, string? Server)? CredentialsFor(int tab)
+    {
+        string? server = SkuaRuntime.EnvRaw($"AQW_SERVER_{tab}");
+        string? user = SkuaRuntime.EnvRaw($"AQW_USER_{tab}") ?? (tab == 1 ? SkuaRuntime.EnvRaw("AQW_USER") : null);
+        string? pass;
+        if (user is not null)
+        {
+            pass = Environment.GetEnvironmentVariable($"AQW_PASS_{tab}") ?? (tab == 1 ? Environment.GetEnvironmentVariable("AQW_PASS") : null);
+        }
+        else if (Get(tab) is { } account)
+        {
+            user = account.User;
+            pass = account.Pass;
+            server ??= account.Server;
+        }
+        else
+        {
+            return null;
+        }
+        if (string.IsNullOrEmpty(user) || string.IsNullOrEmpty(pass))
+            return null;
+        return (user, pass, server ?? SkuaRuntime.EnvRaw("AQW_SERVER"));
+    }
 }
