@@ -178,7 +178,18 @@ function syncControls() {
 // Mode; Skua.Linux/TabThrottle.cs): the game keeps running and nothing is
 // drawn, so the page and the shared GPU process skip the work. The chosen
 // frame cap comes back with pauseDrawing(false).
+//
+// Pausing also tells Ruffle the pointer left the game. Ruffle hit-tests the
+// whole display tree for the object under the pointer after every tick (~60 a
+// second, whatever the frame rate) while it thinks the pointer is over the
+// stage, and it only learns otherwise from a pointerleave. Shrinking the window
+// under a resting pointer sends none, so a hidden tab could spend a quarter of
+// a core hit-testing a crowded map for a pointer that is not there.
 let wantedFps = Infinity, drawingPaused = false;
+function pointerLeftGame() {
+  const canvas = player.shadowRoot && player.shadowRoot.querySelector('canvas');
+  if (canvas) canvas.dispatchEvent(new PointerEvent('pointerleave'));
+}
 window.vibeskua = {
   setRender({ fps, scale } = {}) {
     if (!renderControlsSupported()) return false;
@@ -192,6 +203,7 @@ window.vibeskua = {
     if (!renderControlsSupported()) return false;
     drawingPaused = !!paused;
     player.maxRenderFps = drawingPaused ? 0 : wantedFps;
+    if (drawingPaused) pointerLeftGame();
     syncControls();
     return true;
   },
