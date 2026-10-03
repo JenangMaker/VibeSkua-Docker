@@ -167,17 +167,31 @@ function syncControls() {
     b.classList.toggle('on', Math.abs(Number(b.dataset.scale) - scale) < 0.01);
   }
   document.getElementById('controls-note').textContent =
-    fps === 0 ? 'headless - game still running, picture frozen' : '';
+    drawingPaused ? 'not drawn while hidden - game still running'
+    : fps === 0 ? 'headless - game still running, picture frozen' : '';
 }
 
 // Also callable from outside, e.g. a bot toggling headless while it farms:
 //   window.vibeskua.setRender({ fps: 0 })     // headless
 //   window.vibeskua.setRender({ fps: 15, scale: 0.5 })
+// pauseDrawing(true) is Skua's, for a tab nobody sees (hidden, or in Headless
+// Mode; Skua.Linux/TabThrottle.cs): the game keeps running and nothing is
+// drawn, so the page and the shared GPU process skip the work. The chosen
+// frame cap comes back with pauseDrawing(false).
+let wantedFps = Infinity, drawingPaused = false;
 window.vibeskua = {
   setRender({ fps, scale } = {}) {
     if (!renderControlsSupported()) return false;
-    if (fps !== undefined) player.maxRenderFps = fps === null ? Infinity : Number(fps);
+    if (fps !== undefined) wantedFps = fps === null ? Infinity : Number(fps);
+    player.maxRenderFps = drawingPaused ? 0 : wantedFps;
     if (scale !== undefined) player.renderScale = Number(scale);
+    syncControls();
+    return true;
+  },
+  pauseDrawing(paused) {
+    if (!renderControlsSupported()) return false;
+    drawingPaused = !!paused;
+    player.maxRenderFps = drawingPaused ? 0 : wantedFps;
     syncControls();
     return true;
   },

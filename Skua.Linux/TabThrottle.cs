@@ -13,10 +13,14 @@ namespace Skua.Linux;
 /// <item>Headless Mode (Options > Game, or Army Control) runs at 1 fps whether
 /// the tab is shown or not (GameContainerUserControl's HeadlessMode).</item>
 /// </list>
-/// Either way the game window shrinks to 1x1 (see <see cref="Shrunk"/>) and
-/// memory is handed back. Unlike there, the frame rate is put back every few
-/// seconds: Skua's own FPS option (Options > SetFPS) writes stage.frameRate
-/// whenever a script starts, which would otherwise undo it.
+/// Either way the game window shrinks to 1x1 (see <see cref="Shrunk"/>),
+/// memory is handed back, and the page stops drawing (Ruffle's maxRenderFps 0,
+/// web/public/index.html's pauseDrawing): the game keeps running, but neither
+/// the page nor the GPU process shared by all tabs spends anything on frames
+/// nobody sees. SKUA_HIDDEN_DRAW=1 keeps drawing hidden tabs (not headless
+/// ones). Unlike there, all this is put back every few seconds: Skua's own FPS
+/// option (Options > SetFPS) writes stage.frameRate whenever a script starts,
+/// and a reloaded page starts out drawing.
 /// </summary>
 public sealed partial class HostApi
 {
@@ -24,6 +28,10 @@ public sealed partial class HostApi
     public static int HiddenFps { get; } = int.TryParse(SkuaRuntime.EnvRaw("SKUA_HIDDEN_FPS"), out int fps) ? Math.Clamp(fps, 1, 60) : 2;
 
     private const int HeadlessFps = 1;
+
+    /// <summary>SKUA_HIDDEN_DRAW=1: keep drawing a tab that is hidden (not one in Headless Mode).</summary>
+    private static readonly bool KeepDrawingHidden =
+        SkuaRuntime.EnvRaw("SKUA_HIDDEN_DRAW")?.Trim().ToLowerInvariant() is "1" or "true" or "yes" or "on";
 
     /// <summary>Raised (on any thread) when the game window should shrink to 1x1 (true) or fill its area (false).</summary>
     public static event Action<bool>? Shrunk;
@@ -91,11 +99,13 @@ public sealed partial class HostApi
         if (target > 0)
         {
             ApplyFrameRate(target);
+            PauseDrawing(true, headless);
         }
         else if (restore)
         {
             int own = Get<IScriptOption>().SetFPS;
             ApplyFrameRate(own > 0 ? own : 30);
+            PauseDrawing(false, headless);
         }
         if (headless != IsHeadless)
         {
@@ -116,6 +126,7 @@ public sealed partial class HostApi
         while (!token.IsCancellationRequested)
         {
             ApplyFrameRate(_throttleFps);
+            PauseDrawing(true, IsHeadless);
             try { await Task.Delay(3000, token); }
             catch (OperationCanceledException) { }
         }
@@ -126,6 +137,16 @@ public sealed partial class HostApi
         if (fps <= 0 || !Get<Skua.Ruffle.RuffleBridge>().IsConnected)
             return;
         try { Get<IScriptInterface>().Flash.SetGameObject("stage.frameRate", fps); }
+        catch { }
+    }
+
+    // The page's pauseDrawing; an older page without it just says so.
+    private void PauseDrawing(bool paused, bool headless)
+    {
+        var bridge = Get<Skua.Ruffle.RuffleBridge>();
+        if (!bridge.IsConnected || (paused && !headless && KeepDrawingHidden))
+            return;
+        try { bridge.Invoke("page.pauseDrawing", paused); }
         catch { }
     }
 

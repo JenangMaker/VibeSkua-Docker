@@ -66,9 +66,13 @@
       const t0 = performance.now();
       let reply;
       try {
-        const fn = this.player && this.player[m.fn];
+        // "page.<name>" is one of the page's own functions (window.vibeskua,
+        // index.html), not the SWF's.
+        const target = m.fn.startsWith('page.') ? window.vibeskua : this.player;
+        const name = m.fn.startsWith('page.') ? m.fn.slice(5) : m.fn;
+        const fn = target && target[name];
         if (typeof fn !== 'function') throw new Error('no SWF callback named ' + m.fn);
-        const value = fn.apply(this.player, Array.isArray(m.args) ? m.args : []);
+        const value = fn.apply(target, Array.isArray(m.args) ? m.args : []);
         reply = { id: m.id, ok: true, value: value === undefined ? null : value };
       } catch (e) {
         this.stats.errors++;

@@ -201,10 +201,11 @@ and runs at full speed; switch drawing back on when you want to look.
   with a GPU.
 - These three can also be changed live from the bar under the game, which
   shows with `SHOW_DEBUG_PANEL: "1"` (or `?debug=1` on the game page).
-- Tabs you are not looking at run at 2 frames per second with their game
-  drawn at 1x1, as in the Windows VibeSkua; switching to a tab (or Grid View)
-  puts it back. Map changes, moving and fighting are not slowed by this.
-  `SKUA_HIDDEN_FPS` changes the rate.
+- Tabs you are not looking at run at 2 frames per second and are not drawn
+  at all, so neither their page nor the GPU process spends anything on them;
+  switching to a tab (or Grid View) puts it back. Map changes, moving and
+  fighting are not slowed by this. `SKUA_HIDDEN_FPS` changes the rate;
+  `SKUA_HIDDEN_DRAW: "1"` keeps drawing them (at 1x1, as before).
 - **Headless Mode** (Army Control > Misc Options, or its hotkey) does the
   same for a tab you *are* looking at: 1 frame per second, game not drawn,
   a notice in its place. Turn it off to see the game again.
@@ -245,6 +246,7 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `RENDER_SCALE` | `1` | Fraction of the window's resolution to draw at. |
 | `SHOW_DEBUG_PANEL` | `0` | `1` shows the render controls and log under the game (the log goes to the container log either way; `?debug=1` on the page URL shows them for that page). |
 | `SKUA_HIDDEN_FPS` | `2` | Game frame rate of tabs not on screen (1-60). |
+| `SKUA_HIDDEN_DRAW` | `0` | `1`: keep drawing tabs not on screen (at 1x1). Off, they are not drawn at all; Headless Mode never draws. |
 | `SKUA_DASHBOARD` | auto | Bot dashboard (kills, drops, quests, deaths, relogins, time) beside the game: `1` always, `0` never; auto shows it when the window is wide enough. |
 | `MAX_RENDER_FPS` | unlimited with a GPU, `15` without | Frames drawn per second; `0` draws nothing. |
 | `ENABLE_MODULES`, `DISABLE_MODULES` | `""`, `QuestRequirementWiki,QuestItemRates` | Skua modules to switch on / off once the game loads. |
