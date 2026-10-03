@@ -7,7 +7,7 @@ VibeSkua or on another host.
 - **Bots:** every tab at a glance: character, map, level, gold, HP/MP, the
   script and whether it runs, kills, drops, quests, deaths and relogins, and
   what each tab's Skua and game cost in CPU and memory. Per tab: start/stop the
-  script, load a script (with search), the live script or debug log, show it on
+  script, load a script (search, or browse the Scripts folder), the live script or debug log, show it on
   the VibeSkua desktop, restart it, reload its game, close it.
 - **Army:** start/stop all, load a script everywhere, log in/out all, jump
   everyone to a map or player, the Misc Options, Grid View, open a tab.
