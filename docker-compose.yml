@@ -184,9 +184,18 @@ services:
       # Where scripts sync from: a GitHub or Gitea repository and branch.
       # SKUA_SCRIPTS_REPO: "https://github.com/auqw/Scripts"
       # SKUA_SCRIPTS_BRANCH: "Skua"
+      # More repositories, each into Scripts/<folder>: "folder=URL[#branch]",
+      # ";" between several (or SKUA_SCRIPTS_EXTRA_1, _2, ...).
+      # SKUA_SCRIPTS_EXTRA: "UltrasLW=https://github.com/l0newolf12/UltrasLW"
       # To reach the API from the LAN instead, add a LAN-IP port mapping
       # ("192.168.2.20:8791:8791") and:
       # SKUA_API_PREFIX: "http://+:8791/"
+      # The tab host API: every tab, the resources and the accounts through
+      # one port (what a remote manager uses). Map "192.168.2.20:8789:8789".
+      # SKUA_HOST_API_PREFIX: "http://+:8789/"
+      # Require this token (Authorization: Bearer <token>) on every control
+      # API. Set it whenever an API is published.
+      # SKUA_API_TOKEN: ""
     # Keep settings, CoreBots options, scripts and saved browser data across
     # updates: mount /config. A separate Scripts folder can go on top; Skua
     # asks before syncing it with the scripts repository. Both must be

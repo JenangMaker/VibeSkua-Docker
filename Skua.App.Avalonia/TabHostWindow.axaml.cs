@@ -41,6 +41,8 @@ public sealed class SkuaTab(int number) : ObservableObject
     internal bool Closed;
     internal DateTime Started;
     internal TimeSpan RestartDelay = TimeSpan.FromSeconds(2);
+    internal int Restarts;
+    internal bool RestartRequested;
 }
 
 /// <summary>
@@ -66,21 +68,23 @@ public partial class TabHostWindow : Window
         && SkuaRuntime.EnvRaw("SKUA_EMBED_GAME")?.ToLowerInvariant() is not ("0" or "false" or "no" or "off");
 
     /// <summary>
-    /// How many tabs to open at start: one per configured account (the
-    /// highest N with AQW_USER_N set; main.js logs each in), or SKUA_TABS=N
-    /// if that is more; at least one.
+    /// The tabs to open at start (instance numbers): 1 to the highest N with
+    /// AQW_USER_N set (main.js logs each in), or to SKUA_TABS=N if that is
+    /// more, at least one; and each tab with an account in the accounts file
+    /// (Skua.Linux/AccountStore.cs, added from the web manager).
     /// </summary>
-    private static int InitialTabs
+    private static IEnumerable<int> InitialTabs
     {
         get
         {
             int accounts = Enumerable.Range(1, MaxTabs).LastOrDefault(n => SkuaRuntime.EnvRaw($"AQW_USER_{n}") is not null);
             int asked = int.TryParse(SkuaRuntime.EnvRaw("SKUA_TABS"), out int t) ? t : 1;
-            return Math.Clamp(Math.Max(accounts, asked), 1, MaxTabs);
+            int count = Math.Clamp(Math.Max(accounts, asked), 1, MaxTabs);
+            return Enumerable.Range(0, count).Union(AccountStore.Load().Select(a => a.Tab - 1)).Order();
         }
     }
 
-    private const int MaxTabs = 50;
+    private const int MaxTabs = AccountStore.MaxTabs;
 
     public ObservableCollection<SkuaTab> Tabs { get; } = new();
 
@@ -100,6 +104,8 @@ public partial class TabHostWindow : Window
 
     public TabHostWindow()
     {
+        ApiAuth.AddTo(_http);
+        ApiAuth.AddTo(_quick);
         InitializeComponent();
         DataContext = this;
         Title = "VibeSkua";
@@ -113,8 +119,11 @@ public partial class TabHostWindow : Window
         {
             _display = X.XOpenDisplay(null);
             _hostXid = TryGetPlatformHandle()?.Handle is { } h ? (ulong)h : 0;
-            for (int i = 0; i < InitialTabs; i++)
-                AddTab();
+            foreach (int n in InitialTabs)
+                AddTab(n);
+            if (Tabs.Count > 0)
+                Select(Tabs[^1]);   // the last opened, as before
+            StartApi();
             DispatcherTimer.Run(() => { _ = Poll(); return !_closing; }, TimeSpan.FromSeconds(1.5));
             DispatcherTimer.Run(() => { PumpFocus(); return !_closing; }, TimeSpan.FromMilliseconds(30));
         };
@@ -133,17 +142,20 @@ public partial class TabHostWindow : Window
 
     // ---- tabs ------------------------------------------------------------
 
-    private void AddTab()
+    /// <summary>Opens instance n, else the first free one; null if there is no room or n is open.</summary>
+    private SkuaTab? AddTab(int? number = null)
     {
         if (Tabs.Count >= MaxTabs)
-            return;
-        int n = Enumerable.Range(0, MaxTabs).First(i => Tabs.All(t => t.Number != i));
+            return null;
+        int n = number ?? Enumerable.Range(0, MaxTabs).First(i => Tabs.All(t => t.Number != i));
+        if (n is < 0 or >= MaxTabs || Tabs.Any(t => t.Number == n))
+            return null;
         var tab = new SkuaTab(n) { Api = LocalBase(PrefixFor("SKUA_API_PREFIX", "http://127.0.0.1:8791/", n)) };
         int at = Tabs.TakeWhile(t => t.Number < n).Count();
         Tabs.Insert(at, tab);
         _ = OpenGame(tab);
         StartProcess(tab);
-        Select(tab);
+        return tab;
     }
 
     private void Select(SkuaTab tab)
@@ -163,6 +175,11 @@ public partial class TabHostWindow : Window
             App.Service<IDialogService>().ShowMessageBox("This is the last tab; close VibeSkua instead.", "Close Tab");
             return;
         }
+        await CloseTabAsync(tab);
+    }
+
+    private async Task CloseTabAsync(SkuaTab tab)
+    {
         tab.Closed = true;
         int index = Tabs.IndexOf(tab);
         Tabs.Remove(tab);
@@ -233,10 +250,14 @@ public partial class TabHostWindow : Window
         // Tab N's script: SKUA_SCRIPT_N, else plain SKUA_SCRIPT (every tab's);
         // SKUA_SCRIPT_N=none gives that tab none. Started once logged in if
         // SKUA_SCRIPT_AUTO_START_N, else SKUA_SCRIPT_AUTO_START, says so.
-        string? script = SkuaRuntime.EnvRaw($"SKUA_SCRIPT_{n + 1}") ?? SkuaRuntime.EnvRaw("SKUA_SCRIPT");
+        // Between the two: what the accounts file gives this tab's account.
+        var account = AccountStore.InEnvironment(n + 1) ? null : AccountStore.Get(n + 1);
+        string? script = SkuaRuntime.EnvRaw($"SKUA_SCRIPT_{n + 1}") ?? NullIfBlank(account?.Script) ?? SkuaRuntime.EnvRaw("SKUA_SCRIPT");
         if (script?.ToLowerInvariant() is "none" or "off" or "-")
             script = null;
-        string? autoStart = SkuaRuntime.EnvRaw($"SKUA_SCRIPT_AUTO_START_{n + 1}") ?? SkuaRuntime.EnvRaw("SKUA_SCRIPT_AUTO_START");
+        string? autoStart = SkuaRuntime.EnvRaw($"SKUA_SCRIPT_AUTO_START_{n + 1}")
+            ?? (account?.AutoStart is bool on ? (on ? "1" : "0") : null)
+            ?? SkuaRuntime.EnvRaw("SKUA_SCRIPT_AUTO_START");
         SetOrRemove(psi, "SKUA_SCRIPT", script);
         SetOrRemove(psi, "SKUA_SCRIPT_AUTO_START", autoStart);
         // CoreBots room: SKUA_ROOM_NUMBER_N, else SKUA_ROOM_NUMBER (every tab's).
@@ -267,6 +288,8 @@ public partial class TabHostWindow : Window
         Console.WriteLine($"[tabs] tab {n + 1}: Skua pid {process.Id}, api {tab.Api}");
     }
 
+    private static string? NullIfBlank(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
     private static void SetOrRemove(ProcessStartInfo psi, string name, string? value)
     {
         if (value is null)
@@ -282,14 +305,18 @@ public partial class TabHostWindow : Window
         if (tab.Closed || _closing || tab.Process != process)
             return;
         tab.Xid = 0;
-        tab.RestartDelay = DateTime.UtcNow - tab.Started > TimeSpan.FromMinutes(1)
+        tab.Restarts++;
+        // Restarted on request (the host API): no backoff.
+        tab.RestartDelay = tab.RestartRequested || DateTime.UtcNow - tab.Started > TimeSpan.FromMinutes(1)
             ? TimeSpan.FromSeconds(2)
             : TimeSpan.FromSeconds(Math.Min(tab.RestartDelay.TotalSeconds * 2, 60));
+        tab.RestartRequested = false;
         Console.Error.WriteLine($"[tabs] tab {tab.Number + 1}: Skua exited ({process.ExitCode}); restarting in {tab.RestartDelay.TotalSeconds}s");
         Layout();
         DispatcherTimer.RunOnce(() =>
         {
-            if (!tab.Closed && !_closing)
+            // Unless it was started again meanwhile (a restart from the host API).
+            if (!tab.Closed && !_closing && tab.Process == process)
                 StartProcess(tab);
         }, tab.RestartDelay);
     }
@@ -378,7 +405,11 @@ public partial class TabHostWindow : Window
             bool loggedIn = game.ValueKind == JsonValueKind.Object && game.GetProperty("loggedIn").GetBoolean();
             string? player = loggedIn ? game.GetProperty("player").GetString() : null;
             tab.LoggedIn = loggedIn;
-            tab.Title = string.IsNullOrWhiteSpace(player) ? $"Skua {tab.Number + 1}" : player!;
+            // Streamer Mode (the game option) hides the name in the tab header too
+            bool streamer = game.ValueKind == JsonValueKind.Object && game.TryGetProperty("streamer", out var s) && s.ValueKind == JsonValueKind.True;
+            tab.Title = string.IsNullOrWhiteSpace(player) ? $"Skua {tab.Number + 1}"
+                : streamer ? $"Player {tab.Number + 1}"
+                : player!;
         }
         catch
         {
@@ -617,7 +648,11 @@ public partial class TabHostWindow : Window
             CloseTab(tab);
     }
 
-    private void AddTab_Click(object? sender, RoutedEventArgs e) => AddTab();
+    private void AddTab_Click(object? sender, RoutedEventArgs e)
+    {
+        if (AddTab() is { } tab)
+            Select(tab);
+    }
 
     private void Grid_Click(object? sender, RoutedEventArgs e)
     {
@@ -741,6 +776,7 @@ public partial class TabHostWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         StopAll();
+        StopApi();
         StrongReferenceMessenger.Default.UnregisterAll(this);
         foreach (var s in _signals)
             s.Dispose();

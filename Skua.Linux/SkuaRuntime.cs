@@ -82,6 +82,9 @@ public sealed class SkuaRuntime
         platformServices?.Invoke(services);
         services.AddCommonServices();
         services.AddScriptableObjects();
+        // Script options that can skip their window (ScriptOptionsWindow.cs);
+        // after AddScriptableObjects, which registers Skua's own.
+        services.AddTransient<IScriptOptionContainer, SkippableScriptOptionContainer>();
         services.AddCompiler();
         var provider = services.BuildServiceProvider();
         Ioc.Default.ConfigureServices(provider);
@@ -124,6 +127,7 @@ public sealed class SkuaRuntime
         Bridge.ConnectionChanged += up => Console.WriteLine(up ? "[host] page connected" : "[host] page disconnected");
         Bridge.Start();
         new ScriptKeeper(provider, Bridge).Start();
+        new OptionKeeper(provider, Bridge).Start();
         string apiPrefix = Env("SKUA_API_PREFIX", "http://127.0.0.1:8791/");
         try
         {

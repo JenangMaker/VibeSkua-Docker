@@ -188,9 +188,10 @@ public sealed class ScriptSync(IServiceProvider services)
         try
         {
             string mode = (SkuaRuntime.EnvRaw("SKUA_SCRIPT_SYNC") ?? "auto").ToLowerInvariant();
+            bool off = mode is "off" or "0" or "false" or "no";
             if (!Settings.Get<bool>("CheckBotScriptsUpdates"))
                 LastResult = "script updates off (CheckBotScriptsUpdates)";
-            else if (mode is "off" or "0" or "false" or "no")
+            else if (off)
                 LastResult = "script updates off (SKUA_SCRIPT_SYNC)";
             else
             {
@@ -202,6 +203,10 @@ public sealed class ScriptSync(IServiceProvider services)
             }
 
             string summary = Summary;
+            // The extra repositories were asked for by name (SKUA_SCRIPTS_EXTRA),
+            // each into a folder of its own: kept up to date without asking.
+            if (!off && await UpdateExtrasAsync() is { } extras)
+                summary = summary.Length > 0 ? $"{summary}; {extras}" : extras;
             Step("Checking the advanced skill sets");
             if (Settings.Get<bool>("CheckAdvanceSkillSetsUpdates")
                 && Settings.Get<bool>("AutoUpdateAdvanceSkillSetsUpdates")
@@ -227,7 +232,7 @@ public sealed class ScriptSync(IServiceProvider services)
                 Console.WriteLine("[scripts] junk item list updated");
             }
             // The scripts' own result is the news; the rest is housekeeping.
-            Finish(summary.Length > 0 && FinishedAt != default ? summary : LastResult);
+            Finish(summary.Length > 0 ? summary : LastResult);
         }
         catch (Exception e)
         {
@@ -306,6 +311,65 @@ public sealed class ScriptSync(IServiceProvider services)
         }
     }
 
+    /// <summary>The main repository, then the extra ones (POST /scripts/update).</summary>
+    public async Task<object> UpdateAllAsync()
+    {
+        object main = await UpdateScriptsAsync();
+        string? extras = await UpdateExtrasAsync();
+        return new { main, extras };
+    }
+
+    /// <summary>
+    /// Syncs the extra repositories (SKUA_SCRIPTS_EXTRA, ExtraScripts.cs) one
+    /// after another; returns one line on how it went, null if there are none.
+    /// </summary>
+    public async Task<string?> UpdateExtrasAsync()
+    {
+        var sources = ExtraScripts.Sources;
+        if (sources.Count == 0)
+            return null;
+        await _gate.WaitAsync();
+        Syncing = true;
+        Busy(true);
+        try
+        {
+            var parts = new List<string>();
+            foreach (var source in sources)
+            {
+                Step($"Fetching the script list from {source.Name}");
+                var r = await ExtraScripts.SyncAsync(source, (done, total) =>
+                {
+                    if (done == 0)
+                        Step($"Downloading scripts from {source.Name}", total);
+                    else
+                        Interlocked.Exchange(ref _done, done);
+                });
+                string line = r.Error is not null
+                    ? $"{source.Folder}: failed ({r.Error})"
+                    : r.Failed > 0
+                        ? $"{source.Folder}: {r.Downloaded} downloaded, {r.Failed} failed"
+                        : r.Downloaded > 0
+                            ? $"{source.Folder}: {r.Downloaded} downloaded ({r.Files} in all)"
+                            : $"{source.Folder}: up to date ({r.Files})";
+                Console.WriteLine($"[scripts] {source.Name} -> Scripts/{source.Folder}: {line}");
+                if (r.Error is not null || r.Failed > 0)
+                    ReportFailure($"Syncing scripts from {source.Name} into Scripts/{source.Folder}:\r\n{line}" +
+                        (r.Failed > 0 ? "\r\n\r\nThe failed files are listed in the container log." : ""), null);
+                parts.Add(line);
+            }
+            string summary = string.Join("; ", parts);
+            LastResult = $"{LastResult}; extra: {summary}";
+            Step(null);
+            return summary;
+        }
+        finally
+        {
+            Busy(false);
+            Syncing = false;
+            _gate.Release();
+        }
+    }
+
     /// <summary>
     /// Skua Manager's "Reset Scripts": deletes everything in the Scripts
     /// folder (local edits and scripts of your own included) and downloads
@@ -326,9 +390,12 @@ public sealed class ScriptSync(IServiceProvider services)
                 ReportFailure($"Reset Scripts could not delete {failed} item(s) in {dir} (see the log); downloading the rest again anyway.", null);
 
             object result = await UpdateScriptsAsync(Scope.All);
+            string mainSummary = Summary;
+            // The extra repositories' folders went with the rest.
+            string? extras = await UpdateExtrasAsync();
             Step("Updating quest data");
             await Repo.UpdateQuestDataFile();
-            Finish(Summary);
+            Finish(extras is null ? mainSummary : $"{mainSummary}; {extras}");
             Console.WriteLine($"[scripts] reset: {deleted} item(s) deleted, then: {LastResult}");
             return new { reset = true, deleted, notDeleted = failed, sync = result };
         }
@@ -434,16 +501,125 @@ public sealed class ScriptSync(IServiceProvider services)
     private static string Geteuid() { try { return GeteuidNative().ToString(); } catch { return "?"; } }
     private static string Getegid() { try { return GetegidNative().ToString(); } catch { return "?"; } }
 
-    /// <summary>Scripts in the repository index whose path, name or tags contain every term.</summary>
-    public IEnumerable<ScriptInfo> Search(string? query, int limit = 50)
+    /// <summary>
+    /// <see cref="Search"/>, after getting the repository index if this Skua
+    /// has none. Only the tab that syncs (the first) gets it at start; the
+    /// others share its Scripts folder and found nothing but the extra
+    /// repositories' scripts. Fetched once and kept, as the Script Repo window
+    /// does; nothing is downloaded.
+    /// </summary>
+    public async Task<List<ScriptInfo>> SearchAsync(string? query, int limit = 50, string? category = null)
+    {
+        if (Repo.Total == 0)
+        {
+            try { await Repo.GetScriptsAsync(null, default); }
+            catch (Exception e) { Console.Error.WriteLine($"[scripts] script index: {e.Message}"); }
+        }
+        return Search(query, limit, category).ToList();
+    }
+
+    /// <summary>
+    /// The Search Scripts window's categories (ScriptRepoViewModel.FilterOptions):
+    /// a script is in one when a folder (or the file) on its path starts with
+    /// that name. "Local" is the scripts that are not in the index: here, the
+    /// extra repositories' (SKUA_SCRIPTS_EXTRA).
+    /// </summary>
+    public static IReadOnlyList<string> Categories { get; } =
+        ["All", "Army", "Classes", "Dailies", "Evil", "Farm", "Good", "Legion", "Local", "Nation", "Other", "Rep", "Seasonal", "Story", "Ultras"];
+
+    /// <summary>
+    /// Searches as the Search Scripts window does (Skua.WPF ScriptRepoView,
+    /// ScriptRepoViewModel), with each word of the query matched on its own:
+    /// <list type="bullet">
+    /// <item>index entries without a name (the "null" of the Core*.cs
+    /// libraries) are left out;</item>
+    /// <item>every word must be in the name, file name, path, description or
+    /// a tag;</item>
+    /// <item><paramref name="category"/> narrows it as the window's filter;</item>
+    /// <item>sorted by name, A to Z.</item>
+    /// </list>
+    /// </summary>
+    public IEnumerable<ScriptInfo> Search(string? query, int limit = 50, string? category = null)
     {
         string[] terms = (query ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        return Repo.Scripts.ToList()
+        string filter = Categories.FirstOrDefault(c => c.Equals(category?.Trim(), StringComparison.OrdinalIgnoreCase)) ?? "All";
+        static bool Named(string? v) => !string.IsNullOrWhiteSpace(v) && v != "null";
+
+        IEnumerable<ScriptInfo> index = filter == "Local"
+            ? []
+            : Repo.Scripts.ToList().Where(s => Named(s.Name)
+                && (filter == "All" || s.FilePath.Split('/').Any(part => part.StartsWith(filter, StringComparison.OrdinalIgnoreCase))));
+        IEnumerable<ScriptInfo> local = filter is "All" or "Local" ? ExtraScripts.Local() : [];
+
+        return index.Concat(local)
             .Where(s => terms.All(t =>
-                (s.FilePath?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false)
-                || (s.Name?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false)
-                || (s.Tags?.Any(tag => tag.Contains(t, StringComparison.OrdinalIgnoreCase)) ?? false)))
+                (s.Name?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (s.FileName?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (s.FilePath?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (Named(s.Description) && s.Description.Contains(t, StringComparison.OrdinalIgnoreCase))
+                || (s.Tags?.Any(tag => Named(tag) && tag.Contains(t, StringComparison.OrdinalIgnoreCase)) ?? false)))
+            .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
             .Take(limit);
+    }
+
+    /// <summary>
+    /// One folder of the Scripts folder on disk, for the manager's file
+    /// browser: its subfolders and .cs files, paths relative to Scripts (what
+    /// loading takes). Names and descriptions come from the index, else from
+    /// the file's header. Cached-Scripts (compiled scripts) and hidden entries
+    /// are left out; a path outside Scripts is refused.
+    /// </summary>
+    public object Browse(string? dir)
+    {
+        string root = Path.GetFullPath(ClientFileSources.SkuaScriptsDIR).TrimEnd('/');
+        string relative = (dir ?? "").Replace('\\', '/').Trim('/');
+        string full = Path.GetFullPath(Path.Combine(root, relative)).TrimEnd('/');
+        if (full != root && !full.StartsWith(root + "/", StringComparison.Ordinal))
+            return new { error = "outside the Scripts folder" };
+        if (!Directory.Exists(full))
+            return new { error = $"no such folder: {relative}" };
+
+        static bool Shown(string name) => !name.StartsWith('.') && name != "Cached-Scripts";
+        static string? Known(string? v) => string.IsNullOrWhiteSpace(v) || v == "null" ? null : v;
+        string Rel(string path) => Path.GetRelativePath(root, path).Replace('\\', '/');
+        var index = Repo.Scripts.ToList()
+            .GroupBy(s => s.FilePath, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var folders = Directory.EnumerateDirectories(full)
+            .Where(d => Shown(Path.GetFileName(d)))
+            .Select(d => new
+            {
+                name = Path.GetFileName(d),
+                path = Rel(d),
+                scripts = Directory.EnumerateFiles(d, "*.cs", SearchOption.AllDirectories).Count(),
+            })
+            .OrderBy(f => f.name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var files = Directory.EnumerateFiles(full, "*.cs")
+            .Where(f => Shown(Path.GetFileName(f)))
+            .Select(f =>
+            {
+                string path = Rel(f);
+                string? name, description;
+                if (index.TryGetValue(path, out var info))
+                    (name, description) = (Known(info.Name), Known(info.Description));
+                else
+                    (name, description, _) = ExtraScripts.Header(f);
+                var file = new FileInfo(f);
+                return new
+                {
+                    file = file.Name,
+                    path,
+                    name = Known(name),
+                    description = Known(description),
+                    size = file.Length,
+                    modified = file.LastWriteTimeUtc,
+                };
+            })
+            .OrderBy(f => f.file, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return new { dir = full == root ? "" : Rel(full), folders, files };
     }
 
     /// <summary>

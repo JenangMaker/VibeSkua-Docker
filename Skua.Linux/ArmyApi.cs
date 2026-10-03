@@ -20,6 +20,7 @@ namespace Skua.Linux;
 ///   option?name=&amp;value=        LagKiller, HeadlessMode, HidePlayers, DisableFX,
 ///                              InfiniteRange, Magnetise, SkipCutscenes,
 ///                              UseFunctionBasedSkills, StreamerMode
+///   GET options                those options' current values, as {name: bool}
 ///   start                      start the loaded script
 ///   stop                       stop the scheduler if it runs, else the script
 ///   scheduler                  body: [{path,id,name}]; replace the Scheduler's
@@ -38,6 +39,12 @@ public sealed partial class HostApi
     ];
 
     private T Get<T>() where T : notnull => services.GetRequiredService<T>();
+
+    private Dictionary<string, bool> ArmyOptionValues()
+    {
+        var options = Get<IScriptOption>();
+        return ArmyOptions.ToDictionary(name => name, name => (bool)typeof(IScriptOption).GetProperty(name)!.GetValue(options)!);
+    }
 
     private async Task<object> Army(string action, HttpListenerRequest request)
     {

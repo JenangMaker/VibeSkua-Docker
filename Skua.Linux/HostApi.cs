@@ -50,16 +50,21 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
         {
             string path = ctx.Request.Url!.AbsolutePath.TrimEnd('/');
             string method = ctx.Request.HttpMethod;
-            result = (method, path) switch
+            result = !ApiAuth.Allowed(ctx.Request) ? Unauthorized(out status) : (method, path) switch
             {
-                ("GET", "/status") => Status(),
+                ("GET", "/status") => Status(ctx.Request.QueryString["detail"] is "1" or "true"),
                 ("POST", "/script/load") => await LoadFromRequest(ctx.Request),
                 ("POST", "/script/start") => await StartFromRequest(ctx.Request),
                 ("POST", "/script/stop") => await Stop(),
+                ("GET", "/script/options") => await ScriptOptions(),
+                ("POST", "/script/options") => await SaveScriptOptions(ctx.Request),
                 ("GET", "/log") => Log(ctx.Request),
-                ("GET", "/scripts") => Scripts(ctx.Request),
-                ("POST", "/scripts/update") => await scripts.UpdateScriptsAsync(),
+                ("GET", "/scripts") => await Scripts(ctx.Request),
+                ("GET", "/scripts/categories") => ScriptSync.Categories,
+                ("GET", "/scripts/browse") => scripts.Browse(ctx.Request.QueryString["dir"]),
+                ("POST", "/scripts/update") => await scripts.UpdateAllAsync(),
                 ("POST", "/scripts/reset") => await scripts.ResetScriptsAsync(),
+                ("GET", "/army/options") => ArmyOptionValues(),
                 ("POST", _) when path.StartsWith("/army/") => await Army(path["/army/".Length..], ctx.Request),
                 _ when Routes.TryGetValue($"{method} {path}", out var route) => await route(ctx.Request),
                 _ => NotFound(out status),
@@ -84,28 +89,72 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
         return new { error = "not found" };
     }
 
-    private object Status()
+    private static object Unauthorized(out int status)
+    {
+        status = 401;
+        return new { error = "SKUA_API_TOKEN is set: send it as Authorization: Bearer <token>" };
+    }
+
+    // detail: also what a remote dashboard shows (the web manager). Each field
+    // is a call into the game, so the tab host's 1.5 s poll asks without it.
+    private object Status(bool detail = false)
     {
         var bridge = services.GetRequiredService<RuffleBridge>();
         var manager = services.GetRequiredService<IScriptManager>();
-        object? game = null;
+        object? game = null, stats = null, combat = null, quests = null;
         if (bridge.IsConnected)
         {
             var bot = services.GetRequiredService<IScriptInterface>();
-            game = new
+            var player = bot.Player;
+            bool loggedIn = player.LoggedIn;
+            game = !detail || !loggedIn
+                ? new
+                {
+                    loggedIn,
+                    player = player.Username,
+                    streamer = bot.Options.StreamerMode,
+                    map = bot.Map.Name,
+                    cell = player.Cell,
+                    hp = player.Health,
+                }
+                : new
+                {
+                    loggedIn,
+                    player = player.Username,
+                    streamer = bot.Options.StreamerMode,
+                    map = bot.Map.Name,
+                    cell = player.Cell,
+                    hp = player.Health,
+                    maxHp = player.MaxHealth,
+                    mp = player.Mana,
+                    maxMp = player.MaxMana,
+                    level = player.Level,
+                    gold = player.Gold,
+                    className = player.CurrentClass?.Name,
+                    state = player.State,
+                    hasTarget = player.HasTarget,
+                    afk = player.AFK,
+                };
+            if (detail)
             {
-                loggedIn = bot.Player.LoggedIn,
-                player = bot.Player.Username,
-                map = bot.Map.Name,
-                cell = bot.Player.Cell,
-                hp = bot.Player.Health,
-            };
+                var s = bot.Stats;
+                stats = new { kills = s.Kills, drops = s.Drops, questsCompleted = s.QuestsCompleted, deaths = s.Deaths, relogins = s.Relogins };
+                if (loggedIn)
+                {
+                    combat = Combat(bot);
+                    quests = Quests(bot);
+                }
+            }
         }
         return new
         {
             instance = SkuaRuntime.Instance,
             bridgeConnected = bridge.IsConnected,
             game,
+            stats,
+            combat,
+            quests,
+            throttle = detail ? new { hidden = IsShrunk, headless = IsHeadless } : null,
             script = new { running = manager.ScriptRunning, loaded = manager.LoadedScript },
             scripts = new
             {
@@ -114,6 +163,74 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 last = scripts.LastResult,
             },
         };
+    }
+
+    /// <summary>
+    /// The fight: the player's target and the monsters in its cell (at most 20),
+    /// each with HP and state (0 dead, 1 idle, 2 in combat). Null if the game
+    /// could not say.
+    /// </summary>
+    private static object? Combat(IScriptInterface bot)
+    {
+        static object Monster(Skua.Core.Models.Monsters.Monster m) =>
+            new { id = m.MapID, name = m.Name, hp = m.HP, maxHp = m.MaxHP, state = m.State };
+        try
+        {
+            return new
+            {
+                // No target reads as an empty monster (getTargetMonster's default).
+                target = bot.Player.Target is { Name.Length: > 0 } t ? Monster(t) : null,
+                monsters = bot.Monsters.CurrentMonsters.Take(20).Select(Monster).ToList(),
+            };
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The quests in progress (at most 10), each requirement with how many
+    /// the player has, in Flash's order; registered: the script completes it
+    /// by itself (Quests.RegisterQuests). One read of the quest tree (~40 KB,
+    /// a few ms) and of the inventories. Null if the game could not say.
+    /// </summary>
+    private static object? Quests(IScriptInterface bot)
+    {
+        try
+        {
+            var active = bot.Quests.Active;
+            if (active.Count == 0)
+                return new List<object>();
+            // Held counts by item id, inventory and temporary items together.
+            var held = new Dictionary<int, int>();
+            foreach (var item in bot.Inventory.Items.Cast<Skua.Core.Models.Items.ItemBase>().Concat(bot.TempInv.Items))
+                held[item.ID] = held.GetValueOrDefault(item.ID) + item.Quantity;
+            var registered = bot.Quests.Registered.ToHashSet();
+            return active.Take(10).Select(q =>
+            {
+                var reqs = q.Requirements.Select(r => new
+                {
+                    id = r.ID,
+                    name = r.Name,
+                    have = Math.Min(held.GetValueOrDefault(r.ID), Math.Max(r.Quantity, 0)),
+                    need = r.Quantity,
+                    temp = r.Temp,
+                }).ToList();
+                return new
+                {
+                    id = q.ID,
+                    name = q.Name,
+                    registered = registered.Contains(q.ID),
+                    ready = reqs.All(r => r.have >= r.need),
+                    requirements = reqs,
+                };
+            }).ToList();
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     // ?path=<file>, or the script source as the body; null when neither is given.
@@ -149,15 +266,18 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
         return error is null ? new { started = services.GetRequiredService<IScriptManager>().LoadedScript } : new { error };
     }
 
-    private object Scripts(HttpListenerRequest request)
+    private async Task<object> Scripts(HttpListenerRequest request)
     {
         int limit = int.TryParse(request.QueryString["limit"], out int l) ? Math.Clamp(l, 1, 1000) : 50;
-        return scripts.Search(request.QueryString["q"], limit).Select(s => new
+        // The index has "null" (the text) where a script's header leaves a
+        // field out: report it as absent.
+        static string? Known(string? v) => string.IsNullOrWhiteSpace(v) || v == "null" ? null : v;
+        return (await scripts.SearchAsync(request.QueryString["q"], limit, request.QueryString["category"])).Select(s => new
         {
             path = s.FilePath,
-            name = s.Name,
-            description = s.Description,
-            tags = s.Tags,
+            name = Known(s.Name),
+            description = Known(s.Description),
+            tags = (s.Tags ?? []).Where(t => Known(t) is not null).ToArray(),
             downloaded = s.Downloaded,
             outdated = s.Outdated,
         }).ToList();
