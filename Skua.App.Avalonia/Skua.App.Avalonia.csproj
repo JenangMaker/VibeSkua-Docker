@@ -39,4 +39,13 @@
     <ProjectReference Include="..\Skua.Linux\Skua.Linux.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Thread pool threads stop spinning before they sleep. Every bridge round
+         trip (about 90 a second idle, 200+ in a fight) woke threads that then
+         spun: about a third of a tab's CPU, idle or fighting, measured. Wake-up
+         latency is microseconds; bridge calls take milliseconds.
+         DOTNET_ThreadPool_UnfairSemaphoreSpinLimit still overrides it. -->
+    <RuntimeHostConfigurationOption Include="System.Threading.ThreadPool.UnfairSemaphoreSpinLimit" Value="0" />
+  </ItemGroup>
+
 </Project>

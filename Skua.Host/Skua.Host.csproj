@@ -19,4 +19,9 @@
     <ProjectReference Include="..\Skua.Linux\Skua.Linux.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- No spinning before thread pool threads sleep: see Skua.App.Avalonia.csproj. -->
+    <RuntimeHostConfigurationOption Include="System.Threading.ThreadPool.UnfairSemaphoreSpinLimit" Value="0" />
+  </ItemGroup>
+
 </Project>
