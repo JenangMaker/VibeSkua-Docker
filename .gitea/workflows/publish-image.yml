@@ -26,6 +26,8 @@ name: Publish image
 on:
   push:
     branches: ["**"]
+    # A push that changes only these (or nothing: an empty commit) does not
+    # build. To build again without a change, use Run workflow (workflow_dispatch).
     paths-ignore:
       - "**.md"
       - "docs/**"
