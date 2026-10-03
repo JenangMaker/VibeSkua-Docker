@@ -7,6 +7,12 @@
 # avalonia-ui, so by default it does not replace :latest, which the base branch
 # (docker-and-ruffle-test, Skua headless) publishes.
 #
+# Every push builds and publishes too, tagged with the branch's name
+# (vibeskua-web:optimize for the optimize branch, "/" made "-"), so a branch
+# can be tried on a Komodo stack by pointing it at that tag. Pushes that only
+# change documentation or the manager are skipped; a newer push to the same
+# branch cancels the build still running for it.
+#
 # Requires the act_runner to expose a Docker daemon to jobs. If it does not,
 # the "Check Docker access" step fails early with a clear message rather than
 # dying somewhere inside buildx.
@@ -18,6 +24,13 @@
 name: Publish image
 
 on:
+  push:
+    branches: ["**"]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "manager/**"
+      - ".github/**"
   workflow_dispatch:
     inputs:
       tag:
@@ -29,9 +42,17 @@ on:
         required: false
         default: "true"
 
+concurrency:
+  group: publish-image-${{ github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   image:
     runs-on: ubuntu-latest
+    env:
+      # A manual run's tag, else the branch's name.
+      TAG: ${{ inputs.tag || github.ref_name }}
+      PUSH: ${{ inputs.push || 'true' }}
 
     steps:
       - name: Checkout
@@ -62,7 +83,7 @@ jobs:
         run: |
           set -eu
           REGISTRY="${{ vars.PACKAGE_URL }}"
-          IMAGE="${REGISTRY:-gitea.jenangmaker.cloud}/jenangmaker/vibeskua-web:${{ inputs.tag }}"
+          IMAGE="${REGISTRY:-gitea.jenangmaker.cloud}/jenangmaker/vibeskua-web:$(echo "$TAG" | tr '/' '-')"
           echo "Building $IMAGE"
           # Repo variable RUFFLE_WEB_URL, if set, swaps in a custom Ruffle build
           # (a zip of web/packages/selfhosted/dist). Unset = official release.
@@ -77,10 +98,10 @@ jobs:
           docker image inspect "$IMAGE" --format 'built {{.Id}} ({{.Size}} bytes)'
 
       - name: Push image
-        if: ${{ inputs.push == 'true' }}
+        if: ${{ env.PUSH == 'true' }}
         run: |
           set -eu
           REGISTRY="${{ vars.PACKAGE_URL }}"
-          IMAGE="${REGISTRY:-gitea.jenangmaker.cloud}/jenangmaker/vibeskua-web:${{ inputs.tag }}"
+          IMAGE="${REGISTRY:-gitea.jenangmaker.cloud}/jenangmaker/vibeskua-web:$(echo "$TAG" | tr '/' '-')"
           docker push "$IMAGE"
           echo "Pushed $IMAGE"
