@@ -1,0 +1,14 @@
+{
+  "name": "vibeskua-manager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Web page to monitor and control a VibeSkua instance remotely",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT"
+}

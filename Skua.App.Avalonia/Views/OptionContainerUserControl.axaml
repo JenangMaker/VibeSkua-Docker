@@ -4,7 +4,7 @@
              xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="Skua.App.Avalonia.Views.OptionContainerUserControl">
-    <Grid Grid.IsSharedSizeScope="True" RowDefinitions="*,Auto">
+    <Grid Grid.IsSharedSizeScope="True" RowDefinitions="*,Auto,Auto">
         <Border Margin="6,6,6,3" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="1">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <ItemsControl x:Name="Groups">
@@ -61,5 +61,10 @@
                 <TextBlock Margin="6,3" Text="{Binding SelectedOption.Option.Description}" TextWrapping="Wrap" />
             </StackPanel>
         </Border>
+        <!-- Script options only (Skua.Linux/ScriptOptionsWindow.cs); applies at once. -->
+        <CheckBox Grid.Row="2" x:Name="SkipAtStart" Margin="8,0,6,6" IsVisible="False"
+                  Content="Don't open this window when this script starts"
+                  ToolTip.Tip="The script then runs with the options saved here, without asking. Change it again from Options in the Script Loader or the web manager."
+                  IsCheckedChanged="SkipAtStart_Changed" />
     </Grid>
 </UserControl>

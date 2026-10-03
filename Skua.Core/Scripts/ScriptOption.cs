@@ -52,7 +52,7 @@ public partial class ScriptOption : ObservableRecipient, IScriptOption, IOptionD
             Task.Run(async () => 
             {
                 await Task.Delay(1000); // Give the Flash map UI time to load the string
-                var rawMapName = recipient._lazyFlash.Value.GetGameObject("world.strMapName") ?? "";
+                var rawMapName = (recipient._lazyFlash.Value.GetGameObject("world.strMapName") ?? "").Trim('"');
                 if (!string.IsNullOrEmpty(rawMapName))
                 {
                     var cleanMapName = rawMapName.Length > 1 
@@ -244,20 +244,23 @@ public partial class ScriptOption : ObservableRecipient, IScriptOption, IOptionD
                         flash.Call("setGameObject", "world.rootClass.ui.mcPortrait.strName.text", "VibeSkuaUser");
                         flash.Call("setGameObject", "world.rootClass.ui.mcPortraitTarget.strName.text", "Hidden");
 
-                        // Hide Gold/Coins visually instead of wiping the client's cached integer amounts
-                        flash.Call("setGameObject", "world.rootClass.ui.mcInterface.teGold.visible", false);
-                        flash.Call("setGameObject", "world.rootClass.ui.mcInterface.teCoins.visible", false);
-                        flash.Call("setGameObject", "world.rootClass.ui.mcInterface.strGold.visible", false);
-                        flash.Call("setGameObject", "world.rootClass.ui.mcInterface.strCoins.visible", false);
-                        flash.Call("setGameObject", "world.rootClass.ui.mcInterface.txtGold.visible", false);
-                        flash.Call("setGameObject", "world.rootClass.ui.mcInterface.txtCoins.visible", false);
+                        // The game writes the real name back into the name tag and
+                        // the portrait (on HP changes, in a fight several times a
+                        // second), so the two blinked; hidden, they stay hidden.
+                        flash.Call("setGameObject", "world.myAvatar.pMC.pname.ti.visible", false);
+                        flash.Call("setGameObject", "world.rootClass.ui.mcPortrait.strName.visible", false);
+
+                        // (The gold and coin labels it used to hide are gone from
+                        // the current client; setting them only threw errors.)
                         
                         // Hide chat
                         flash.Call("setGameObject", "world.rootClass.ui.mcInterface.t1.visible", false);
                         flash.Call("setGameObject", "world.rootClass.ui.mcInterface.te.visible", false);
                         
                         // Force map UI text cleanly
-                        var rawMapName = flash.GetGameObject("world.strMapName") ?? "";
+                        // (getGameObject returns JSON: without the Trim the name
+                        // kept its quotes, "Battleon" with them in the area list.)
+                        var rawMapName = (flash.GetGameObject("world.strMapName") ?? "").Trim('"');
                         if (!string.IsNullOrEmpty(rawMapName) && rawMapName != "null")
                         {
                             var cleanMapName = rawMapName.Length > 1 
@@ -265,6 +268,11 @@ public partial class ScriptOption : ObservableRecipient, IScriptOption, IOptionD
                                 : rawMapName.ToUpper();
                             
                             flash.Call("setGameObject", "ui.mcInterface.areaList.title.t1.text", cleanMapName);
+
+                            // A house map titles itself "<owner>'s House" (txtHouse,
+                            // only on house maps, so only set there).
+                            if (rawMapName.Equals("house", StringComparison.OrdinalIgnoreCase))
+                                flash.Call("setGameObject", "world.map.txtHouse.text", "House");
                         }
                     }
                     catch { }
@@ -291,14 +299,16 @@ public partial class ScriptOption : ObservableRecipient, IScriptOption, IOptionD
                     flash.Call("setGameObject", "world.rootClass.ui.mcInterface.t1.visible", true);
                     flash.Call("setGameObject", "world.rootClass.ui.mcInterface.te.visible", true);
                     
-                    // Restore Gold/Coins visibility
-                    flash.Call("setGameObject", "world.rootClass.ui.mcInterface.teGold.visible", true);
-                    flash.Call("setGameObject", "world.rootClass.ui.mcInterface.teCoins.visible", true);
-                    flash.Call("setGameObject", "world.rootClass.ui.mcInterface.strGold.visible", true);
-                    flash.Call("setGameObject", "world.rootClass.ui.mcInterface.strCoins.visible", true);
-                    flash.Call("setGameObject", "world.rootClass.ui.mcInterface.txtGold.visible", true);
-                    flash.Call("setGameObject", "world.rootClass.ui.mcInterface.txtCoins.visible", true);
+                    // Restore the name tag and portrait name
+                    flash.Call("setGameObject", "world.myAvatar.pMC.pname.ti.visible", true);
+                    flash.Call("setGameObject", "world.rootClass.ui.mcPortrait.strName.visible", true);
                     
+                    // The house title, as the house map writes it
+                    if ((flash.GetGameObject("world.strMapName") ?? "").Trim('"').Equals("house", StringComparison.OrdinalIgnoreCase)
+                        && (flash.GetGameObject("world.objHouseData.unm") ?? "").Trim('"') is { Length: > 0 } owner && owner != "null")
+                        flash.Call("setGameObject", "world.map.txtHouse.text",
+                            System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(owner.ToLowerInvariant()) + "'s House");
+
                     // Trigger a game UI refresh to accurately restore names
                     flash.CallGameFunction("world.setUserData");
                 }

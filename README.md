@@ -240,6 +240,10 @@ Run these from inside the folder.
   dashboard (kills, drops, quests, deaths, relogins) sits beside the game.
 - **Your data in one folder:** mount `/config` and settings, scripts, CoreBots
   options and plugins survive updates.
+- **A web manager:** [VibeSkua Manager](manager/README.md), a separate small
+  container, lets you watch and control every bot from a phone or another PC
+  without the remote desktop: status and stats per account, script and Army
+  controls, logs, adding accounts while it runs, and the container's resources.
 
 ## How it works
 
@@ -270,8 +274,8 @@ browser ── Selkies (HTTPS, port 3000) ── a small Linux desktop in the co
   the order of a quest's requirements), Skua.Core corrects for it.
 - **Without a GPU** the game is drawn on the CPU: it works, but slowly and at a
   CPU cost. Pass `/dev/dri` through if the host has an Intel or AMD GPU.
-- **Not included:** Skua Manager (accounts come from environment variables
-  instead), the Daily Tracker plugin (Windows only), and the in-game quest wiki
+- **Not included:** Skua Manager (accounts come from environment variables,
+  or from the web manager instead), the Daily Tracker plugin (Windows only), and the in-game quest wiki
   links and drop rates (switched off: they error constantly under Ruffle).
 
 ## Building

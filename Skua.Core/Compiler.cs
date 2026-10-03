@@ -480,16 +480,31 @@ public class Compiler : CSharpScriptExecution
         if (SaveGeneratedCode)
             GeneratedClassCode = tree.ToString();
 
-        using FileStream codeStream = new(outputPath, FileMode.Create, FileAccess.Write);
+        // Written to a temporary file and renamed into place: several Skuas
+        // (tabs) share the cache, and one that found a half-written file took
+        // it for a broken one and deleted it while it was being written.
+        string tempPath = $"{outputPath}.{Environment.ProcessId}.tmp";
         EmitResult? compilationResult = null;
-        if (CompileWithDebug)
+        using (FileStream codeStream = new(tempPath, FileMode.Create, FileAccess.Write))
         {
-            const DebugInformationFormat debugOptions = DebugInformationFormat.Embedded;
-            compilationResult = compilation.Emit(codeStream, options: new EmitOptions(debugInformationFormat: debugOptions));
+            if (CompileWithDebug)
+            {
+                const DebugInformationFormat debugOptions = DebugInformationFormat.Embedded;
+                compilationResult = compilation.Emit(codeStream, options: new EmitOptions(debugInformationFormat: debugOptions));
+            }
+            else
+            {
+                compilationResult = compilation.Emit(codeStream);
+            }
+        }
+
+        if (compilationResult.Success)
+        {
+            File.Move(tempPath, outputPath, true);
         }
         else
         {
-            compilationResult = compilation.Emit(codeStream);
+            try { File.Delete(tempPath); } catch { }
         }
 
         if (!compilationResult.Success)
