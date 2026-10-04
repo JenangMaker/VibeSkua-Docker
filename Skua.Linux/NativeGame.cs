@@ -20,7 +20,9 @@ namespace Skua.Linux;
 ///   RUFFLE_ARGS        more player switches, space separated
 ///   RUFFLE_LOG         its RUST_LOG     (warn,ruffle_core::avm2=off: the
 ///                      player otherwise logs every ActionScript error the
-///                      game throws, with its stack, up to ~1900 lines/s)
+///                      game throws, with its stack, up to ~1900 lines/s;
+///                      plus the line naming the graphics adapter it draws
+///                      with, to tell a GPU from software rendering)
 /// </summary>
 public sealed class NativeGame
 {
@@ -144,7 +146,7 @@ public sealed class NativeGame
         info.ArgumentList.Add(swf);
 
         info.Environment["SKUA_BRIDGE_URL"] = _bridgeUrl;
-        info.Environment["RUST_LOG"] = SkuaRuntime.Env("RUFFLE_LOG", "warn,ruffle_core::avm2=off");
+        info.Environment["RUST_LOG"] = SkuaRuntime.Env("RUFFLE_LOG", "warn,ruffle_core::avm2=off,ruffle_desktop::gui::controller=info");
         info.Environment["NO_COLOR"] = "1";
         // The player has no use for the accounts; Skua logs in (NativeSession).
         foreach (string key in info.Environment.Keys.Where(k => k.StartsWith("AQW_PASS", StringComparison.Ordinal)).ToList())
