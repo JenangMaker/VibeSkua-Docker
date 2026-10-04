@@ -9,13 +9,13 @@ VibeSkua or on another host.
   what each tab's Skua and game cost in CPU and memory. Per tab: start/stop the
   script, load a script (search, or browse the Scripts folder), the live script or debug log, show it on
   the VibeSkua desktop, restart it, reload its game, close it.
-- **Army:** start/stop all, load a script everywhere, log in/out all, jump
-  everyone to a map or player, Skua options for every tab, Grid View, open a
-  tab.
+- **Army:** start/stop all, load a script everywhere (or in the tabs you
+  select), log in/out all, jump everyone to a map or player, Skua options for
+  every tab, Grid View, open a tab.
 - **Accounts:** add, edit and remove accounts while VibeSkua runs. A new
-  account opens its tab and logs in; passwords can be set but are never shown
-  again. Accounts set in VibeSkua's environment (`AQW_USER_N`) are listed,
-  read-only.
+  account opens its tab and logs in, with the Skua options you tick turned on;
+  passwords can be set but are never shown again. Accounts set in VibeSkua's
+  environment (`AQW_USER_N`) are listed, read-only.
 - **Resources:** the container's CPU, memory and load, split by Skua, game
   pages, GPU process, the rest of Electron and the desktop.
 
@@ -34,9 +34,9 @@ nothing to reload.
 
 One card per tab:
 
-- **The header:** the tab number, the character, and its state (Logged in,
-  Running script, Not logged in), with "(headless)" when its Headless Mode is
-  on.
+- **The header:** a box to select the tab (see the Army bar), the tab number,
+  the character, and its state (Logged in, Running script, Not logged in), with
+  "(headless)" when its Headless Mode is on.
 - **Map, level and class, gold, script**, and HP / MP bars.
 - **Target:** what the character is fighting, with its HP, and every monster
   in the cell (the dead ones struck through).
@@ -64,6 +64,13 @@ script, log in or out, jump everyone to a map or a player, and **Skua
 options...** (On / Off for each option, since the tabs may differ). **Grid
 View** switches the desktop's Grid View, **+ Open tab** opens another tab.
 
+**Load script for some tabs only:** tick the box in the header of the cards you
+want. The Army bar then says **Load script (2 selected)...** and lists the
+tabs, and it loads the script in those tabs only (the ones running). With no box
+ticked it loads in every running tab, as before. **Clear** unticks them all. The
+selection stays while the page is open; the other Army buttons still act on
+every tab.
+
 ### Accounts
 
 Every tab's account, where it comes from and its state. Accounts set in
@@ -72,6 +79,13 @@ saves one to `accounts.json` in VibeSkua's config folder: the tab, name,
 password, server, a script and whether to start it after logging in. It opens
 its tab and logs in right away. A password can be replaced but is never shown
 again.
+
+**Skua options** (when adding, not editing): tick the ones the new tab should
+have, such as Lag Killer or Hide Players. They are turned on once, when the tab
+first logs in; after that they are the tab's own settings, changed with **Skua
+options...** on its card. The manager's server does this, so you can close the
+page while the tab starts; it waits up to 15 minutes for the login, and writes
+what it turned on in its log.
 
 ### Resources
 
