@@ -49,7 +49,7 @@ public sealed partial class HostApi
         OptionValuesInput? input;
         using (var reader = new StreamReader(request.InputStream, request.ContentEncoding ?? Encoding.UTF8))
         {
-            try { input = JsonSerializer.Deserialize<OptionValuesInput>(await reader.ReadToEndAsync(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            try { input = JsonSerializer.Deserialize<OptionValuesInput>(await reader.ReadToEndAsync(), InputJson); }
             catch (JsonException e) { return new { error = $"bad JSON: {e.Message}" }; }
         }
         var values = input?.Values ?? new();

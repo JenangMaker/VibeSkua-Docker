@@ -207,8 +207,15 @@ public sealed class ScriptSync(IServiceProvider services)
             // each into a folder of its own: kept up to date without asking.
             if (!off && await UpdateExtrasAsync() is { } extras)
                 summary = summary.Length > 0 ? $"{summary}; {extras}" : extras;
+            // The data files below are shared by every tab (one config folder):
+            // only the first tab refreshes them. Each tab used to, all at once at
+            // start, on the same files; the quest data alone is ~20 MB, and its
+            // refresh parses both copies and writes them back (tens of seconds
+            // of CPU per tab).
+            bool firstTab = SkuaRuntime.Instance == 0;
             Step("Checking the advanced skill sets");
-            if (Settings.Get<bool>("CheckAdvanceSkillSetsUpdates")
+            if (firstTab
+                && Settings.Get<bool>("CheckAdvanceSkillSetsUpdates")
                 && Settings.Get<bool>("AutoUpdateAdvanceSkillSetsUpdates")
                 && await Repo.CheckAdvanceSkillSetsUpdates() > 0
                 && await Repo.UpdateSkillSetsFile())
@@ -218,11 +225,13 @@ public sealed class ScriptSync(IServiceProvider services)
             }
 
             Step("Updating quest data");
-            await Repo.UpdateQuestDataFile();
+            if (firstTab && QuestDataStale())
+                await Repo.UpdateQuestDataFile();
 
             Step("Checking the junk item list");
 
-            if (Settings.Get<bool>("CheckJunkItemsUpdates")
+            if (firstTab
+                && Settings.Get<bool>("CheckJunkItemsUpdates")
                 && await Repo.CheckJunkItemsUpdates() > 0
                 && (Settings.Get<bool>("AutoUpdateJunkItems")
                     || Dialogs.ShowMessageBox("Would you like to update your Junk Items list?", "Junk Items Update", true) == true)
@@ -243,6 +252,21 @@ public sealed class ScriptSync(IServiceProvider services)
         {
             Step(null);
             _firstSync.TrySetResult();
+        }
+    }
+
+    // The quest data changes rarely: refresh it at start only when it is older
+    // than half a day (Reset Scripts still refreshes it at once).
+    private static bool QuestDataStale()
+    {
+        try
+        {
+            var file = new FileInfo(ClientFileSources.SkuaQuestsFile);
+            return !file.Exists || DateTime.UtcNow - file.LastWriteTimeUtc > TimeSpan.FromHours(12);
+        }
+        catch
+        {
+            return true;
         }
     }
 

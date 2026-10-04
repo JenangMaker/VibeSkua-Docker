@@ -137,7 +137,7 @@ public sealed partial class HostApi
                     return new { error = "no Scheduler here (running without windows)" };
                 using var reader = new StreamReader(request.InputStream, request.ContentEncoding ?? Encoding.UTF8);
                 var items = JsonSerializer.Deserialize<List<ScriptSchedulerViewModel.SavedScriptItem>>(
-                    await reader.ReadToEndAsync(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+                    await reader.ReadToEndAsync(), InputJson) ?? [];
                 int queued = 0;
                 await OnUi(() =>
                 {
