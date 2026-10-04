@@ -74,6 +74,8 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 ("POST", "/scripts/reset") => await scripts.ResetScriptsAsync(),
                 ("GET", "/army/options") => ArmyOptionValues(),
                 ("POST", "/debug/trace") => await TraceApi.Collect(ctx.Request),
+                ("GET", "/render") => Render(null),
+                ("POST", "/render") => Render(ctx.Request.QueryString["fps"]),
                 ("POST", _) when path.StartsWith("/army/") => await Army(path["/army/".Length..], ctx.Request),
                 _ when Routes.TryGetValue($"{method} {path}", out var route) => await route(ctx.Request),
                 _ => NotFound(out status),
@@ -102,6 +104,23 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
     {
         status = 401;
         return new { error = "SKUA_API_TOKEN is set: send it as Authorization: Bearer <token>" };
+    }
+
+    // The game's drawing rate: fps=1-60 caps the pictures drawn a second,
+    // fps=none lifts the cap (the game's own frame rate then, 24 or 30). Hidden
+    // and Headless tabs draw nothing either way. Answers with the page's
+    // render state (fps, scale, paused).
+    private object Render(string? fps)
+    {
+        var bridge = services.GetRequiredService<RuffleBridge>();
+        if (!bridge.IsConnected)
+            return new { error = "the game is not connected" };
+        if (fps is not null)
+        {
+            object cap = int.TryParse(fps, out int n) && n > 0 ? Math.Min(n, 60) : "none";
+            bridge.Invoke("page.setRender", new Dictionary<string, object?> { ["fps"] = cap });
+        }
+        return bridge.Invoke("page.getRender") is { } state ? state : new { error = "no answer" };
     }
 
     // detail: also what a remote dashboard shows (the web manager). Each field
