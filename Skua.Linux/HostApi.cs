@@ -74,8 +74,8 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 ("POST", "/scripts/reset") => await scripts.ResetScriptsAsync(),
                 ("GET", "/army/options") => ArmyOptionValues(),
                 ("POST", "/debug/trace") => await TraceApi.Collect(ctx.Request),
-                ("GET", "/render") => Render(null),
-                ("POST", "/render") => Render(ctx.Request.QueryString["fps"]),
+                ("GET", "/render") => Render(null, null),
+                ("POST", "/render") => Render(ctx.Request.QueryString["fps"], ctx.Request.QueryString["game"]),
                 ("POST", _) when path.StartsWith("/army/") => await Army(path["/army/".Length..], ctx.Request),
                 _ when Routes.TryGetValue($"{method} {path}", out var route) => await route(ctx.Request),
                 _ => NotFound(out status),
@@ -108,9 +108,12 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
 
     // The game's drawing rate: fps=1-60 caps the pictures drawn a second,
     // fps=none lifts the cap (the game's own frame rate then, 24 or 30). Hidden
-    // and Headless tabs draw nothing either way. Answers with the page's
-    // render state (fps, scale, paused).
-    private object Render(string? fps)
+    // and Headless tabs draw nothing either way. game=1-60 sets the game's own
+    // frame rate through Skua's FPS option (Options > SetFPS, default 30; AQW
+    // itself runs at 24): the game's logic, not the drawing, is most of what a
+    // tab that draws costs. Answers with the page's render state (fps, scale,
+    // paused) and the game's frame rate.
+    private object Render(string? fps, string? game)
     {
         var bridge = services.GetRequiredService<RuffleBridge>();
         if (!bridge.IsConnected)
@@ -120,7 +123,18 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
             object cap = int.TryParse(fps, out int n) && n > 0 ? Math.Min(n, 60) : "none";
             bridge.Invoke("page.setRender", new Dictionary<string, object?> { ["fps"] = cap });
         }
-        return bridge.Invoke("page.getRender") is { } state ? state : new { error = "no answer" };
+        if (int.TryParse(game, out int rate) && rate is >= 1 and <= 60)
+        {
+            var options = services.GetRequiredService<IScriptOption>();
+            services.GetRequiredService<IDispatcherService>().Invoke(() => options.SetFPS = rate);
+        }
+        var bot = services.GetRequiredService<IScriptInterface>();
+        return new
+        {
+            render = bridge.Invoke("page.getRender"),
+            gameFps = bot.Flash.GetGameObject("stage.frameRate"),
+            fpsOption = bot.Options.SetFPS,
+        };
     }
 
     // detail: also what a remote dashboard shows (the web manager). Each field
