@@ -270,6 +270,22 @@ function renderSummary() {
 // ---- bot cards ------------------------------------------------------------------
 
 const cards = new Map();   // tab number -> card
+// Tabs ticked on their card: the army's Load script goes to these only (to
+// every running tab when none is). Kept while the page is open.
+const picked = new Set();
+
+function updatePickUi() {
+  const n = picked.size;
+  $('#load-all').textContent = n ? `Load script (${n} selected)...` : 'Load script...';
+  $('#pick-info').hidden = n === 0;
+  $('#pick-count').textContent = `Tab${n === 1 ? '' : 's'} ${[...picked].sort((a, b) => a - b).join(', ')}`;
+}
+
+$('#pick-clear').addEventListener('click', () => {
+  picked.clear();
+  for (const card of cards.values()) { card.r.pick.checked = false; card.el.classList.remove('picked'); }
+  updatePickUi();
+});
 
 function renderCards() {
   const container = $('#cards');
@@ -283,7 +299,8 @@ function renderCards() {
     }
     updateCard(card, tab, state.statuses[tab.tab]);
   }
-  for (const [n, card] of cards) if (!seen.has(n)) { card.el.remove(); cards.delete(n); }
+  for (const [n, card] of cards) if (!seen.has(n)) { card.el.remove(); cards.delete(n); picked.delete(n); }
+  updatePickUi();
   // In tab order.
   const ordered = [...cards.entries()].sort((a, b) => a[0] - b[0]).map(([, c]) => c.el);
   if (ordered.some((el, i) => container.children[i] !== el)) container.replaceChildren(...ordered);
@@ -295,8 +312,10 @@ function makeCard(n) {
   const field = (key, label) => [h('dt', { text: label }), r[key] = h('dd')];
   const stat = (key, label) => h('div', {}, r[key] = h('b', { text: '0' }), h('span', { text: label }));
   const bar = cls => { const fill = h('i'); const text = h('span'); r[`${cls}Fill`] = fill; r[`${cls}Text`] = text; return h('div', { class: `bar ${cls}` }, fill, text); };
+  r.pick = h('input', { type: 'checkbox', class: 'card-pick', title: 'Select: Load script (army bar) goes to the selected tabs only', 'aria-label': `Select tab ${n}` });
   const el = h('article', { class: 'card' },
     h('div', { class: 'card-head' },
+      r.pick,
       h('span', { class: 'card-num', text: `Tab ${n}` }),
       r.name = h('span', { class: 'card-name' }),
       r.pill = h('span', { class: 'pill' })),
@@ -319,6 +338,11 @@ function makeCard(n) {
       h('button', { class: 'small', title: "Restart this tab's Skua (the game stays logged in)", onclick: () => restartTab(n, false) }, 'Restart'),
       h('button', { class: 'small', title: 'Restart Skua and reload the game page (logs in again)', onclick: () => restartTab(n, true) }, 'Reload game'),
       h('button', { class: 'small danger', onclick: () => closeTab(n) }, 'Close')));
+  r.pick.addEventListener('change', () => {
+    if (r.pick.checked) picked.add(n); else picked.delete(n);
+    el.classList.toggle('picked', r.pick.checked);
+    updatePickUi();
+  });
   return { el, r, running: false };
 }
 
@@ -482,7 +506,13 @@ $('#grid-toggle').addEventListener('click', async () => {
   await act(state.grid ? 'Grid View on' : 'Grid View off', () => api('POST', `/api/grid?on=${state.grid ? 1 : 0}`));
 });
 
-$('#load-all').addEventListener('click', () => openScriptDialog(state.tabs.filter(t => t.running).map(t => t.tab)));
+$('#load-all').addEventListener('click', () => {
+  const running = state.tabs.filter(t => t.running).map(t => t.tab);
+  if (!picked.size) { openScriptDialog(running); return; }
+  const targets = running.filter(n => picked.has(n));
+  if (!targets.length) { toast('None of the selected tabs is running', true); return; }
+  openScriptDialog(targets);
+});
 
 $('#jump-all').addEventListener('click', () => {
   const dlg = $('#dlg-jump');
@@ -565,7 +595,8 @@ let searchTimer = null;
 function openScriptDialog(tabs) {
   if (!tabs.length) { toast('No running tab to load a script in', true); return; }
   scriptTargets = tabs;
-  $('#script-title').textContent = tabs.length === 1 ? `Load script in tab ${tabs[0]}` : `Load script in ${tabs.length} tabs`;
+  $('#script-title').textContent = tabs.length === 1 ? `Load script in tab ${tabs[0]}`
+    : tabs.length <= 6 ? `Load script in tabs ${tabs.join(', ')}` : `Load script in ${tabs.length} tabs`;
   $('#script-search').value = '';
   $('#script-category').value = 'All';
   $('#script-path').value = '';
@@ -962,6 +993,10 @@ function openAccountDialog(account) {
   f.server.value = account?.server || '';
   f.script.value = account?.script || '';
   f.autoStart.checked = !!account?.autoStart;
+  // Skua options for a new account only: turned on once, at its first login.
+  $('#account-options').hidden = !!account;
+  $('#account-options-list').replaceChildren(...(account ? [] : OPTIONS.map(([name, text]) =>
+    h('label', { class: 'check' }, h('input', { type: 'checkbox', 'data-option': name }), text))));
   f.pass.required = !account;
   $('#pass-hint').textContent = account ? 'Leave empty to keep the saved password.' : 'Stored on the VibeSkua server; never shown again.';
   $('#dlg-account').showModal();
@@ -993,6 +1028,7 @@ $('#account-form').addEventListener('submit', async e => {
   // A changed login restarts an open tab (see PUT /accounts in the tab host API).
   const loginChanged = editing && (f.pass.value || body.user !== editing.user || (body.server || null) !== (editing.server || null));
   if (loginChanged && editing.open && !confirm(`Saving restarts tab ${n} so it logs in again. Continue?`)) return;
+  const options = editing ? [] : [...document.querySelectorAll('#account-options-list input:checked')].map(b => b.dataset.option);
   const button = $('#account-save');
   button.disabled = true;
   try {
@@ -1000,6 +1036,12 @@ $('#account-form').addEventListener('submit', async e => {
     f.pass.value = '';
     $('#dlg-account').close('saved');
     toast(`Tab ${n}: ${result.applied}`);
+    // This page's server waits for the login, so closing the page is fine.
+    if (options.length) {
+      const names = options.map(o => OPTIONS.find(([k]) => k === o)?.[1] || o).join(', ');
+      act(`Tab ${n}: ${names} will be turned on once it logs in`,
+        () => api('POST', '/api/manager/initial-options', { tab: n, options }));
+    }
     state.accounts = null;
     refresh();
   } catch (err) {
