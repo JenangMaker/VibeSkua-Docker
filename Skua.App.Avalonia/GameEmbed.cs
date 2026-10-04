@@ -234,7 +234,12 @@ public sealed class GameEmbed : IDisposable
 
     // Keyboard focus follows the pointer between the game and Skua: the
     // window manager only gives focus to Skua's window, which is the one it
-    // manages, and the game needs the keys (skills, chat).
+    // manages, and the game needs the keys (skills, chat). While the pointer is
+    // in the game, the game keeps the keyboard: a click there makes the window
+    // manager (Openbox under KasmVNC) focus Skua's top window, which it
+    // manages, and typing then went nowhere (seen with SKUA_FOCUS_DEBUG: the
+    // game had the keyboard until the click). Without a window manager, as in
+    // a bare X server, the click did not move it, so this never showed there.
     // SKUA_FOCUS_DEBUG=1 logs, as [focus], each pointer enter/leave seen on the
     // game window (mode, detail, and what was done) and which window holds the
     // keyboard whenever that changes: for typing that works locally but not
@@ -246,6 +251,7 @@ public sealed class GameEmbed : IDisposable
         IntPtr ev = Marshal.AllocHGlobal(256);
         ulong lastFocus = ulong.MaxValue;
         long nextFocusCheck = 0;
+        bool pointerInGame = false;
         try
         {
             while (!_cts.IsCancellationRequested)
@@ -281,9 +287,29 @@ public sealed class GameEmbed : IDisposable
                             && (Marshal.ReadInt32(ev, 80) != X.NotifyNormal || Marshal.ReadInt32(ev, 84) == X.NotifyInferior))
                             continue;
                         if (type == X.EnterNotify && _game != 0)
+                        {
+                            pointerInGame = true;
                             X.XSetInputFocus(display, _game, X.RevertToParent, 0);
+                        }
                         else if (type == X.LeaveNotify && _host != 0)
+                        {
+                            pointerInGame = false;
                             X.XSetInputFocus(display, _host, X.RevertToParent, 0);
+                        }
+                    }
+                    // A tab taken off screen shrinks its game to 1x1 under the
+                    // pointer's feet: it must not keep claiming the keyboard.
+                    if (_shrunk)
+                        pointerInGame = false;
+                    if (pointerInGame)
+                    {
+                        X.XGetInputFocus(display, out ulong holder, out _);
+                        if (holder != _game)
+                        {
+                            if (FocusDebug)
+                                Console.WriteLine($"[focus] keyboard taken by 0x{holder:x} while the pointer is in the game; giving it back");
+                            X.XSetInputFocus(display, _game, X.RevertToParent, 0);
+                        }
                     }
                     X.XFlush(display);
                 }
