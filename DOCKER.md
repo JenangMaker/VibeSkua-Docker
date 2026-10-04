@@ -355,6 +355,30 @@ them controls the bot, so keep them on a LAN address, never on the internet.
 - **Logs**: `docker logs -f vibeskua`. Lines start with `[skua]` (Skua; `[tab N]`
   for other tabs), `[page]` / `[page N]` (the game pages) and `[host]`.
 
+## Native game player (experimental)
+
+The `native` branch builds an image (`vibeskua-web:native`, from
+`docker/Dockerfile.native`) that runs the game in Ruffle's desktop player
+instead of Electron: each tab's Skua starts its own player, embeds its window
+and logs it in. There is no Node.js and no browser in it. Idle and loading
+cost much less; in a fight the game costs about the same (the game's own
+ActionScript runs in the same Ruffle engine either way).
+
+| Variable | Default | What |
+| :--- | :--- | :--- |
+| `SKUA_GAME` | `native` in that image | `native`: Skua starts the desktop player for its tab. |
+| `RUFFLE_GRAPHICS` | the player's choice (Vulkan with a GPU) | `vulkan` or `gl`. |
+| `RUFFLE_FILTERS` | `off` | `on` draws filters (glows, blurs, shadows), bitmap caches and blend effects. Off draws as Electron's WebGL renderer does; on, AQW frames can take seconds, even on a GPU, and Skua waits behind them. |
+| `RUFFLE_QUALITY` | `low` | As above. |
+| `RUFFLE_LOG` | `warn,ruffle_core::avm2=off,...` | The player's log filter (`RUST_LOG`). |
+| `RUFFLE_ARGS` | | More player switches, space separated. |
+
+The player's lines go to the container log as `[game] ...`, limited to 20
+lines a second. While a tab draws, the player logs a drawing summary once a
+minute (frames per second, time per frame and where it goes). Not in the
+native image yet: recycling (`RECYCLE_AFTER_*`), `RENDER_SCALE`,
+`MAX_RENDER_FPS`, the debug panel and DevTools.
+
 ## Building the image yourself
 
 ```bash
