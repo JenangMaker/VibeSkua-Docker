@@ -369,6 +369,7 @@ ActionScript runs in the same Ruffle engine either way).
 | `SKUA_GAME` | `native` in that image | `native`: Skua starts the desktop player for its tab. |
 | `RUFFLE_GRAPHICS` | the player's choice (Vulkan with a GPU) | `vulkan` or `gl`. |
 | `RUFFLE_FILTERS` | `off` | `on` draws filters (glows, blurs, shadows), bitmap caches and blend effects. Off draws as Electron's WebGL renderer does; on, AQW frames can take seconds, even on a GPU, and Skua waits behind them. |
+| `RUFFLE_PRESENT` | `auto` | How frames reach the screen: `auto` (no vsync), `mailbox`, `immediate`, `fifo` (vsync). A mode the GPU does not offer falls back to `auto`. |
 | `RUFFLE_QUALITY` | `low` | As above. |
 | `RUFFLE_LOG` | `warn,ruffle_core::avm2=off,...` | The player's log filter (`RUST_LOG`). |
 | `RUFFLE_ARGS` | | More player switches, space separated. |
