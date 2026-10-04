@@ -18,6 +18,9 @@ namespace Skua.Linux;
 ///   RUFFLE_QUALITY     low, medium, high... (low)
 ///   RUFFLE_GRAPHICS    vulkan, gl...    (the player's default)
 ///   RUFFLE_ARGS        more player switches, space separated
+///   RUFFLE_FILTERS     on to draw filters (glows, blurs), bitmap caches and
+///                      blend modes; off by default, as Ruffle's browser WebGL
+///                      renderer under Electron draws (see Start)
 ///   RUFFLE_LOG         its RUST_LOG     (warn,ruffle_core::avm2=off: the
 ///                      player otherwise logs every ActionScript error the
 ///                      game throws, with its stack, up to ~1900 lines/s;
@@ -148,6 +151,11 @@ public sealed class NativeGame
         info.Environment["SKUA_BRIDGE_URL"] = _bridgeUrl;
         info.Environment["RUST_LOG"] = SkuaRuntime.Env("RUFFLE_LOG", "warn,ruffle_core::avm2=off,ruffle_desktop::gui::controller=info");
         info.Environment["NO_COLOR"] = "1";
+        // Drawn as the browser build's WebGL renderer draws: the player's wgpu
+        // renderer draws each filtered, cached or blended object into its own
+        // full-size texture, and AQW has many. A drawing tab then took 4-36 s a
+        // frame (on the server's GPU too) and Skua's calls waited behind them.
+        info.Environment["RUFFLE_FILTERS"] = SkuaRuntime.Env("RUFFLE_FILTERS", "off");
         // The player has no use for the accounts; Skua logs in (NativeSession).
         foreach (string key in info.Environment.Keys.Where(k => k.StartsWith("AQW_PASS", StringComparison.Ordinal)).ToList())
             info.Environment.Remove(key);
