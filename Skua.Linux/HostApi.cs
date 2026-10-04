@@ -16,6 +16,14 @@ namespace Skua.Linux;
 /// </summary>
 public sealed partial class HostApi(IServiceProvider services, ScriptSync scripts, string prefix)
 {
+    // One instance each, reused: System.Text.Json caches the serialization code
+    // it generates per options instance, so a new one per reply generated it
+    // again on every request, and the manager and the tab host poll /status
+    // all the time. The dynamic methods left behind kept the finalizer thread
+    // busy: about a core per idle Skua.
+    private static readonly JsonSerializerOptions ReplyJson = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions InputJson = new() { PropertyNameCaseInsensitive = true };
+
     private readonly HttpListener _listener = new();
     private readonly string _scratch = Path.Combine(Path.GetTempPath(), "skua-host");
 
@@ -77,7 +85,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
             result = new { error = e.Message };
         }
 
-        byte[] body = JsonSerializer.SerializeToUtf8Bytes(result, new JsonSerializerOptions { WriteIndented = true });
+        byte[] body = JsonSerializer.SerializeToUtf8Bytes(result, ReplyJson);
         ctx.Response.StatusCode = status;
         ctx.Response.ContentType = "application/json";
         await ctx.Response.OutputStream.WriteAsync(body);
