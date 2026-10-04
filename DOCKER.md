@@ -369,7 +369,8 @@ ActionScript runs in the same Ruffle engine either way).
 | `SKUA_GAME` | `native` in that image | `native`: Skua starts the desktop player for its tab. |
 | `RUFFLE_GRAPHICS` | the player's choice (Vulkan with a GPU) | `vulkan` or `gl`. |
 | `RUFFLE_FILTERS` | `off` | `on` draws filters (glows, blurs, shadows), bitmap caches and blend effects. Off draws as Electron's WebGL renderer does; on, AQW frames can take seconds, even on a GPU, and Skua waits behind them. |
-| `RUFFLE_PRESENT` | `mailbox` where offered | How frames reach the screen: `mailbox` (a driver thread presents them), `auto` (no vsync), `immediate`, `fifo` (vsync). A mode the GPU does not offer falls back to `auto`. A drawing tab draws at most one picture per game frame (24 a second in AQW, 30 while a script runs), as Flash does. |
+| `RUFFLE_PRESENT` | `auto` | How frames reach the screen: `auto` (no vsync; Immediate under KasmVNC), `mailbox`, `immediate`, `fifo` (vsync). A mode the GPU does not offer falls back to `auto`. Measured on an Intel iGPU, `mailbox` cost much more CPU (mostly in KasmVNC) for the same smoothness. |
+| `RUFFLE_MAX_FPS` | unset | Cap on pictures drawn a second (1-60) for a tab that draws. Unset, a drawing tab draws one picture per game frame (24 a second in AQW, 30 while a script runs), as Flash does. `10` saved about a third of the CPU in a test; `15`-`20` saved little. The control API can change it while running: `POST /render?fps=N` (`fps=none` lifts it). |
 | `RUFFLE_QUALITY` | `low` | As above. |
 | `RUFFLE_LOG` | `warn,ruffle_core::avm2=off,...` | The player's log filter (`RUST_LOG`). |
 | `RUFFLE_ARGS` | | More player switches, space separated. |

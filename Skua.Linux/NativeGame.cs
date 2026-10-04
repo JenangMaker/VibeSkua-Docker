@@ -18,7 +18,8 @@ namespace Skua.Linux;
 ///   RUFFLE_QUALITY     low, medium, high... (low)
 ///   RUFFLE_GRAPHICS    vulkan, gl...    (the player's default)
 ///   RUFFLE_ARGS        more player switches, space separated
-///   RUFFLE_PRESENT     mailbox (default where offered), auto, immediate or fifo: how the
+///   RUFFLE_MAX_FPS     a starting cap on pictures drawn a second (1-60)
+///   RUFFLE_PRESENT     auto (default), immediate, mailbox or fifo: how the
 ///                      player presents frames (passed on as it is)
 ///   RUFFLE_FILTERS     on to draw filters (glows, blurs), bitmap caches and
 ///                      blend modes; off by default, as Ruffle's browser WebGL
