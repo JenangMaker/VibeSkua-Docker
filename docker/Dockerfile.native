@@ -40,6 +40,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libssl-dev default-jre-headless g++ git \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
+# The branch's head commit: when it moves, this file changes and the clone below
+# is not taken from the build cache (a cached clone kept an old Ruffle).
+ARG RUFFLE_HEAD_URL=https://api.github.com/repos/JenangMaker/ruffle/git/refs/heads/${RUFFLE_REF}
+ADD ${RUFFLE_HEAD_URL} /build/ruffle-head.json
 RUN git clone --depth 1 --branch "$RUFFLE_REF" "$RUFFLE_REPO" ruffle \
  && git -C ruffle log --oneline -1
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
