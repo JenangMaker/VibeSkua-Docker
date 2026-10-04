@@ -134,7 +134,7 @@ public sealed class GameEmbed : IDisposable
         Thread.Sleep(150);
         X.XReparentWindow(_display, xid, host, 0, 0);
         AddToAvaloniaSaveSet(xid);
-        X.XSelectInput(_display, xid, X.EnterWindowMask | X.LeaveWindowMask);
+        X.XSelectInput(_display, xid, X.EnterWindowMask | X.LeaveWindowMask | (FocusDebug ? X.FocusChangeMask : 0));
         X.XMapWindow(_display, xid);
         X.XSync(_display, false);
         bool first = _game == 0;
@@ -276,6 +276,11 @@ public sealed class GameEmbed : IDisposable
                         int type = Marshal.ReadInt32(ev);
                         if (FocusDebug && type is X.EnterNotify or X.LeaveNotify)
                             Console.WriteLine($"[focus] {(type == X.EnterNotify ? "enter" : "leave")} mode {Marshal.ReadInt32(ev, 80)} detail {Marshal.ReadInt32(ev, 84)}");
+                        // XFocusChangeEvent: mode at 40, detail at 44. Any focus
+                        // out, even a grab's (mode 1), makes the game drop its
+                        // text focus.
+                        if (FocusDebug && type is X.FocusIn or X.FocusOut)
+                            Console.WriteLine($"[focus] {DateTime.Now:HH:mm:ss.fff} game focus {(type == X.FocusIn ? "in" : "out")} mode {Marshal.ReadInt32(ev, 40)} detail {Marshal.ReadInt32(ev, 44)}");
                         // XCrossingEvent: mode at 80, detail at 84 (64-bit).
                         // A click makes the browser grab the pointer, which
                         // reports a Leave (mode NotifyGrab) though the pointer
@@ -338,8 +343,11 @@ public sealed class GameEmbed : IDisposable
         private const string Lib = "libX11.so.6";
         public const long EnterWindowMask = 1L << 4;
         public const long LeaveWindowMask = 1L << 5;
+        public const long FocusChangeMask = 1L << 21;
         public const int EnterNotify = 7;
         public const int LeaveNotify = 8;
+        public const int FocusIn = 9;
+        public const int FocusOut = 10;
         public const int RevertToParent = 2;
         public const int NotifyNormal = 0;
         public const int NotifyInferior = 2;
