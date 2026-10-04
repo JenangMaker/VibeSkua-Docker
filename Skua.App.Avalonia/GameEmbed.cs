@@ -235,9 +235,17 @@ public sealed class GameEmbed : IDisposable
     // Keyboard focus follows the pointer between the game and Skua: the
     // window manager only gives focus to Skua's window, which is the one it
     // manages, and the game needs the keys (skills, chat).
+    // SKUA_FOCUS_DEBUG=1 logs, as [focus], each pointer enter/leave seen on the
+    // game window (mode, detail, and what was done) and which window holds the
+    // keyboard whenever that changes: for typing that works locally but not
+    // through a VNC client.
+    private static readonly bool FocusDebug = SkuaRuntime.EnvRaw("SKUA_FOCUS_DEBUG") is "1" or "true" or "yes";
+
     private async Task FocusLoop()
     {
         IntPtr ev = Marshal.AllocHGlobal(256);
+        ulong lastFocus = ulong.MaxValue;
+        long nextFocusCheck = 0;
         try
         {
             while (!_cts.IsCancellationRequested)
@@ -245,10 +253,23 @@ public sealed class GameEmbed : IDisposable
                 IntPtr display = _display;
                 if (display != IntPtr.Zero && _game != 0)
                 {
+                    if (FocusDebug && Environment.TickCount64 >= nextFocusCheck)
+                    {
+                        nextFocusCheck = Environment.TickCount64 + 2000;
+                        X.XGetInputFocus(display, out ulong focus, out _);
+                        if (focus != lastFocus)
+                        {
+                            string who = focus == _game ? "the game" : focus == _host ? "Skua's game area" : "another window";
+                            Console.WriteLine($"[focus] keyboard now on 0x{focus:x} ({who}; game 0x{_game:x}, host 0x{_host:x})");
+                            lastFocus = focus;
+                        }
+                    }
                     while (X.XPending(display) > 0)
                     {
                         X.XNextEvent(display, ev);
                         int type = Marshal.ReadInt32(ev);
+                        if (FocusDebug && type is X.EnterNotify or X.LeaveNotify)
+                            Console.WriteLine($"[focus] {(type == X.EnterNotify ? "enter" : "leave")} mode {Marshal.ReadInt32(ev, 80)} detail {Marshal.ReadInt32(ev, 84)}");
                         // XCrossingEvent: mode at 80, detail at 84 (64-bit).
                         // A click makes the browser grab the pointer, which
                         // reports a Leave (mode NotifyGrab) though the pointer
@@ -306,6 +327,7 @@ public sealed class GameEmbed : IDisposable
         [DllImport(Lib)] public static extern int XMoveResizeWindow(IntPtr display, ulong window, int x, int y, uint width, uint height);
         [DllImport(Lib)] public static extern int XSelectInput(IntPtr display, ulong window, long mask);
         [DllImport(Lib)] public static extern int XSetInputFocus(IntPtr display, ulong window, int revertTo, ulong time);
+        [DllImport(Lib)] public static extern int XGetInputFocus(IntPtr display, out ulong window, out int revertTo);
         [DllImport(Lib)] public static extern int XSync(IntPtr display, bool discard);
         [DllImport(Lib)] public static extern int XFlush(IntPtr display);
         [DllImport(Lib)] public static extern int XPending(IntPtr display);
