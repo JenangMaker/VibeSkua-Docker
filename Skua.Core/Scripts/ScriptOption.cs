@@ -253,9 +253,10 @@ public partial class ScriptOption : ObservableRecipient, IScriptOption, IOptionD
                         // (The gold and coin labels it used to hide are gone from
                         // the current client; setting them only threw errors.)
                         
-                        // Hide chat
+                        // Hide the chat log (other players' names and messages). Not
+                        // the entry box (te): hiding it every half second took its
+                        // focus away right after a click, so nothing could be typed.
                         flash.Call("setGameObject", "world.rootClass.ui.mcInterface.t1.visible", false);
-                        flash.Call("setGameObject", "world.rootClass.ui.mcInterface.te.visible", false);
                         
                         // Force map UI text cleanly
                         // (getGameObject returns JSON: without the Trim the name
