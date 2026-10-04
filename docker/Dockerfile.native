@@ -34,17 +34,20 @@ RUN dotnet publish Skua.App.Avalonia/Skua.App.Avalonia.csproj -c Release -r linu
 # these build dependencies; Java builds its ActionScript globals.
 FROM rust:1-bookworm AS ruffle
 ARG RUFFLE_REPO=https://github.com/JenangMaker/ruffle.git
-ARG RUFFLE_REF=native-skua
 RUN apt-get update && apt-get install -y --no-install-recommends \
       pkg-config libasound2-dev libudev-dev libfontconfig-dev libfreetype6-dev \
       libssl-dev default-jre-headless g++ git \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
-# The branch's head commit: when it moves, this file changes and the clone below
-# is not taken from the build cache (a cached clone kept an old Ruffle).
-ARG RUFFLE_HEAD_URL=https://api.github.com/repos/JenangMaker/ruffle/git/refs/heads/${RUFFLE_REF}
-ADD ${RUFFLE_HEAD_URL} /build/ruffle-head.json
-RUN git clone --depth 1 --branch "$RUFFLE_REF" "$RUFFLE_REPO" ruffle \
+# The Ruffle commit to build (branch native-skua of the fork), pinned in
+# docker/ruffle-native.ref: a new Ruffle is a change to that file, which
+# rebuilds this step and makes a push of it publish an image (a change in the
+# Ruffle repo alone did neither).
+COPY docker/ruffle-native.ref /build/ruffle.ref
+RUN ref="$(tr -d ' \r\n' < /build/ruffle.ref)" \
+ && git init -q ruffle \
+ && git -C ruffle fetch -q --depth 1 "$RUFFLE_REPO" "$ref" \
+ && git -C ruffle checkout -q FETCH_HEAD \
  && git -C ruffle log --oneline -1
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/build/ruffle/target \
