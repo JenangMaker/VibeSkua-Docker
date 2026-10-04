@@ -129,6 +129,7 @@ public sealed class SkuaRuntime
         var keeper = new ScriptKeeper(provider, Bridge);
         keeper.Start();
         new OptionKeeper(provider, Bridge).Start();
+        AuraWatch.Start(provider, Bridge);
         if (NativeGame.Enabled)
         {
             // No Electron page: this tab runs the game itself and logs it in.
