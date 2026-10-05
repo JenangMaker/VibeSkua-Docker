@@ -42,7 +42,7 @@ public class Shop {
         var lowerName:String = name.toLowerCase();
         for each (var item:* in Main.instance.game.world.shopinfo.items) {
             if (item && item.sName.toLowerCase() == lowerName) {
-                return getShopItemByID(item.ID, item.ShopItemID);
+                return getShopItemByID(item.ItemID, item.ShopItemID);
             }
         }
         return null;
