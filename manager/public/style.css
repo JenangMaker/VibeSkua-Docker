@@ -310,6 +310,8 @@ dialog:has(.wide) { width: min(820px, calc(100vw - 32px)); }
 
 .sopts { max-height: min(60vh, 560px); overflow: auto; overscroll-behavior: contain; margin-top: 8px; padding-right: 4px; }
 .sopts-skip { margin-top: 14px; }
+.cbo-auto { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.cbo-why { margin: -2px 0 0; }
 .cbo-roles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .cbo-role { display: grid; gap: 8px; align-content: start; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
 .cbo-role h3 { margin: 0; font-size: 13px; }

@@ -976,6 +976,44 @@ const CBO_ROLES = [['Solo', 1], ['Farm', 2], ['Dodge', 3], ['Boss', 4]];
 const CBO_SLOTS = [['Helm', 'helm'], ['Armor', 'armor'], ['Cape', 'cape'], ['Weapon', 'weapon'], ['Pet', 'pet'], ['GroundItem', 'groundItem']];
 let cboTab = null, cboData = null, cboControls = new Map(), cboPane = 'Loadout';
 
+// Auto-assign: for each role, the account's class that fits best, scored on
+// what the scripts already know: a skill setup for the role in Skua's
+// Advanced Skills (Farm for farming, Solo or Atk for solo...: 3 points, 2 for
+// the second-best mode), and the community's role lists (Tools/CheckArmyRoles.cs
+// in the Skua scripts: 3 points, 1 for support classes at bosses). Rank 10
+// breaks ties. Nothing is saved until Save.
+const CBO_DPS = ['Dragon of Time', 'Glacial Berserker', 'Guardian', 'Legion DoomKnight', 'Legion Revenant', 'LightCaster', 'Lycan', 'Psionic MindBreaker', 'Void HighLord'];
+const CBO_FARMERS = ['Abyssal Angel', 'ArchMage', 'Blaze Binder', 'Daimon', 'Dragon of Time', 'Eternal Inversionist', 'Firelord Summoner', 'Legion Revenant', 'Dark Master of Moglins', 'Master of Moglins', 'NCM', 'Scarlet Sorceress', 'ShadowScythe General', 'Shaman'];
+const CBO_SUPPORT = ['ArchFiend', 'ArchPaladin', 'Frostval Barbarian', 'Infinity Titan', 'Dark Legendary Hero', 'Legendary Hero', 'Legion Revenant', 'LightCaster', 'Lord of Order', 'NorthLands Monk', 'Quantum Chronomancer', 'Continuum Chronomancer', 'StoneCrusher'];
+const CBO_AUTO = {
+  Solo: { modes: ['Solo', 'Atk'], lists: [[CBO_DPS, 'a DPS class', 3]] },
+  Farm: { modes: ['Farm'], lists: [[CBO_FARMERS, 'a farming class', 3]] },
+  Dodge: { modes: ['Dodge', 'Def'], lists: [] },
+  Boss: { modes: ['Ultra', 'Solo', 'Atk'], lists: [[CBO_DPS, 'a DPS class', 3], [CBO_SUPPORT, 'a support class', 1]] },
+};
+const CBO_RANK10 = 302500;
+
+function cboAutoPick(role, d) {
+  const rule = CBO_AUTO[role];
+  const same = (a, b) => a.toLowerCase() === b.toLowerCase();
+  let best = null;
+  for (const cls of d.choices.classes) {
+    const modes = d.choices.modes[cls] || ['Base'];
+    const why = [];
+    let score = 0;
+    const at = rule.modes.findIndex(m => modes.includes(m));
+    const mode = at >= 0 ? rule.modes[at] : modes.includes('Base') ? 'Base' : modes[0];
+    if (at >= 0) { score += at === 0 ? 3 : 2; why.push(`${/^[AEIOU]/.test(mode) ? 'an' : 'a'} ${mode} skill setup`); }
+    for (const [list, text, points] of rule.lists)
+      if (list.some(c => same(c, cls))) { score += points; why.push(text); }
+    const rank10 = (d.choices.classPoints?.[cls] ?? 0) >= CBO_RANK10;
+    if (rank10) why.push('rank 10');
+    if (score > 0 && (!best || score > best.score || (score === best.score && rank10 && !best.rank10)))
+      best = { cls, mode, score, rank10, why };
+  }
+  return best;
+}
+
 async function openCoreBotsOptions(n) {
   cboTab = n;
   cboData = null;
@@ -1026,6 +1064,7 @@ function renderCoreBotsOptions() {
     return h('label', { class: 'check' }, el, ` ${label}`);
   };
 
+  const roleUi = {};
   const roles = CBO_ROLES.map(([role, n]) => {
     const current = d.currentClass ? `Current class (${d.currentClass})` : 'Current class';
     const classSel = select(`${role}ClassSelect`, [['', '(none)'], [d.currentClassOption, current], ...d.choices.classes.map(c => [c, c])],
@@ -1040,8 +1079,10 @@ function renderCoreBotsOptions() {
       modeSel.value = want && list.includes(want) ? want : modes[0];
     };
     fillModes(value(`${role}ModeSelect`, 'Base'));
-    classSel.addEventListener('change', () => fillModes(null));
+    const why = h('p', { class: 'muted small cbo-why', hidden: true });
+    classSel.addEventListener('change', () => { fillModes(null); why.hidden = true; });
     cboControls.set(`${role}ModeSelect`, () => modeSel.value);
+    roleUi[role] = { classSel, fillModes, why };
 
     const equip = h('div', { class: 'cbo-equip' }, CBO_SLOTS.map(([slot, list]) => h('label', { class: 'cbo-slot' },
       h('span', { class: 'muted', text: slot === 'GroundItem' ? 'Ground' : slot }),
@@ -1053,10 +1094,33 @@ function renderCoreBotsOptions() {
     return h('section', { class: 'cbo-role' },
       h('h3', { text: `${role} class` }),
       h('div', { class: 'cbo-pair' }, classSel, modeSel),
+      why,
       equipCheck,
       equip);
   });
-  const loadout = h('div', { class: 'cbo-pane', 'data-pane': 'Loadout' }, h('div', { class: 'cbo-roles' }, roles));
+  const autoNote = h('span', { class: 'muted small', text: "Fills each role's class and mode from your classes; check them, then Save." });
+  const autoBtn = h('button', { type: 'button', class: 'small', title: 'Picks by Skua skill setups for the role and the community role lists (rank 10 breaks ties)' }, 'Auto-assign');
+  autoBtn.addEventListener('click', () => {
+    const changed = [];
+    for (const [role] of CBO_ROLES) {
+      const pick = cboAutoPick(role, d);
+      const ui = roleUi[role];
+      if (!pick) {
+        ui.why.textContent = 'Auto: none of your classes fits; left as it was.';
+        ui.why.hidden = false;
+        continue;
+      }
+      ui.classSel.value = pick.cls;
+      ui.fillModes(pick.mode);
+      ui.why.textContent = `Auto: ${pick.why.join(', ')}.`;
+      ui.why.hidden = false;
+      changed.push(`${role} ${pick.cls}`);
+    }
+    autoNote.textContent = changed.length ? `${changed.join(', ')}. Not saved yet.` : 'None of your classes fits a role.';
+  });
+  const loadout = h('div', { class: 'cbo-pane', 'data-pane': 'Loadout' },
+    h('div', { class: 'cbo-auto' }, autoBtn, autoNote),
+    h('div', { class: 'cbo-roles' }, roles));
 
   // Options and Other: Skua's own option list (label, key, type, default).
   const optionPane = tab => {
