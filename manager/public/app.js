@@ -1093,10 +1093,19 @@ function renderAccounts() {
       class: `pill ${a.loggedIn ? 'ok' : a.open ? 'warn' : ''}`,
       text: a.loggedIn ? 'logged in' : a.open ? 'open, logged out' : 'no tab',
     })),
-    h('td', { class: 'actions-cell' }, a.editable ? [
-      h('button', { class: 'small', onclick: () => openAccountDialog(a) }, 'Edit'),
-      h('button', { class: 'small danger', onclick: () => deleteAccount(a) }, 'Remove'),
-    ] : h('span', { class: 'muted small', text: 'set in the environment' })))));
+    h('td', { class: 'actions-cell' },
+      // A closed tab opens again with its number, and logs its account in.
+      a.open ? null : h('button', { class: 'small primary', title: `Open tab ${a.tab}; it logs this account in`, onclick: () => openAccountTab(a) }, 'Open tab'),
+      ...(a.editable ? [
+        h('button', { class: 'small', onclick: () => openAccountDialog(a) }, 'Edit'),
+        h('button', { class: 'small danger', onclick: () => deleteAccount(a) }, 'Remove'),
+      ] : [h('span', { class: 'muted small', text: 'set in the environment' })])))));
+}
+
+async function openAccountTab(a) {
+  await act(`Tab ${a.tab} opened`, () => api('POST', `/api/tabs?tab=${a.tab}`));
+  state.accounts = null;
+  refresh();
 }
 
 let editing = null;

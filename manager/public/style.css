@@ -238,6 +238,8 @@ input.masked { -webkit-text-security: disc; }
 .table tr:last-child td { border-bottom: 0; }
 .table td.actions-cell { text-align: right; }
 .table td.actions-cell button { margin-left: 4px; }
+.table td.actions-cell > * { vertical-align: middle; }
+.table td.actions-cell span { margin-left: 10px; }
 
 .stat-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
 .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
