@@ -84,6 +84,10 @@ password, server, a script and whether to start it after logging in. It opens
 its tab and logs in right away. A password can be replaced but is never shown
 again.
 
+**Open tab:** an account whose tab is closed (status "no tab"), from the
+environment or added here, has an **Open tab** button: it opens that tab number
+again, and the tab logs the account in.
+
 **Skua options** (when adding, not editing): tick the ones the new tab should
 have, such as Lag Killer or Hide Players. They are turned on once, when the tab
 first logs in; after that they are the tab's own settings, changed with **Skua
