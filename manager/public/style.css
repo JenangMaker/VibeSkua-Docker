@@ -226,6 +226,19 @@ input.masked { -webkit-text-security: disc; }
 .reqs li.done { color: var(--muted); }
 .reqs li.done .req-name { text-decoration: line-through; }
 
+.equip { padding: 6px 10px; background: var(--panel-2); border-radius: 8px; font-size: 13px; }
+.equip summary { display: flex; align-items: baseline; gap: 8px; cursor: pointer; min-width: 0; list-style: none; }
+.equip summary::-webkit-details-marker { display: none; }
+.equip summary::before { content: ''; flex: none; width: 5px; height: 5px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: translateY(-2px) rotate(-45deg); transition: transform .15s; }
+.equip[open] summary::before { transform: translateY(-3px) rotate(45deg); }
+.equip-peek { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; text-align: right; }
+.equip[open] .equip-peek { visibility: hidden; }
+.equip-list { list-style: none; margin: 6px 0 2px; padding: 0; display: grid; gap: 3px; }
+.equip-list li { display: flex; align-items: baseline; gap: 6px; min-width: 0; font-size: 12px; }
+.equip-slot { flex: none; width: 62px; }
+.equip-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.equip-list .tag { flex: none; }
+
 .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; text-align: center; }
 .stats div { background: var(--panel-2); border-radius: 8px; padding: 4px 2px; }
 .stats b { display: block; font-size: 14px; font-variant-numeric: tabular-nums; }
