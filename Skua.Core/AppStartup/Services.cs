@@ -238,6 +238,14 @@ public static class Services
     private static List<PortableExecutableReference>? _cachedBaseReferences;
     private static readonly object _referenceCacheLock = new();
 
+    // MetadataReference.CreateFromFile copies the whole assembly into native
+    // memory, and these references live as long as the process: on Linux, with
+    // the whole framework referenced, over 100 MB in every Skua. AssemblyMetadata
+    // maps the file instead (read only where the compiler looks, shared by every
+    // Skua through the page cache).
+    private static PortableExecutableReference MappedReference(string path)
+        => AssemblyMetadata.CreateFromFile(path).GetReference(filePath: path);
+
     private static Compiler CreateCompiler(IServiceProvider s)
     {
         Compiler compiler = new();
@@ -263,16 +271,16 @@ public static class Services
                         .Select(a => a.Location)
                         .Where(s => !string.IsNullOrEmpty(s))
                         .Where(s => !s.Contains("xunit"))
-                        .Select(s => MetadataReference.CreateFromFile(s))
+                        .Select(s => MappedReference(s))
                         .ToList();
 
                     string? regexPath = typeof(System.Text.RegularExpressions.Regex).Assembly.Location;
                     if (!string.IsNullOrEmpty(regexPath))
                     {
-                        refs.Add(MetadataReference.CreateFromFile(regexPath));
+                        refs.Add(MappedReference(regexPath));
                     }
 
-                    refs.AddRange(refPaths.Select(s => MetadataReference.CreateFromFile(s)));
+                    refs.AddRange(refPaths.Select(s => MappedReference(s)));
 
                     // On Windows the WPF app has loaded most of the framework by
                     // the time a script compiles, so "every loaded assembly" covers
@@ -290,7 +298,7 @@ public static class Services
                             bool framework = name.StartsWith("System.", StringComparison.OrdinalIgnoreCase)
                                 || name is "Microsoft.CSharp.dll" or "Microsoft.Win32.Primitives.dll" or "netstandard.dll" or "mscorlib.dll";
                             if (framework && have.Add(name))
-                                refs.Add(MetadataReference.CreateFromFile(path));
+                                refs.Add(MappedReference(path));
                         }
                     }
                     _cachedBaseReferences = refs;
