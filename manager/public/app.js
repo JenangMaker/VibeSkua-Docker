@@ -313,7 +313,7 @@ function renderCards() {
 function makeCard(n) {
   const r = {};
   const field = (key, label) => [h('dt', { text: label }), r[key] = h('dd')];
-  const stat = (key, label) => h('div', {}, r[key] = h('b', { text: '0' }), h('span', { text: label }));
+  const stat = (key, label) => h('span', {}, r[key] = h('b', { text: '0' }), ` ${label}`);
   // A bar is a progress bar to assistive tech (setBar keeps its value).
   const bar = (cls, label) => {
     const fill = h('i'); const text = h('span');
@@ -327,25 +327,30 @@ function makeCard(n) {
       h('span', { class: 'card-num', text: `Tab ${n}` }),
       r.name = h('span', { class: 'card-name' }),
       r.pill = h('span', { class: 'pill' })),
-    h('dl', { class: 'kv' }, field('map', 'Map'), field('level', 'Level'), field('gold', 'Gold'), field('script', 'Script')),
+    // The frame: HP and MP straight under the name, as in a party frame.
     h('div', { class: 'bars' }, bar('hp', 'HP'), bar('mp', 'MP')),
+    h('dl', { class: 'kv' }, field('map', 'Map'), field('level', 'Level'), field('gold', 'Gold'), field('script', 'Script')),
     r.fight = h('div', { class: 'fight' },
       h('div', { class: 'fight-head' }, h('span', { class: 'muted', text: 'Target' }), r.targetName = h('b'), r.targetPct = h('span', { class: 'muted' })),
       bar('target', 'Target HP'),
       r.cellMons = h('div', { class: 'cell-mons' })),
     r.questList = h('div', { class: 'quests' }),
-    h('div', { class: 'stats' }, stat('kills', 'Kills'), stat('drops', 'Drops'), stat('quests', 'Quests'), stat('deaths', 'Deaths'), stat('relogins', 'Relogins')),
+    h('div', { class: 'stats' }, stat('kills', 'kills'), stat('drops', 'drops'), stat('quests', 'quests'), stat('deaths', 'deaths'), stat('relogins', 'relogins')),
     r.usage = h('div', { class: 'usage' }),
     h('div', { class: 'actions' },
       r.startStop = h('button', { class: 'small primary', onclick: () => startStop(n) }),
       h('button', { class: 'small', onclick: () => openScriptDialog([n]) }, 'Load...'),
       r.optionsBtn = h('button', { class: 'small', title: "The loaded script's options", onclick: () => openScriptOptions(n) }, 'Script options...'),
+      // Used less often: behind More (a native disclosure, keyboard ready).
+      r.more = h('details', { class: 'more' }, h('summary', { class: 'small' }, 'More'), h('div', { class: 'more-menu' },
       h('button', { class: 'small', title: "This tab's Skua options (Lag Killer, Hide Players, Headless Mode...)", onclick: () => openSkuaOptions(n) }, 'Skua options...'),
       h('button', { class: 'small', onclick: () => openLog(n) }, 'Log'),
       h('button', { class: 'small', title: 'Show this tab on the VibeSkua desktop', onclick: () => act(`Tab ${n} shown`, () => api('POST', `/api/tabs/${n}/select`)) }, 'Show'),
       h('button', { class: 'small', title: "Restart this tab's Skua (the game stays logged in)", onclick: () => restartTab(n, false) }, 'Restart'),
       h('button', { class: 'small', title: 'Restart Skua and reload the game page (logs in again)', onclick: () => restartTab(n, true) }, 'Reload game'),
-      h('button', { class: 'small danger', onclick: () => closeTab(n) }, 'Close')));
+      h('button', { class: 'small danger', onclick: () => closeTab(n) }, 'Close')))));
+  // A pick from the menu closes it.
+  r.more.addEventListener('click', e => { if (e.target.closest('.more-menu button')) r.more.open = false; });
   r.pick.addEventListener('change', () => {
     if (r.pick.checked) picked.add(n); else picked.delete(n);
     el.classList.toggle('picked', r.pick.checked);
@@ -372,6 +377,7 @@ function updateCard(card, tab, status) {
   r.pill.className = `pill ${pill[1]}`;
 
   const loggedIn = !!game?.loggedIn;
+  card.el.dataset.state = !tab.running ? 'down' : !loggedIn ? 'away' : script?.running ? 'busy' : 'idle';
   r.map.textContent = loggedIn ? `${anonMap(game.map) || '-'}${game.cell ? ` (${game.cell})` : ''}` : '-';
   r.level.textContent = loggedIn ? `${game.level ?? '-'}${game.className ? ` - ${game.className}` : ''}` : '-';
   r.gold.textContent = loggedIn ? fmtNum(game.gold) : '-';
