@@ -76,6 +76,8 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 ("POST", "/debug/trace") => await TraceApi.Collect(ctx.Request),
                 ("GET", "/render") => Render(null, null),
                 ("POST", "/render") => Render(ctx.Request.QueryString["fps"], ctx.Request.QueryString["game"]),
+                ("GET", "/cbo") => CoreBotsOptions(),
+                ("POST", "/cbo") => await SaveCoreBotsOptions(ctx.Request),
                 ("POST", _) when path.StartsWith("/army/") => await Army(path["/army/".Length..], ctx.Request),
                 _ when Routes.TryGetValue($"{method} {path}", out var route) => await route(ctx.Request),
                 _ => NotFound(out status),
