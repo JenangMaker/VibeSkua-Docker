@@ -34,11 +34,11 @@ nothing to reload.
 
 One card per tab:
 
-- **The header:** a box to select the tab (see the Army bar), the tab number,
-  **Shown** on the tab the VibeSkua desktop shows now (**In grid** on every
-  tab while its Grid View is on), the character, and its state (Logged in,
-  Running script, Not logged in), with "(headless)" when its Headless Mode is
-  on.
+- **The header:** a box to select the tab (see the Army bar), the tab number
+  and the character. Under it, its state (Logged in, Running script, Not logged
+  in), with "(headless)" when its Headless Mode is on, and **Shown** on the tab
+  the VibeSkua desktop shows now (**In grid** on every tab while its Grid View
+  is on).
 - **Map, level and class, gold, script**, and HP / MP bars.
 - **Target:** what the character is fighting, with its HP, and every monster
   in the cell (the dead ones struck through).
@@ -67,12 +67,13 @@ script, log in or out, **Restart...** (each tab's Skua), jump everyone to a map
 or a player, and **Skua options...** (On / Off for each option, since the tabs may differ). **Grid
 View** switches the desktop's Grid View, **+ Open tab** opens another tab.
 
-**Some tabs only:** tick the box in the header of the cards you want. Every
-Army button then acts on those tabs only (the ones running) and says so:
-**Start (2 selected)**, **Log out (2 selected)**, **Jump (2 selected)...** and
-so on, and the bar lists the tabs. The Jump and Skua options dialogs and the
-Log out question name them. With no box ticked the buttons act on every tab.
-**Clear** unticks them all. The selection stays while the page is open.
+**Some tabs only:** tick the box in the header of the cards you want. The
+Army bar is then tinted, its label becomes the selection (**Tabs 2, 4
+selected**, with an **x** to clear it), and every button acts on those tabs
+only (the ones running): **Start**, **Log out**, **Jump...** and so on, without
+"all". The Jump and Skua options dialogs and the Log out question name the
+tabs. With no box ticked the buttons act on every tab. The selection stays while
+the page is open.
 
 ### Accounts
 

@@ -144,6 +144,11 @@ input.masked { -webkit-text-security: disc; }
   margin-bottom: 16px;
 }
 .army-label { font-weight: 600; margin-right: 6px; }
+/* Tabs ticked: the bar is tinted and its label is the selection, clearable. */
+.army.picking { background: color-mix(in srgb, var(--accent) 8%, transparent); border-radius: 10px; padding: 6px; margin: -6px -6px 10px; }
+.pick-chip { display: inline-flex; align-items: center; gap: 6px; margin-right: 6px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--accent); color: var(--accent-text); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.pick-clear { border: 0; background: color-mix(in srgb, var(--accent-text) 22%, transparent); color: inherit; border-radius: 999px; width: 20px; height: 20px; padding: 0; line-height: 20px; font-size: 12px; }
+.pick-clear:hover:not(:disabled) { background: color-mix(in srgb, var(--accent-text) 38%, transparent); }
 
 /* ---- bot cards ---- */
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
@@ -163,7 +168,7 @@ input.masked { -webkit-text-security: disc; }
 /* Ticked for the army's Load script (.selected is the tab on the desktop). */
 .card.picked { outline: 2px solid var(--accent); outline-offset: -1px; background: color-mix(in srgb, var(--accent) 6%, var(--panel)); }
 .card-pick { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); cursor: pointer; flex: none; }
-.pick-info { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--accent); }
+.card-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: -4px; }
 
 .account-options { border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px 10px; margin: 0; }
 .account-options legend { padding: 0 4px; font-size: 13px; color: var(--muted); }

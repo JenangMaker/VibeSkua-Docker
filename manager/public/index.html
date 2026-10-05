@@ -48,11 +48,11 @@
       <!-- Bots -->
       <section id="view-bots" class="view" role="tabpanel" aria-labelledby="tab-bots">
         <div class="army">
-          <span class="army-label" title="These act on the tabs ticked on their cards, or on every tab when none is ticked">Army</span>
+          <span id="army-label" class="army-label" title="These act on the tabs ticked on their cards, or on every tab when none is ticked">Army</span>
+          <span id="pick-info" class="pick-chip" hidden><span id="pick-count"></span><button id="pick-clear" class="pick-clear" title="Clear the selection (act on every tab again)" aria-label="Clear the selection">x</button></span>
           <button data-army="start">Start all</button>
           <button data-army="stop">Stop all</button>
           <button id="load-all" title="Load a script in the selected tabs, or in every running tab when none is selected">Load script...</button>
-          <span id="pick-info" class="pick-info" hidden><span id="pick-count"></span> <button id="pick-clear" class="small ghost">Clear</button></span>
           <button data-army="login">Log in all</button>
           <button data-army="logout" data-confirm="Log out every account?">Log out all</button>
           <button id="restart-all" title="Restart Skua in the selected tabs, or in every running tab when none is selected">Restart...</button>

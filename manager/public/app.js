@@ -292,12 +292,15 @@ for (const b of ARMY_BUTTONS) {
   b.dataset.dots = b.textContent.endsWith('...') ? '...' : '';
 }
 
+// With tabs ticked the bar says so once, in place of its "Army" label (a chip
+// with its own clear button), and the buttons drop their "all".
 function updatePickUi() {
   const n = picked.size;
-  for (const b of ARMY_BUTTONS)
-    b.textContent = n ? `${b.dataset.labelSome} (${n} selected)${b.dataset.dots}` : b.dataset.labelAll;
+  for (const b of ARMY_BUTTONS) b.textContent = n ? `${b.dataset.labelSome}${b.dataset.dots}` : b.dataset.labelAll;
+  $('#army-label').hidden = n > 0;
   $('#pick-info').hidden = n === 0;
-  $('#pick-count').textContent = `Tab${n === 1 ? '' : 's'} ${[...picked].sort((a, b) => a - b).join(', ')}`;
+  $('.army').classList.toggle('picking', n > 0);
+  $('#pick-count').textContent = `${tabList([...picked].sort((a, b) => a - b)).replace(/^t/, 'T')} selected`;
 }
 
 $('#pick-clear').addEventListener('click', () => {
@@ -346,10 +349,12 @@ function makeCard(n) {
     h('div', { class: 'card-head' },
       r.pick,
       h('span', { class: 'card-num', text: `Tab ${n}` }),
-      // The tab on the VibeSkua desktop now (the Show button puts a tab there).
-      r.shown = h('span', { class: 'shown-badge', text: 'Shown', title: 'This tab is the one shown on the VibeSkua desktop', hidden: true }),
-      r.name = h('span', { class: 'card-name' }),
-      r.pill = h('span', { class: 'pill' })),
+      r.name = h('span', { class: 'card-name' })),
+    // Its state, and Shown on the tab the VibeSkua desktop shows (the Show
+    // button puts a tab there): under the name, which keeps the whole row.
+    h('div', { class: 'card-tags' },
+      r.pill = h('span', { class: 'pill' }),
+      r.shown = h('span', { class: 'shown-badge', text: 'Shown', title: 'This tab is the one shown on the VibeSkua desktop', hidden: true })),
     h('dl', { class: 'kv' }, field('map', 'Map'), field('level', 'Level'), field('gold', 'Gold'), field('script', 'Script')),
     h('div', { class: 'bars' }, bar('hp', 'HP'), bar('mp', 'MP')),
     r.fight = h('div', { class: 'fight' },
