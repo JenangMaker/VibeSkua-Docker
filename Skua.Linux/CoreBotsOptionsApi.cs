@@ -84,6 +84,9 @@ public sealed partial class HostApi
             {
                 classes,
                 modes,
+                // A class item's quantity is its class points (rank 10 at 302,500).
+                classPoints = items.Where(i => i.Category == ItemCategory.Class && i.EnhancementLevel > 0)
+                    .GroupBy(i => i.Name).ToDictionary(g => g.Key, g => g.Max(i => i.Quantity)),
                 helm = Names(i => i.Category == ItemCategory.Helm && i.EnhancementLevel > 0),
                 armor = Names(i => i.Category == ItemCategory.Armor),
                 cape = Names(i => i.Category == ItemCategory.Cape && i.EnhancementLevel > 0),
