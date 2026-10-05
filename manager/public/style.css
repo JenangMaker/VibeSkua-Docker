@@ -317,6 +317,37 @@ dialog:has(.wide) { width: min(820px, calc(100vw - 32px)); }
   word-break: break-word;
 }
 
+/* ---- loading ---- */
+/* .loading: a spinner before the text ("Loading the tabs..."); button.busy:
+   the button whose request is out; .busy-bar: along the top while any is. */
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+@keyframes pulse { 50% { opacity: .35; } }
+.loading::before, button.busy::before {
+  content: '';
+  display: inline-block;
+  width: .95em;
+  height: .95em;
+  margin-right: .5em;
+  vertical-align: -.12em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: .75;
+  animation: spin .7s linear infinite;
+}
+.loading-note { color: var(--muted); margin: 0; padding: 28px 4px; grid-column: 1 / -1; }
+.busy-bar { position: fixed; inset: 0 0 auto 0; height: 3px; overflow: hidden; z-index: 30; pointer-events: none; }
+.busy-bar::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 40%; border-radius: 0 3px 3px 0; background: var(--accent); animation: sweep 1.1s ease-in-out infinite; }
+.dot.wait { background: var(--warn); animation: pulse 1.2s ease-in-out infinite; }
+.script-list[aria-busy="true"] > li:not(.loading) { opacity: .5; transition: opacity .15s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .loading::before, button.busy::before { animation-duration: 2.5s; }
+  .busy-bar::before { width: 100%; animation: pulse 1.6s ease-in-out infinite; }
+  .dot.wait { animation: none; }
+}
+
 /* ---- toasts ---- */
 .toasts { position: fixed; right: 16px; bottom: 16px; display: grid; gap: 8px; z-index: 10; max-width: min(420px, calc(100vw - 32px)); }
 .toast { background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--ok); border-radius: 10px; padding: 10px 14px; box-shadow: 0 4px 16px rgba(0, 0, 0, .15); }
