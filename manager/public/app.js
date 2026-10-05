@@ -312,7 +312,8 @@ function renderCards() {
 
 function makeCard(n) {
   const r = {};
-  const field = (key, label) => [h('dt', { text: label }), r[key] = h('dd')];
+  // wide: the value takes the rest of the row (long ones: level and class, script).
+  const field = (key, label, wide) => [h('dt', { text: label }), r[key] = h('dd', { class: wide ? 'wide' : null })];
   const stat = (key, label) => h('span', {}, r[key] = h('b', { text: '0' }), ` ${label}`);
   // A bar is a progress bar to assistive tech (setBar keeps its value).
   const bar = (cls, label) => {
@@ -329,7 +330,7 @@ function makeCard(n) {
       r.pill = h('span', { class: 'pill' })),
     // The frame: HP and MP straight under the name, as in a party frame.
     h('div', { class: 'bars' }, bar('hp', 'HP'), bar('mp', 'MP')),
-    h('dl', { class: 'kv' }, field('map', 'Map'), field('level', 'Level'), field('gold', 'Gold'), field('script', 'Script')),
+    h('dl', { class: 'kv' }, field('map', 'Map'), field('gold', 'Gold'), field('level', 'Level', true), field('script', 'Script', true)),
     r.fight = h('div', { class: 'fight' },
       h('div', { class: 'fight-head' }, h('span', { class: 'muted', text: 'Target' }), r.targetName = h('b'), r.targetPct = h('span', { class: 'muted' })),
       bar('target', 'Target HP'),
