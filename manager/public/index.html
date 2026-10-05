@@ -11,6 +11,9 @@
   <script src="app.js" defer></script>
 </head>
 <body>
+  <!-- Runs along the top while a request you started is out (see app.js api()). -->
+  <div id="busy-bar" class="busy-bar" aria-hidden="true" hidden></div>
+
   <!-- Login -->
   <main id="login-view" class="login" hidden>
     <form id="login-form" class="login-card">
@@ -28,7 +31,7 @@
     <a class="skip-link" href="#main">Skip to content</a>
     <header class="topbar">
       <h1 class="brand"><img src="icon.svg" alt="" width="24" height="24"> VibeSkua Manager</h1>
-      <div class="conn"><span id="conn-dot" class="dot" aria-hidden="true"></span><span id="conn-text">Connecting...</span></div>
+      <div class="conn"><span id="conn-dot" class="dot wait" aria-hidden="true"></span><span id="conn-text">Connecting...</span></div>
       <div id="res-summary" class="res-summary"></div>
       <div class="spacer"></div>
       <label class="check streamer-toggle" title="Hide account and character names, and room numbers, on this page (this browser only)">
@@ -63,6 +66,7 @@
           <button id="open-tab" class="primary">+ Open tab</button>
         </div>
         <div id="cards" class="cards"></div>
+        <p id="cards-loading" class="loading-note loading" role="status">Loading the tabs...</p>
         <p id="no-tabs" class="empty" hidden>No tabs.</p>
       </section>
 
@@ -76,14 +80,14 @@
         <div class="table-wrap">
           <table class="table">
             <thead><tr><th>Tab</th><th>Account</th><th>Source</th><th>Server</th><th>Script</th><th>Auto start</th><th>Status</th><th></th></tr></thead>
-            <tbody id="accounts-body"></tbody>
+            <tbody id="accounts-body"><tr><td colspan="8" class="muted loading" role="status">Loading the accounts...</td></tr></tbody>
           </table>
         </div>
       </section>
 
       <!-- Resources -->
       <section id="view-resources" class="view" role="tabpanel" aria-labelledby="tab-resources" hidden>
-        <div id="res-cards" class="stat-cards"></div>
+        <div id="res-cards" class="stat-cards"><p class="loading-note loading" role="status">Reading the resources...</p></div>
         <h2>By kind of process</h2>
         <div class="table-wrap">
           <table class="table"><thead><tr><th>Kind</th><th>Processes</th><th>CPU</th><th>Memory</th></tr></thead><tbody id="kinds-body"></tbody></table>
@@ -198,6 +202,7 @@
         <div class="spacer"></div>
         <button id="log-close" class="ghost">Close</button>
       </div>
+      <p id="log-loading" class="loading muted small" role="status" hidden>Reading the log...</p>
       <pre id="log-text" class="log"></pre>
     </div>
   </dialog>

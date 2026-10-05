@@ -30,12 +30,52 @@ class ApiError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 
-async function api(method, path, body) {
+// Loaders for the requests a person starts (quiet: the 4 s poll's, which would
+// keep them on): the bar along the top runs while any is out, after 150 ms so
+// a quick one does not flash it, and the button that was clicked spins until
+// its own are back. A click's handler asks before its first await, so the
+// button is the one clicked in this same task.
+let pending = 0, barTimer = null, clickedButton = null;
+document.addEventListener('click', e => {
+  clickedButton = e.target.closest?.('button') || null;
+  setTimeout(() => { clickedButton = null; });
+}, true);
+
+function trackRequest() {
+  // Not a button that opened a dialog: the dialog shows its own loader.
+  const dialog = document.querySelector('dialog[open]');
+  const btn = clickedButton?.isConnected && (!dialog || dialog.contains(clickedButton)) ? clickedButton : null;
+  if (btn) {
+    btn.dataset.busy = String((+btn.dataset.busy || 0) + 1);
+    btn.classList.add('busy');
+    btn.setAttribute('aria-busy', 'true');
+  }
+  if (pending++ === 0) barTimer = setTimeout(() => { $('#busy-bar').hidden = false; }, 150);
+  return () => {
+    if (btn) {
+      const left = +btn.dataset.busy - 1;
+      if (left > 0) btn.dataset.busy = String(left);
+      else {
+        delete btn.dataset.busy;
+        btn.classList.remove('busy');
+        btn.removeAttribute('aria-busy');
+      }
+    }
+    if (--pending === 0) { clearTimeout(barTimer); $('#busy-bar').hidden = true; }
+  };
+}
+
+async function api(method, path, body, { quiet = false } = {}) {
   const init = { method, headers: { 'X-Manager': '1' } };
   if (method !== 'GET') {
     init.headers['Content-Type'] = 'application/json';
     init.body = body === undefined ? '' : JSON.stringify(body);
   }
+  const done = quiet ? null : trackRequest();
+  try { return await request(path, init); } finally { done?.(); }
+}
+
+async function request(path, init) {
   const res = await fetch(path, init);
   let data = null;
   try { data = await res.json(); } catch { /* empty */ }
@@ -204,6 +244,7 @@ for (const btn of document.querySelectorAll('.view-tab')) {
 
 let state = { host: null, tabs: [], statuses: {}, resources: null, accounts: null, grid: false };
 let refreshing = false;
+let loaded = false;   // the first refresh is done (the placeholders are gone)
 
 function startPolling() {
   stopPolling();
@@ -221,9 +262,11 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 async function refresh() {
   if (refreshing) return;
   refreshing = true;
+  // The first load shows the bar; the poll after it does not.
+  const opts = { quiet: loaded };
   try {
     const [host, tabs, resources] = await Promise.all([
-      api('GET', '/api/status'), api('GET', '/api/tabs'), api('GET', '/api/resources'),
+      api('GET', '/api/status', undefined, opts), api('GET', '/api/tabs', undefined, opts), api('GET', '/api/resources', undefined, opts),
     ]);
     state.host = host;
     state.tabs = tabs;
@@ -231,10 +274,11 @@ async function refresh() {
     setConnected(true, host);
     if (view === 'bots') {
       const statuses = await Promise.all(tabs.map(t =>
-        t.running ? api('GET', `/api/tabs/${t.tab}/api/status?detail=1`).catch(() => null) : null));
+        t.running ? api('GET', `/api/tabs/${t.tab}/api/status?detail=1`, undefined, opts).catch(() => null) : null));
       state.statuses = Object.fromEntries(tabs.map((t, i) => [t.tab, statuses[i]]));
     }
-    if (view === 'accounts' || state.accounts === null) state.accounts = await api('GET', '/api/accounts');
+    if (view === 'accounts' || state.accounts === null) state.accounts = await api('GET', '/api/accounts', undefined, opts);
+    loaded = true;
     render();
   } catch (e) {
     if (e.status !== 401) setConnected(false, null, e.message);
@@ -331,7 +375,9 @@ function renderCards() {
   // In tab order.
   const ordered = [...cards.entries()].sort((a, b) => a[0] - b[0]).map(([, c]) => c.el);
   if (ordered.some((el, i) => container.children[i] !== el)) container.replaceChildren(...ordered);
-  $('#no-tabs').hidden = state.tabs.length > 0;
+  // Until the first refresh is in, "Loading the tabs..." rather than "No tabs."
+  $('#cards-loading').hidden = loaded;
+  $('#no-tabs').hidden = !loaded || state.tabs.length > 0;
 }
 
 function makeCard(n) {
@@ -667,6 +713,7 @@ async function openSkuaOptions(n) {
   skuaOptionsTab = n;
   $('#options-title').textContent = `Skua options, tab ${n}`;
   $('#options-info').textContent = 'Reading...';
+  $('#options-info').classList.add('loading');
   $('#options-list').replaceChildren();
   $('#dlg-options').showModal();
   let values = null;
@@ -676,6 +723,7 @@ async function openSkuaOptions(n) {
     if (e.status === 401) return;
   }
   if (skuaOptionsTab !== n) return;
+  $('#options-info').classList.remove('loading');
   if (!values || values.error || typeof values.LagKiller !== 'boolean') {
     $('#options-info').textContent = 'This VibeSkua cannot tell the current values (update its image); set each one on or off.';
     $('#options-list').replaceChildren(...onOffRows(`Tab ${n}: `, (name, on, label) => setTabOption(n, name, on, label)));
@@ -778,7 +826,7 @@ async function browseScripts(dir) {
   const list = $('#script-list');
   const seq = ++browseSeq;
   renderCrumbs(dir);
-  list.replaceChildren(h('li', { class: 'none', text: 'Reading the folder...' }));
+  list.replaceChildren(h('li', { class: 'none loading', text: 'Reading the folder...' }));
   let reply;
   try {
     reply = await api('GET', `/api/tabs/${scriptTargets[0]}/api/scripts/browse?dir=${q(dir)}`);
@@ -834,6 +882,9 @@ async function searchScripts() {
   const category = $('#script-category').value;
   const list = $('#script-list');
   const seq = ++searchSeq;
+  // The old results stay, dimmed, while a new search runs; an empty list says so.
+  list.setAttribute('aria-busy', 'true');
+  if (!list.querySelector('li:not(.none)')) list.replaceChildren(h('li', { class: 'none loading', text: 'Searching...' }));
   try {
     const params = `limit=500${term ? `&q=${q(term)}` : ''}${category !== 'All' ? `&category=${q(category)}` : ''}`;
     const reply = await api('GET', `/api/tabs/${scriptTargets[0]}/api/scripts?${params}`);
@@ -852,6 +903,8 @@ async function searchScripts() {
     list.replaceChildren(...items);
   } catch (e) {
     if (e.status !== 401 && seq === searchSeq && scriptMode === 'search') list.replaceChildren(h('li', { class: 'none', text: e.message }));
+  } finally {
+    if (seq === searchSeq) list.removeAttribute('aria-busy');
   }
 }
 
@@ -883,6 +936,7 @@ async function openScriptOptions(n) {
   $('#sopts-reveal').hidden = true;
   $('#sopts-title').textContent = `Script options, tab ${n}`;
   $('#sopts-info').textContent = 'Compiling the script to read its options...';
+  $('#sopts-info').classList.add('loading');
   $('#sopts-body').replaceChildren();
   $('#sopts-error').textContent = '';
   $('.sopts-skip').hidden = true;
@@ -897,6 +951,8 @@ async function openScriptOptions(n) {
     renderScriptOptions(data);
   } catch (e) {
     if (e.status !== 401) { $('#sopts-info').textContent = ''; $('#sopts-error').textContent = e.message; }
+  } finally {
+    if (soptsTab === n) $('#sopts-info').classList.remove('loading');
   }
 }
 
@@ -1050,15 +1106,19 @@ function openLog(n) {
   logSince = 0;
   $('#log-title').textContent = `Tab ${n} log`;
   $('#log-text').textContent = '';
+  $('#log-loading').hidden = false;
   $('#dlg-log').showModal();
   pollLog();
   logTimer = setInterval(pollLog, 2000);
 }
 
+// Every 2 s: only the first read of a log shows the loaders.
 async function pollLog() {
   if (logTab === null) return;
+  const first = !$('#log-loading').hidden;
   try {
-    const log = await api('GET', `/api/tabs/${logTab}/api/log?type=${$('#log-type').value}&since=${logSince}`);
+    const log = await api('GET', `/api/tabs/${logTab}/api/log?type=${$('#log-type').value}&since=${logSince}`, undefined, { quiet: !first });
+    $('#log-loading').hidden = true;
     const pre = $('#log-text');
     if (log.total < logSince) { pre.textContent = ''; logSince = 0; return; }   // cleared
     if (log.lines.length) {
@@ -1069,7 +1129,7 @@ async function pollLog() {
   } catch { /* try again next time */ }
 }
 
-$('#log-type').addEventListener('change', () => { logSince = 0; $('#log-text').textContent = ''; pollLog(); });
+$('#log-type').addEventListener('change', () => { logSince = 0; $('#log-text').textContent = ''; $('#log-loading').hidden = false; pollLog(); });
 $('#log-close').addEventListener('click', () => $('#dlg-log').close());
 $('#dlg-log').addEventListener('close', () => { clearInterval(logTimer); logTab = null; });
 
