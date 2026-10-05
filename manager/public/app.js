@@ -137,7 +137,7 @@ function setStreamer(on, fromUser) {
   try { localStorage.setItem('vsm-streamer', on ? '1' : '0'); } catch { /* private window */ }
   $('#who').textContent = on ? '' : $('#who').dataset.user || '';
   if (fromUser && on && confirm("Also turn on the game's own Streamer Mode in every tab (names, guild and room number in the game)?"))
-    armyAll('Streamer Mode on', '/api/army/option?name=StreamerMode&value=true');
+    armyAll('Streamer Mode on', '/api/army/option?name=StreamerMode&value=true', true);
   if (logTab !== null) { logSince = 0; $('#log-text').textContent = ''; pollLog(); }
   render();
 }
@@ -273,14 +273,29 @@ function renderSummary() {
 // ---- bot cards ------------------------------------------------------------------
 
 const cards = new Map();   // tab number -> card
-// Tabs ticked on their card: the army's Load script goes to these only (to
-// every running tab when none is). Kept while the page is open.
+// Tabs ticked on their card: the whole Army bar acts on these only (on
+// every tab when none is). Kept while the page is open.
 const picked = new Set();
+
+// The ticked tabs that are running, in order.
+const pickedRunning = () => state.tabs.filter(t => t.running && picked.has(t.tab)).map(t => t.tab);
+// "tab 2" / "tabs 2, 4", for titles and questions.
+const tabList = tabs => `tab${tabs.length === 1 ? '' : 's'} ${tabs.join(', ')}`;
+
+// Each Army button's two labels: for every tab ("Start all", "Jump..."),
+// and for the ticked ones ("Start (2 selected)", "Jump (2 selected)...").
+const ARMY_BUTTONS = ['load-all', 'restart-all', 'jump-all', 'options-all'].map(id => document.getElementById(id))
+  .concat([...document.querySelectorAll('[data-army]')]);
+for (const b of ARMY_BUTTONS) {
+  b.dataset.labelAll = b.textContent;
+  b.dataset.labelSome = b.textContent.replace(/ all$/, '').replace(/\.\.\.$/, '');
+  b.dataset.dots = b.textContent.endsWith('...') ? '...' : '';
+}
 
 function updatePickUi() {
   const n = picked.size;
-  $('#load-all').textContent = n ? `Load script (${n} selected)...` : 'Load script...';
-  $('#restart-all').textContent = n ? `Restart (${n} selected)...` : 'Restart...';
+  for (const b of ARMY_BUTTONS)
+    b.textContent = n ? `${b.dataset.labelSome} (${n} selected)${b.dataset.dots}` : b.dataset.labelAll;
   $('#pick-info').hidden = n === 0;
   $('#pick-count').textContent = `Tab${n === 1 ? '' : 's'} ${[...picked].sort((a, b) => a - b).join(', ')}`;
 }
@@ -522,17 +537,32 @@ async function closeTab(n) {
 
 for (const btn of document.querySelectorAll('[data-army]')) {
   btn.addEventListener('click', async () => {
-    if (btn.dataset.confirm && !confirm(btn.dataset.confirm)) return;
+    if (btn.dataset.confirm) {
+      const targets = picked.size ? pickedRunning() : null;
+      const question = targets ? btn.dataset.confirm.replace('every account', tabList(targets)) : btn.dataset.confirm;
+      if (!confirm(question)) return;
+    }
     btn.disabled = true;
-    try { await armyAll(btn.textContent, `/api/army/${btn.dataset.army}`); }
+    try { await armyAll(btn.dataset.labelSome, `/api/army/${btn.dataset.army}`); }
     finally { btn.disabled = false; refresh(); }
   });
 }
 
-// Every tab's answer: one toast, listing the tabs that failed.
-async function armyAll(label, path) {
+// An Army command (path: /api/army/...): for every tab in one call, or, with
+// cards ticked, for each ticked running tab through its own API (every:
+// always every tab). One toast, listing the tabs that failed.
+async function armyAll(label, path, every = false) {
   try {
-    const results = await api('POST', path);
+    let results;
+    if (picked.size && !every) {
+      const targets = pickedRunning();
+      if (!targets.length) { toast(`${label}: none of the selected tabs is running`, true); return; }
+      const sub = path.slice('/api'.length);   // /army/...
+      results = Object.fromEntries(await Promise.all(targets.map(n =>
+        api('POST', `/api/tabs/${n}/api${sub}`).then(r => [n, r ?? {}], e => [n, { error: e.message }]))));
+    } else {
+      results = await api('POST', path);
+    }
     const failed = Object.entries(results || {}).filter(([, r]) => !r || r.error);
     if (failed.length) toast(`${label}: failed in tab ${failed.map(([t, r]) => `${t} (${r?.error || 'no answer'})`).join(', ')}`, true);
     else toast(`${label}: done in ${Object.keys(results || {}).length} tab(s)`);
@@ -584,6 +614,9 @@ $('#load-all').addEventListener('click', () => {
 
 $('#jump-all').addEventListener('click', () => {
   const dlg = $('#dlg-jump');
+  const targets = picked.size ? pickedRunning() : null;
+  if (targets && !targets.length) { toast('None of the selected tabs is running', true); return; }
+  dlg.querySelector('h2').textContent = targets ? `Jump ${tabList(targets)}` : 'Jump every account';
   dlg.querySelector('form').reset();
   dlg.returnValue = '';   // Escape keeps the last one
   dlg.showModal();
@@ -609,7 +642,9 @@ function onOffRows(label, send) {
 }
 
 $('#options-all').addEventListener('click', () => {
-  $('#options-title').textContent = 'Skua options for every tab';
+  const targets = picked.size ? pickedRunning() : null;
+  if (targets && !targets.length) { toast('None of the selected tabs is running', true); return; }
+  $('#options-title').textContent = targets ? `Skua options for ${tabList(targets)}` : 'Skua options for every tab';
   $('#options-info').textContent = '';
   $('#options-list').replaceChildren(...onOffRows('', (name, on, label) => armyAll(label, `/api/army/option?name=${name}&value=${on}`)));
   $('#dlg-options').showModal();
