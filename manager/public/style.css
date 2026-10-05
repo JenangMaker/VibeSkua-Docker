@@ -190,7 +190,9 @@ input.masked { -webkit-text-security: disc; }
 .kv { margin: 0; display: grid; grid-template-columns: 46px minmax(0, 1fr) 46px minmax(0, 1fr); gap: 3px 10px; font-size: 13px; }
 @media (max-width: 420px) { .kv { grid-template-columns: 46px minmax(0, 1fr); } }
 .kv dt { color: var(--muted); }
-.kv dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Values wrap rather than being cut; level and script get a whole row. */
+.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.kv dd.wide { grid-column: 2 / -1; }
 
 .bars { display: grid; gap: 3px; }
 .bar { position: relative; height: 14px; background: var(--panel-2); border-radius: 4px; overflow: hidden; font-size: 10px; font-variant-numeric: tabular-nums; }
