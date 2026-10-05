@@ -1313,6 +1313,23 @@ for (const btn of document.querySelectorAll('[data-close]')) {
   btn.addEventListener('click', () => btn.closest('dialog').close('cancel'));
 }
 
+// A click on the backdrop (outside the dialog's box) closes it, as Cancel
+// does. Only when the press began there too: selecting text in a field and
+// letting go outside the box must not close it.
+for (const dlg of document.querySelectorAll('dialog')) {
+  const outside = e => {
+    if (e.target !== dlg) return false;
+    const r = dlg.getBoundingClientRect();
+    return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+  };
+  let pressedOutside = false;
+  dlg.addEventListener('pointerdown', e => { pressedOutside = outside(e); });
+  dlg.addEventListener('click', e => {
+    if (pressedOutside && outside(e)) dlg.close('cancel');
+    pressedOutside = false;
+  });
+}
+
 // Enter in the search box searches now rather than submitting the dialog.
 $('#script-search').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); clearTimeout(searchTimer); searchScripts(); }
