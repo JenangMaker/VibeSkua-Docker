@@ -1315,8 +1315,9 @@ for (const btn of document.querySelectorAll('[data-close]')) {
 
 // A click on the backdrop (outside the dialog's box) closes it, as Cancel
 // does. Only when the press began there too: selecting text in a field and
-// letting go outside the box must not close it.
-for (const dlg of document.querySelectorAll('dialog')) {
+// letting go outside the box must not close it. Not the dialogs with fields
+// to fill in (data-keep-open): a stray tap would lose what was typed.
+for (const dlg of document.querySelectorAll('dialog:not([data-keep-open])')) {
   const outside = e => {
     if (e.target !== dlg) return false;
     const r = dlg.getBoundingClientRect();
