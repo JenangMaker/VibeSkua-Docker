@@ -425,6 +425,10 @@ function makeCard(n) {
       bar('target', 'Target HP'),
       r.cellMons = h('div', { class: 'cell-mons' })),
     r.questList = h('div', { class: 'quests' }),
+    // Closed by default (the card stays short); open or closed, it stays so.
+    r.equip = h('details', { class: 'equip', hidden: true },
+      r.equipSummary = h('summary'),
+      r.equipList = h('ul', { class: 'equip-list' })),
     h('div', { class: 'stats' }, stat('kills', 'Kills'), stat('drops', 'Drops'), stat('quests', 'Quests'), stat('deaths', 'Deaths'), stat('relogins', 'Relogins')),
     r.usage = h('div', { class: 'usage' }),
     h('div', { class: 'actions' },
@@ -482,6 +486,7 @@ function updateCard(card, tab, status) {
 
   updateFight(r, loggedIn ? status?.combat : null);
   updateQuests(r, loggedIn ? status?.quests : null);
+  updateEquipment(r, loggedIn ? status?.equipment : null);
 
   r.kills.textContent = fmtNum(stats?.kills ?? 0);
   r.drops.textContent = fmtNum(stats?.drops ?? 0);
@@ -569,6 +574,26 @@ function updateQuests(r, quests) {
     h('div', { class: 'quests-title muted', text: quests.length === 1 ? 'Quest' : `Quests (${quests.length})` }),
     ...shown,
     ...(more > 0 ? [h('div', { class: 'muted small', text: `+${more} more` })] : []));
+}
+
+// What the character wears (status.equipment: VibeSkua after 1.2.0): slot,
+// item and its enhancement, and the special one (proc) if any. Rebuilt only
+// when it changes.
+function updateEquipment(r, items) {
+  r.equip.hidden = !items?.length;
+  if (r.equip.hidden) return;
+  const key = JSON.stringify(items);
+  if (r.equip.dataset.key === key) return;
+  r.equip.dataset.key = key;
+  const weapon = items.find(i => i.slot === 'Weapon');
+  r.equipSummary.replaceChildren(
+    h('span', { text: 'Equipment' }),
+    weapon ? h('span', { class: 'muted equip-peek', text: weapon.name }) : null);
+  r.equipList.replaceChildren(...items.map(i => h('li', {},
+    h('span', { class: 'equip-slot muted', text: i.slot }),
+    h('span', { class: 'equip-name', text: i.name, title: i.name }),
+    i.enhancement ? h('span', { class: 'tag', text: i.enhancement, title: 'Enhancement' }) : null,
+    i.proc ? h('span', { class: 'tag ok', text: i.proc, title: 'Special enhancement' }) : null)));
 }
 
 async function startStop(n) {

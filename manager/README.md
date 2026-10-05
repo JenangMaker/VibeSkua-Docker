@@ -45,6 +45,10 @@ One card per tab:
   in the cell (the dead ones struck through).
 - **Quest:** the active quests and each requirement as have / need, so you can
   see a quest filling up.
+- **Equipment** (click to open; it shows the weapon while closed): class,
+  weapon, armor, helm, cape, pet, necklace and ground item, each with its
+  enhancement and special enhancement (Valiance, Awe Blast...). Needs a
+  VibeSkua newer than 1.2.0.
 - **Kills, drops, quests, deaths, relogins** since the session started, and
   what the tab's Skua and game cost in CPU and memory.
 
