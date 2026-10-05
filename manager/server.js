@@ -191,6 +191,74 @@ async function relay(req, res, apiPath, query, s, ip) {
   }
 }
 
+// ---- Skua options for a new account ----------------------------------------
+// The Add account dialog's Skua options: turned on once, when the new tab
+// first logs in. Done here rather than in the page, so closing the page while
+// the tab starts does not lose them. One job per tab; a newer one replaces it.
+
+const INITIAL_OPTIONS = new Set(['LagKiller', 'HidePlayers', 'DisableFX', 'SkipCutscenes', 'InfiniteRange',
+  'Magnetise', 'HeadlessMode', 'UseFunctionBasedSkills', 'StreamerMode']);
+const INITIAL_WAIT_MS = 15 * 60_000;
+const initialJobs = new Map();   // tab -> job id
+
+async function vibeskua(method, apiPath) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (TOKEN) headers.Authorization = `Bearer ${TOKEN}`;
+  const reply = await fetch(TARGET + apiPath, {
+    method, headers,
+    body: method === 'GET' ? undefined : Buffer.alloc(0),   // a POST needs a length (411)
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!reply.ok) throw new Error(`${reply.status} ${reply.statusText}`);
+  return reply.json().catch(() => null);
+}
+
+async function initialOptions(req, res, s, ip) {
+  let body;
+  try { body = JSON.parse((await readBody(req)).toString('utf8') || '{}'); } catch { return send(res, 400, { error: 'bad request' }); }
+  const tab = Number(body.tab);
+  const options = Array.isArray(body.options) ? [...new Set(body.options.map(String))] : [];
+  if (!Number.isInteger(tab) || tab < 1 || tab > 50) return send(res, 400, { error: 'tab must be 1-50' });
+  const unknown = options.filter(o => !INITIAL_OPTIONS.has(o));
+  if (unknown.length || !options.length) return send(res, 400, { error: unknown.length ? `unknown option: ${unknown.join(', ')}` : 'no options' });
+  const id = crypto.randomUUID();
+  initialJobs.set(tab, id);
+  console.log(`[manager] ${s.user}@${ip}: tab ${tab}: ${options.join(', ')} on once it logs in`);
+  runInitialOptions(tab, options, id);
+  send(res, 200, { ok: true });
+}
+
+async function runInitialOptions(tab, options, id) {
+  const deadline = Date.now() + INITIAL_WAIT_MS;
+  const loggedIn = async () => {
+    try { return !!(await vibeskua('GET', `/tabs/${tab}/api/status`))?.game?.loggedIn; } catch { return false; }   // not up yet
+  };
+  // An open tab given a new account restarts and logs in again: not the
+  // session it may still show now.
+  let waitForLogout = await loggedIn();
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 5000));
+    if (initialJobs.get(tab) !== id) return;   // replaced by a newer job
+    const now = await loggedIn();
+    if (waitForLogout) { if (!now) waitForLogout = false; continue; }
+    if (!now) continue;
+    const failed = [];
+    for (const name of options) {
+      try {
+        const r = await vibeskua('POST', `/tabs/${tab}/api/army/option?name=${encodeURIComponent(name)}&value=true`);
+        if (r?.error) failed.push(`${name} (${r.error})`);
+      } catch (e) { failed.push(`${name} (${e.message})`); }
+    }
+    initialJobs.delete(tab);
+    console.log(`[manager] tab ${tab} logged in: turned on ${options.join(', ')}${failed.length ? `; failed: ${failed.join(', ')}` : ''}`);
+    return;
+  }
+  if (initialJobs.get(tab) === id) {
+    initialJobs.delete(tab);
+    console.warn(`[manager] tab ${tab} did not log in within ${INITIAL_WAIT_MS / 60000} min; its Skua options were not set (${options.join(', ')})`);
+  }
+}
+
 // ---- serving ----------------------------------------------------------------
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
@@ -254,6 +322,7 @@ const server = http.createServer(async (req, res) => {
       const s = session(req);
       if (!s) return send(res, 401, { error: 'not logged in' });
       if (p === '/api/session') return send(res, 200, { user: s.user, target: TARGET });
+      if (p === '/api/manager/initial-options' && req.method === 'POST') return await initialOptions(req, res, s, ip);
       return await relay(req, res, p.slice('/api'.length), url.search, s, ip);
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); res.end(); return; }
