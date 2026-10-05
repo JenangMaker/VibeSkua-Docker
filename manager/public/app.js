@@ -436,6 +436,7 @@ function makeCard(n) {
       h('button', { class: 'small', onclick: () => openScriptDialog([n]) }, 'Load...'),
       r.optionsBtn = h('button', { class: 'small', title: "The loaded script's options", onclick: () => openScriptOptions(n) }, 'Script options...'),
       h('button', { class: 'small', title: "This tab's Skua options (Lag Killer, Hide Players, Headless Mode...)", onclick: () => openSkuaOptions(n) }, 'Skua options...'),
+      r.cboBtn = h('button', { class: 'small', title: "This account's CoreBots options (Options > CoreBots in Skua): classes for solo, farm, dodge and boss, delays, rooms...", onclick: () => openCoreBotsOptions(n) }, 'CoreBots options...'),
       r.loginBtn = h('button', { class: 'small', onclick: () => logInOut(n) }),
       h('button', { class: 'small', onclick: () => openLog(n) }, 'Log'),
       h('button', { class: 'small', title: 'Show this tab on the VibeSkua desktop', onclick: () => act(`Tab ${n} shown`, () => api('POST', `/api/tabs/${n}/select`)) }, 'Show'),
@@ -511,6 +512,7 @@ function updateCard(card, tab, status) {
   r.startStop.disabled = !status || (!card.running && !script?.loaded);
   r.startStop.title = !card.running && !script?.loaded ? 'Load a script first' : '';
   r.optionsBtn.disabled = !status || !script?.loaded;
+  r.cboBtn.disabled = !loggedIn;
 }
 
 // A card's bar: its fill, its text, and the value a screen reader reads.
@@ -963,6 +965,167 @@ $('#dlg-script').addEventListener('close', async () => {
   else toast(`${label} in ${results.length} tab(s)`);
   refresh();
 });
+
+// ---- CoreBots options dialog ----------------------------------------------------
+// Options > CoreBots for one account (GET/POST /cbo: VibeSkua after 1.2.0):
+// Loadout (a class, its mode and optionally its equipment, for solo, farm,
+// dodge and boss fights), Options and Other, as Skua's window has them. Saved
+// to the account's CBO_Storage file; scripts read it when they start.
+
+const CBO_ROLES = [['Solo', 1], ['Farm', 2], ['Dodge', 3], ['Boss', 4]];
+const CBO_SLOTS = [['Helm', 'helm'], ['Armor', 'armor'], ['Cape', 'cape'], ['Weapon', 'weapon'], ['Pet', 'pet'], ['GroundItem', 'groundItem']];
+let cboTab = null, cboData = null, cboControls = new Map(), cboPane = 'Loadout';
+
+async function openCoreBotsOptions(n) {
+  cboTab = n;
+  cboData = null;
+  cboControls = new Map();
+  $('#cbo-title').textContent = `CoreBots options, tab ${n}`;
+  $('#cbo-info').textContent = 'Reading...';
+  $('#cbo-info').classList.add('loading');
+  $('#cbo-body').replaceChildren();
+  $('#cbo-error').textContent = '';
+  $('#cbo-save').disabled = true;
+  $('#dlg-cbo').showModal();
+  try {
+    const data = await api('GET', `/api/tabs/${n}/api/cbo`);
+    if (cboTab !== n) return;
+    if (data.error) { $('#cbo-info').textContent = ''; $('#cbo-error').textContent = data.error; return; }
+    cboData = data;
+    renderCoreBotsOptions();
+  } catch (e) {
+    if (e.status === 401 || cboTab !== n) return;
+    $('#cbo-info').textContent = '';
+    $('#cbo-error').textContent = e.status === 404 ? 'This VibeSkua cannot edit CoreBots options yet: update its image.' : e.message;
+  } finally {
+    if (cboTab === n) $('#cbo-info').classList.remove('loading');
+  }
+}
+
+function renderCoreBotsOptions() {
+  const d = cboData;
+  $('#cbo-info').textContent = `${streamer ? 'This account' : d.user}: ${d.exists ? 'saved' : 'not saved yet, defaults shown'}. Scripts read these when they start.`;
+  $('#cbo-save').disabled = false;
+  const value = (key, def = '') => d.values[key] ?? def;
+
+  // A select of the given [value, text] choices; a saved value the account no
+  // longer lists is kept, marked.
+  const select = (key, choices, saved, label) => {
+    const el = h('select', { id: `cbo-${key}`, 'aria-label': label });
+    const list = [...choices];
+    if (saved && !list.some(c => c[0] === saved)) list.push([saved, `${saved} (not in inventory)`]);
+    for (const [v, text] of list) el.append(h('option', { value: v, text }));
+    el.value = saved ?? '';
+    cboControls.set(key, () => el.value);
+    return el;
+  };
+  const check = (key, def, label) => {
+    const el = h('input', { type: 'checkbox', id: `cbo-${key}` });
+    el.checked = String(value(key, def)).toLowerCase() === 'true';
+    cboControls.set(key, () => (el.checked ? 'True' : 'False'));
+    return h('label', { class: 'check' }, el, ` ${label}`);
+  };
+
+  const roles = CBO_ROLES.map(([role, n]) => {
+    const current = d.currentClass ? `Current class (${d.currentClass})` : 'Current class';
+    const classSel = select(`${role}ClassSelect`, [['', '(none)'], [d.currentClassOption, current], ...d.choices.classes.map(c => [c, c])],
+      value(`${role}ClassSelect`), `${role} class`);
+    // The modes Skua's Advanced Skills have for the chosen class (Base if none).
+    const modeSel = h('select', { id: `cbo-${role}ModeSelect`, 'aria-label': `${role} class mode` });
+    const fillModes = want => {
+      const cls = classSel.value === d.currentClassOption ? d.currentClass : classSel.value;
+      const modes = d.choices.modes[cls] || ['Base'];
+      const list = want && !modes.includes(want) ? [...modes, want] : modes;
+      modeSel.replaceChildren(...list.map(m => h('option', { value: m, text: m })));
+      modeSel.value = want && list.includes(want) ? want : modes[0];
+    };
+    fillModes(value(`${role}ModeSelect`, 'Base'));
+    classSel.addEventListener('change', () => fillModes(null));
+    cboControls.set(`${role}ModeSelect`, () => modeSel.value);
+
+    const equip = h('div', { class: 'cbo-equip' }, CBO_SLOTS.map(([slot, list]) => h('label', { class: 'cbo-slot' },
+      h('span', { class: 'muted', text: slot === 'GroundItem' ? 'Ground' : slot }),
+      select(`${slot}${n}Select`, [['', '(none)'], ...d.choices[list].map(c => [c, c])], value(`${slot}${n}Select`), `${role} ${slot}`))));
+    const equipCheck = check(`${role}EquipCheck`, 'False', 'Specify equipment');
+    const box = equipCheck.querySelector('input');
+    equip.hidden = !box.checked;
+    box.addEventListener('change', () => { equip.hidden = !box.checked; });
+    return h('section', { class: 'cbo-role' },
+      h('h3', { text: `${role} class` }),
+      h('div', { class: 'cbo-pair' }, classSel, modeSel),
+      equipCheck,
+      equip);
+  });
+  const loadout = h('div', { class: 'cbo-pane', 'data-pane': 'Loadout' }, h('div', { class: 'cbo-roles' }, roles));
+
+  // Options and Other: Skua's own option list (label, key, type, default).
+  const optionPane = tab => {
+    const groups = new Map();
+    for (const o of d.options.filter(o => o.tab === tab)) {
+      if (!groups.has(o.group)) groups.set(o.group, []);
+      groups.get(o.group).push(o);
+    }
+    return h('div', { class: 'cbo-pane', 'data-pane': tab }, [...groups].map(([group, opts]) => h('section', { class: 'sopt-group' },
+      group !== tab ? h('h3', { text: group }) : null,
+      opts.map(o => {
+        const id = `cbo-${o.key}`;
+        const saved = value(o.key, o.default ?? '');
+        let control;
+        if (o.type === 'bool') {
+          control = h('input', { id, type: 'checkbox' });
+          control.checked = String(saved).toLowerCase() === 'true';
+          cboControls.set(o.key, () => (control.checked ? 'True' : 'False'));
+        } else {
+          control = h('input', { id, type: o.type === 'int' ? 'number' : 'text', value: saved, spellcheck: 'false', autocomplete: 'off' });
+          cboControls.set(o.key, () => control.value.trim());
+        }
+        return h('div', { class: 'sopt' },
+          h('div', { class: 'sopt-text' },
+            h('label', { for: id, text: o.label }),
+            o.description ? h('small', { class: 'muted', text: o.description }) : null),
+          control);
+      }))));
+  };
+
+  $('#cbo-body').replaceChildren(loadout, optionPane('Options'), optionPane('Other'));
+  showCboPane(cboPane);
+}
+
+function showCboPane(pane) {
+  cboPane = pane;
+  for (const b of document.querySelectorAll('.cbo-tab')) {
+    b.classList.toggle('active', b.dataset.cbo === pane);
+    b.setAttribute('aria-selected', String(b.dataset.cbo === pane));
+  }
+  for (const p of document.querySelectorAll('#cbo-body .cbo-pane')) p.hidden = p.dataset.pane !== pane;
+}
+
+for (const b of document.querySelectorAll('.cbo-tab')) b.addEventListener('click', () => showCboPane(b.dataset.cbo));
+
+$('#cbo-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!cboData || cboTab === null) return;
+  const values = Object.fromEntries([...cboControls].map(([key, get]) => [key, get()]));
+  // As Skua's window asks before saving public rooms.
+  if (values.PrivateRooms === 'False' && String(cboData.values.PrivateRooms ?? 'True').toLowerCase() !== 'false'
+    && !confirm('We highly recommend staying in private rooms while botting. Use public rooms at your own risk?')) return;
+  const tab = cboTab;
+  const button = $('#cbo-save');
+  button.disabled = true;
+  $('#cbo-error').textContent = '';
+  try {
+    const result = await api('POST', `/api/tabs/${tab}/api/cbo`, { values });
+    if (result.error) { $('#cbo-error').textContent = result.error; return; }
+    toast(`Tab ${tab}: CoreBots options saved (used from the next script start)`);
+    $('#dlg-cbo').close('saved');
+  } catch (err) {
+    if (err.status !== 401) $('#cbo-error').textContent = err.message;
+  } finally {
+    button.disabled = !cboData;
+  }
+});
+
+$('#dlg-cbo').addEventListener('close', () => { cboTab = null; });
 
 // ---- script options dialog ------------------------------------------------------
 // The loaded script's options, as the Script Loader's Options button shows
