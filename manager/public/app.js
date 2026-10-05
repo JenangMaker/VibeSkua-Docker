@@ -410,6 +410,21 @@ function updateCard(card, tab, status) {
   r.optionsBtn.disabled = !status || !script?.loaded;
 }
 
+// More menus close as a menu does: on a click outside, on Escape (focus
+// back on More), and when another one opens. <details> alone only closes
+// from its own summary.
+function closeMoreMenus(except) {
+  for (const d of document.querySelectorAll('details.more[open]')) if (d !== except) d.open = false;
+}
+document.addEventListener('click', e => closeMoreMenus(e.target.closest('details.more')));
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const open = document.querySelector('details.more[open]');
+  if (!open) return;
+  closeMoreMenus();
+  open.querySelector('summary').focus();
+});
+
 // A card's bar: its fill, its text, and the value a screen reader reads.
 function setBar(r, cls, pct, text) {
   r[`${cls}Fill`].style.width = `${pct}%`;
