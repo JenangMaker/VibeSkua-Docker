@@ -406,7 +406,7 @@ function updateCard(card, tab, status) {
 
   const loggedIn = !!game?.loggedIn;
   r.map.textContent = loggedIn ? `${anonMap(game.map) || '-'}${game.cell ? ` (${game.cell})` : ''}` : '-';
-  // The room (game.room: VibeSkua 1.2.1 and later); hidden on stream, as in the logs.
+  // The room (game.room: VibeSkua after 1.2.0); hidden on stream, as in the logs.
   r.room.textContent = !loggedIn || !game.room ? '-' : streamer ? 'hidden' : game.room;
   r.level.textContent = loggedIn ? `${game.level ?? '-'}${game.className ? ` - ${game.className}` : ''}` : '-';
   r.gold.textContent = loggedIn ? fmtNum(game.gold) : '-';

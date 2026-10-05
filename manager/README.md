@@ -39,8 +39,8 @@ One card per tab:
   in), with "(headless)" when its Headless Mode is on, and **Shown** on the tab
   the VibeSkua desktop shows now (**In grid** on every tab while its Grid View
   is on).
-- **Map, room, level and class, gold, script** (the room needs VibeSkua 1.2.1 or
-  later; it reads "hidden" with Streamer mode on), and HP / MP bars.
+- **Map, room, level and class, gold, script** (the room needs a VibeSkua newer than
+  1.2.0; it reads "hidden" with Streamer mode on), and HP / MP bars.
 - **Target:** what the character is fighting, with its HP, and every monster
   in the cell (the dead ones struck through).
 - **Quest:** the active quests and each requirement as have / need, so you can
