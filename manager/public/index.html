@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1b1d26" media="(prefers-color-scheme: dark)">
   <title>VibeSkua Manager</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
@@ -14,7 +16,7 @@
     <form id="login-form" class="login-card">
       <img src="icon.svg" alt="" width="40" height="40">
       <h1>VibeSkua Manager</h1>
-      <label>User <input name="user" autocomplete="username" required></label>
+      <label>User <input name="user" autocomplete="username" spellcheck="false" required></label>
       <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
       <p id="login-error" class="error" role="alert"></p>
       <button type="submit" class="primary">Log in</button>
@@ -23,9 +25,10 @@
 
   <!-- Manager -->
   <div id="app-view" hidden>
+    <a class="skip-link" href="#main">Skip to content</a>
     <header class="topbar">
-      <div class="brand"><img src="icon.svg" alt="" width="24" height="24"> VibeSkua Manager</div>
-      <div class="conn"><span id="conn-dot" class="dot"></span><span id="conn-text">Connecting...</span></div>
+      <h1 class="brand"><img src="icon.svg" alt="" width="24" height="24"> VibeSkua Manager</h1>
+      <div class="conn"><span id="conn-dot" class="dot" aria-hidden="true"></span><span id="conn-text">Connecting...</span></div>
       <div id="res-summary" class="res-summary"></div>
       <div class="spacer"></div>
       <label class="check streamer-toggle" title="Hide account and character names, and room numbers, on this page (this browser only)">
@@ -36,14 +39,14 @@
     </header>
 
     <nav class="tabsbar" role="tablist">
-      <button class="view-tab active" data-view="bots" role="tab">Bots</button>
-      <button class="view-tab" data-view="accounts" role="tab">Accounts</button>
-      <button class="view-tab" data-view="resources" role="tab">Resources</button>
+      <button class="view-tab active" data-view="bots" role="tab" id="tab-bots" aria-controls="view-bots" aria-selected="true">Bots</button>
+      <button class="view-tab" data-view="accounts" role="tab" id="tab-accounts" aria-controls="view-accounts" aria-selected="false">Accounts</button>
+      <button class="view-tab" data-view="resources" role="tab" id="tab-resources" aria-controls="view-resources" aria-selected="false">Resources</button>
     </nav>
 
-    <main class="content">
+    <main class="content" id="main" tabindex="-1">
       <!-- Bots -->
-      <section id="view-bots" class="view">
+      <section id="view-bots" class="view" role="tabpanel" aria-labelledby="tab-bots">
         <div class="army">
           <span class="army-label">Army</span>
           <button data-army="start">Start all</button>
@@ -63,7 +66,7 @@
       </section>
 
       <!-- Accounts -->
-      <section id="view-accounts" class="view" hidden>
+      <section id="view-accounts" class="view" role="tabpanel" aria-labelledby="tab-accounts" hidden>
         <div class="section-head">
           <p class="muted">Accounts from the container's environment (<code>AQW_USER_N</code>) are read-only here.
             Accounts added here are saved in <code id="accounts-file">accounts.json</code> and log in right away.</p>
@@ -78,7 +81,7 @@
       </section>
 
       <!-- Resources -->
-      <section id="view-resources" class="view" hidden>
+      <section id="view-resources" class="view" role="tabpanel" aria-labelledby="tab-resources" hidden>
         <div id="res-cards" class="stat-cards"></div>
         <h2>By kind of process</h2>
         <div class="table-wrap">
@@ -98,7 +101,7 @@
     <form method="dialog" id="account-form" class="dlg">
       <h2 id="account-title">Add account</h2>
       <label>Tab <input name="tab" type="number" min="1" max="50" required></label>
-      <label>Account name <input name="user" autocomplete="off" required></label>
+      <label>Account name <input name="user" autocomplete="off" spellcheck="false" required></label>
       <label>Password <input name="pass" type="password" autocomplete="new-password"></label>
       <p class="muted small" id="pass-hint"></p>
       <label>Server <input name="server" placeholder="first online server" list="servers"></label>
@@ -109,7 +112,7 @@
         <p class="muted small">Turned on once, when the new tab first logs in. Change them later with Skua options on its card.</p>
         <div id="account-options-list" class="account-options-list"></div>
       </fieldset>
-      <p class="error" id="account-error" role="alert"></p>
+      <p class="error" id="account-error" role="alert" tabindex="-1"></p>
       <div class="dlg-actions">
         <button type="button" data-close class="ghost">Cancel</button>
         <button id="account-save" value="save" class="primary">Save</button>
@@ -121,12 +124,12 @@
     <form method="dialog" class="dlg wide">
       <h2 id="script-title">Load script</h2>
       <div class="smode-row" role="tablist">
-        <button type="button" class="smode-tab active" data-smode="search" role="tab">Search</button>
-        <button type="button" class="smode-tab" data-smode="browse" role="tab" title="The Scripts folder, folder by folder">Browse</button>
+        <button type="button" class="smode-tab active" data-smode="search" role="tab" aria-selected="true" aria-controls="script-list">Search</button>
+        <button type="button" class="smode-tab" data-smode="browse" role="tab" aria-selected="false" aria-controls="script-list" title="The Scripts folder, folder by folder">Browse</button>
       </div>
       <div class="search-row">
-        <input id="script-search" type="search" placeholder="Search scripts (name, path, description or tag)" autocomplete="off">
-        <select id="script-category" title="Category">
+        <input id="script-search" type="search" placeholder="Search scripts (name, path, description or tag)" autocomplete="off" spellcheck="false" aria-label="Search scripts">
+        <select id="script-category" title="Category" aria-label="Category">
           <option>All</option><option>Army</option><option>Classes</option><option>Dailies</option><option>Evil</option>
           <option>Farm</option><option>Good</option><option>Legion</option><option>Local</option><option>Nation</option>
           <option>Other</option><option>Rep</option><option>Seasonal</option><option>Story</option><option>Ultras</option>
@@ -168,7 +171,7 @@
       <label>Map <input name="map" placeholder="e.g. yulgar-9721"></label>
       <label>Cell <input name="cell" placeholder="e.g. Enter (optional)"></label>
       <p class="muted small">Or to a player:</p>
-      <label>Player <input name="player" placeholder="character name"></label>
+      <label>Player <input name="player" placeholder="character name" autocomplete="off" spellcheck="false"></label>
       <div class="dlg-actions">
         <button type="button" data-close class="ghost">Cancel</button>
         <button value="go" class="primary">Jump</button>
@@ -189,7 +192,7 @@
     <div class="dlg wide">
       <div class="log-head">
         <h2 id="log-title">Log</h2>
-        <select id="log-type"><option value="script">Script</option><option value="debug">Debug</option><option value="flash">Flash</option></select>
+        <select id="log-type" aria-label="Log"><option value="script">Script</option><option value="debug">Debug</option><option value="flash">Flash</option></select>
         <label class="check"><input id="log-follow" type="checkbox" checked> Follow</label>
         <div class="spacer"></div>
         <button id="log-close" class="ghost">Close</button>

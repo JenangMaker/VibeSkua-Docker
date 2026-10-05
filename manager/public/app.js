@@ -191,7 +191,10 @@ let view = 'bots';
 for (const btn of document.querySelectorAll('.view-tab')) {
   btn.addEventListener('click', () => {
     view = btn.dataset.view;
-    for (const b of document.querySelectorAll('.view-tab')) b.classList.toggle('active', b === btn);
+    for (const b of document.querySelectorAll('.view-tab')) {
+      b.classList.toggle('active', b === btn);
+      b.setAttribute('aria-selected', String(b === btn));
+    }
     for (const s of document.querySelectorAll('.view')) s.hidden = s.id !== `view-${view}`;
     refresh();
   });
@@ -311,7 +314,12 @@ function makeCard(n) {
   const r = {};
   const field = (key, label) => [h('dt', { text: label }), r[key] = h('dd')];
   const stat = (key, label) => h('div', {}, r[key] = h('b', { text: '0' }), h('span', { text: label }));
-  const bar = cls => { const fill = h('i'); const text = h('span'); r[`${cls}Fill`] = fill; r[`${cls}Text`] = text; return h('div', { class: `bar ${cls}` }, fill, text); };
+  // A bar is a progress bar to assistive tech (setBar keeps its value).
+  const bar = (cls, label) => {
+    const fill = h('i'); const text = h('span');
+    r[`${cls}Fill`] = fill; r[`${cls}Text`] = text;
+    return r[`${cls}Bar`] = h('div', { class: `bar ${cls}`, role: 'progressbar', 'aria-label': label, 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0' }, fill, text);
+  };
   r.pick = h('input', { type: 'checkbox', class: 'card-pick', title: 'Select: Load script (army bar) goes to the selected tabs only', 'aria-label': `Select tab ${n}` });
   const el = h('article', { class: 'card' },
     h('div', { class: 'card-head' },
@@ -320,10 +328,10 @@ function makeCard(n) {
       r.name = h('span', { class: 'card-name' }),
       r.pill = h('span', { class: 'pill' })),
     h('dl', { class: 'kv' }, field('map', 'Map'), field('level', 'Level'), field('gold', 'Gold'), field('script', 'Script')),
-    h('div', { class: 'bars' }, bar('hp'), bar('mp')),
+    h('div', { class: 'bars' }, bar('hp', 'HP'), bar('mp', 'MP')),
     r.fight = h('div', { class: 'fight' },
       h('div', { class: 'fight-head' }, h('span', { class: 'muted', text: 'Target' }), r.targetName = h('b'), r.targetPct = h('span', { class: 'muted' })),
-      bar('target'),
+      bar('target', 'Target HP'),
       r.cellMons = h('div', { class: 'cell-mons' })),
     r.questList = h('div', { class: 'quests' }),
     h('div', { class: 'stats' }, stat('kills', 'Kills'), stat('drops', 'Drops'), stat('quests', 'Quests'), stat('deaths', 'Deaths'), stat('relogins', 'Relogins')),
@@ -371,10 +379,8 @@ function updateCard(card, tab, status) {
   r.script.title = script?.loaded || '';
 
   const pct = (a, b) => b ? Math.max(0, Math.min(100, a / b * 100)) : 0;
-  r.hpFill.style.width = `${loggedIn ? pct(game.hp, game.maxHp) : 0}%`;
-  r.hpText.textContent = loggedIn ? `HP ${fmtNum(game.hp)} / ${fmtNum(game.maxHp)}` : 'HP';
-  r.mpFill.style.width = `${loggedIn ? pct(game.mp, game.maxMp) : 0}%`;
-  r.mpText.textContent = loggedIn ? `MP ${fmtNum(game.mp)} / ${fmtNum(game.maxMp)}` : 'MP';
+  setBar(r, 'hp', loggedIn ? pct(game.hp, game.maxHp) : 0, loggedIn ? `HP ${fmtNum(game.hp)} / ${fmtNum(game.maxHp)}` : 'HP');
+  setBar(r, 'mp', loggedIn ? pct(game.mp, game.maxMp) : 0, loggedIn ? `MP ${fmtNum(game.mp)} / ${fmtNum(game.maxMp)}` : 'MP');
 
   updateFight(r, loggedIn ? status?.combat : null);
   updateQuests(r, loggedIn ? status?.quests : null);
@@ -398,6 +404,15 @@ function updateCard(card, tab, status) {
   r.optionsBtn.disabled = !status || !script?.loaded;
 }
 
+// A card's bar: its fill, its text, and the value a screen reader reads.
+function setBar(r, cls, pct, text) {
+  r[`${cls}Fill`].style.width = `${pct}%`;
+  r[`${cls}Text`].textContent = text;
+  r[`${cls}Bar`].setAttribute('aria-valuenow', String(Math.round(pct)));
+  if (text) r[`${cls}Bar`].setAttribute('aria-valuetext', text);
+  else r[`${cls}Bar`].removeAttribute('aria-valuetext');
+}
+
 // The target with its HP, and the cell's monsters: alive ones first, the
 // target's kind marked, dead ones (state 0) dimmed.
 function updateFight(r, combat) {
@@ -408,8 +423,7 @@ function updateFight(r, combat) {
   const pct = target?.maxHp ? Math.max(0, Math.min(100, target.hp / target.maxHp * 100)) : 0;
   r.targetName.textContent = target ? target.name : 'none';
   r.targetPct.textContent = target ? `${pct.toFixed(pct < 10 ? 1 : 0)}%` : '';
-  r.targetFill.style.width = `${pct}%`;
-  r.targetText.textContent = target ? `${fmtNum(target.hp)} / ${fmtNum(target.maxHp)}` : '';
+  setBar(r, 'target', pct, target ? `${fmtNum(target.hp)} / ${fmtNum(target.maxHp)}` : '');
 
   // Group same-named monsters: "Binky", "Treeant x3 (2 alive)".
   const groups = new Map();
@@ -615,7 +629,10 @@ let scriptMode = 'search', browseDir = '', browseSeq = 0;
 
 function setScriptMode(mode) {
   scriptMode = mode;
-  for (const b of document.querySelectorAll('.smode-tab')) b.classList.toggle('active', b.dataset.smode === mode);
+  for (const b of document.querySelectorAll('.smode-tab')) {
+    b.classList.toggle('active', b.dataset.smode === mode);
+    b.setAttribute('aria-selected', String(b.dataset.smode === mode));
+  }
   $('.search-row').hidden = mode !== 'search';
   $('#script-crumbs').hidden = mode !== 'browse';
   if (mode === 'browse') browseScripts(browseDir);
@@ -625,12 +642,24 @@ function setScriptMode(mode) {
 for (const b of document.querySelectorAll('.smode-tab'))
   b.addEventListener('click', () => setScriptMode(b.dataset.smode));
 
+// A list entry that works from the keyboard too: Tab reaches it, Enter or
+// Space does what a click does.
+function activatable(li, onActivate) {
+  li.tabIndex = 0;
+  li.setAttribute('role', 'button');
+  li.addEventListener('click', onActivate);
+  li.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onActivate(); }
+  });
+  return li;
+}
+
 function scriptItem(list, s, label, description) {
   const li = h('li', { title: s.path },
     h('div', { text: label }),
     h('small', { text: description || 'No description provided.' }),
     h('small', { class: 'path', text: s.path }));
-  li.addEventListener('click', () => {
+  activatable(li, () => {
     for (const x of list.children) x.classList.toggle('active', x === li);
     $('#script-path').value = s.path;
   });
@@ -676,15 +705,13 @@ async function browseScripts(dir) {
   if (reply.dir) {
     const parent = reply.dir.split('/').slice(0, -1).join('/');
     const up = h('li', { class: 'up', title: 'Up one folder' }, h('div', { text: '..' }), h('small', { text: 'Up one folder' }));
-    up.addEventListener('click', () => browseScripts(parent));
-    items.push(up);
+    items.push(activatable(up, () => browseScripts(parent)));
   }
   for (const f of reply.folders) {
     const li = h('li', { class: 'folder', title: f.path },
       h('div', { text: f.name }),
       h('small', { text: `${f.scripts} script${f.scripts === 1 ? '' : 's'}` }));
-    li.addEventListener('click', () => browseScripts(f.path));
-    items.push(li);
+    items.push(activatable(li, () => browseScripts(f.path)));
   }
   for (const s of reply.files)
     items.push(scriptItem(list, s, s.name || s.file.replace(/.cs$/i, ''), s.description));
@@ -1045,7 +1072,9 @@ $('#account-form').addEventListener('submit', async e => {
     state.accounts = null;
     refresh();
   } catch (err) {
+    // Shown next to Save and focused, so it is seen and read out.
     $('#account-error').textContent = err.message;
+    $('#account-error').focus();
   } finally {
     button.disabled = false;
   }
@@ -1075,7 +1104,10 @@ function renderResources() {
   const mem = r.memory || {};
   const statCard = (label, value, fraction) => h('div', { class: 'stat' },
     h('span', { text: label }), h('b', { text: value }),
-    fraction == null ? null : h('div', { class: 'meter' }, meterFill(fraction)));
+    fraction == null ? null : h('div', {
+      class: 'meter', role: 'progressbar', 'aria-label': label, 'aria-valuemin': '0', 'aria-valuemax': '100',
+      'aria-valuenow': String(Math.round(Math.min(1, fraction) * 100)), 'aria-valuetext': value,
+    }, meterFill(fraction)));
   const memLimit = mem.containerLimitMb ?? mem.hostTotalMb;
   $('#res-cards').replaceChildren(
     statCard(`CPU (${r.cpus} cores)`, fmtCpu(r.total?.cpu), (r.total?.cpu || 0) / (r.cpus * 100)),
