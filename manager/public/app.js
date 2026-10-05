@@ -1045,6 +1045,9 @@ function renderCoreBotsOptions() {
   $('#cbo-info').textContent = `${streamer ? 'This account' : d.user}: ${d.exists ? 'saved' : 'not saved yet, defaults shown'}. Scripts read these when they start.`;
   $('#cbo-save').disabled = false;
   const value = (key, def = '') => d.values[key] ?? def;
+  // "Battle Oracle Hood (Wizard)": the item's enhancement beside its name
+  // (choices.enhancements: VibeSkua after 1.2.0). The value stays the name.
+  const withEnh = name => (d.choices.enhancements?.[name] ? `${name} (${d.choices.enhancements[name]})` : name);
 
   // A select of the given [value, text] choices; a saved value the account no
   // longer lists is kept, marked.
@@ -1067,7 +1070,7 @@ function renderCoreBotsOptions() {
   const roleUi = {};
   const roles = CBO_ROLES.map(([role, n]) => {
     const current = d.currentClass ? `Current class (${d.currentClass})` : 'Current class';
-    const classSel = select(`${role}ClassSelect`, [['', '(none)'], [d.currentClassOption, current], ...d.choices.classes.map(c => [c, c])],
+    const classSel = select(`${role}ClassSelect`, [['', '(none)'], [d.currentClassOption, current], ...d.choices.classes.map(c => [c, withEnh(c)])],
       value(`${role}ClassSelect`), `${role} class`);
     // The modes Skua's Advanced Skills have for the chosen class (Base if none).
     const modeSel = h('select', { id: `cbo-${role}ModeSelect`, 'aria-label': `${role} class mode` });
@@ -1086,7 +1089,7 @@ function renderCoreBotsOptions() {
 
     const equip = h('div', { class: 'cbo-equip' }, CBO_SLOTS.map(([slot, list]) => h('label', { class: 'cbo-slot' },
       h('span', { class: 'muted', text: slot === 'GroundItem' ? 'Ground' : slot }),
-      select(`${slot}${n}Select`, [['', '(none)'], ...d.choices[list].map(c => [c, c])], value(`${slot}${n}Select`), `${role} ${slot}`))));
+      select(`${slot}${n}Select`, [['', '(none)'], ...d.choices[list].map(c => [c, withEnh(c)])], value(`${slot}${n}Select`), `${role} ${slot}`))));
     const equipCheck = check(`${role}EquipCheck`, 'False', 'Specify equipment');
     const box = equipCheck.querySelector('input');
     equip.hidden = !box.checked;
