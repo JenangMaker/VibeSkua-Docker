@@ -137,7 +137,7 @@ function setStreamer(on, fromUser) {
   try { localStorage.setItem('vsm-streamer', on ? '1' : '0'); } catch { /* private window */ }
   $('#who').textContent = on ? '' : $('#who').dataset.user || '';
   if (fromUser && on && confirm("Also turn on the game's own Streamer Mode in every tab (names, guild and room number in the game)?"))
-    armyAll('Streamer Mode on', '/api/army/option?name=StreamerMode&value=true');
+    armyAll('Streamer Mode on', '/api/army/option?name=StreamerMode&value=true', true);
   if (logTab !== null) { logSince = 0; $('#log-text').textContent = ''; pollLog(); }
   render();
 }
@@ -191,7 +191,10 @@ let view = 'bots';
 for (const btn of document.querySelectorAll('.view-tab')) {
   btn.addEventListener('click', () => {
     view = btn.dataset.view;
-    for (const b of document.querySelectorAll('.view-tab')) b.classList.toggle('active', b === btn);
+    for (const b of document.querySelectorAll('.view-tab')) {
+      b.classList.toggle('active', b === btn);
+      b.setAttribute('aria-selected', String(b === btn));
+    }
     for (const s of document.querySelectorAll('.view')) s.hidden = s.id !== `view-${view}`;
     refresh();
   });
@@ -270,10 +273,50 @@ function renderSummary() {
 // ---- bot cards ------------------------------------------------------------------
 
 const cards = new Map();   // tab number -> card
+// Tabs ticked on their card: the whole Army bar acts on these only (on
+// every tab when none is). Kept while the page is open.
+const picked = new Set();
+
+// The ticked tabs that are running, in order.
+const pickedRunning = () => state.tabs.filter(t => t.running && picked.has(t.tab)).map(t => t.tab);
+// "tab 2" / "tabs 2, 4", for titles and questions.
+const tabList = tabs => `tab${tabs.length === 1 ? '' : 's'} ${tabs.join(', ')}`;
+
+// Each Army button's two labels: for every tab ("Start all", "Jump..."),
+// and for the ticked ones ("Start (2 selected)", "Jump (2 selected)...").
+const ARMY_BUTTONS = ['load-all', 'restart-all', 'jump-all', 'options-all'].map(id => document.getElementById(id))
+  .concat([...document.querySelectorAll('[data-army]')]);
+for (const b of ARMY_BUTTONS) {
+  b.dataset.labelAll = b.textContent;
+  b.dataset.labelSome = b.textContent.replace(/ all$/, '').replace(/\.\.\.$/, '');
+  b.dataset.dots = b.textContent.endsWith('...') ? '...' : '';
+}
+
+// With tabs ticked the bar says so once, in place of its "Army" label (a chip
+// with its own clear button), and the buttons drop their "all".
+function updatePickUi() {
+  const n = picked.size;
+  for (const b of ARMY_BUTTONS) b.textContent = n ? `${b.dataset.labelSome}${b.dataset.dots}` : b.dataset.labelAll;
+  $('#army-label').hidden = n > 0;
+  $('#pick-info').hidden = n === 0;
+  $('.army').classList.toggle('picking', n > 0);
+  $('#pick-count').textContent = `${tabList([...picked].sort((a, b) => a - b)).replace(/^t/, 'T')} selected`;
+}
+
+$('#pick-clear').addEventListener('click', () => {
+  picked.clear();
+  for (const card of cards.values()) { card.r.pick.checked = false; card.el.classList.remove('picked'); }
+  updatePickUi();
+});
 
 function renderCards() {
   const container = $('#cards');
   const seen = new Set();
+  // The host marks the tab on the desktop as selected, and none while its
+  // Grid View shows them all: running tabs with none selected is Grid View.
+  state.grid = state.tabs.some(t => t.running) && !state.tabs.some(t => t.selected);
+  $('#grid-toggle').textContent = state.grid ? 'Grid View: on' : 'Grid View';
+  $('#grid-toggle').setAttribute('aria-pressed', String(state.grid));
   for (const tab of state.tabs) {
     seen.add(tab.tab);
     let card = cards.get(tab.tab);
@@ -283,7 +326,8 @@ function renderCards() {
     }
     updateCard(card, tab, state.statuses[tab.tab]);
   }
-  for (const [n, card] of cards) if (!seen.has(n)) { card.el.remove(); cards.delete(n); }
+  for (const [n, card] of cards) if (!seen.has(n)) { card.el.remove(); cards.delete(n); picked.delete(n); }
+  updatePickUi();
   // In tab order.
   const ordered = [...cards.entries()].sort((a, b) => a[0] - b[0]).map(([, c]) => c.el);
   if (ordered.some((el, i) => container.children[i] !== el)) container.replaceChildren(...ordered);
@@ -294,17 +338,28 @@ function makeCard(n) {
   const r = {};
   const field = (key, label) => [h('dt', { text: label }), r[key] = h('dd')];
   const stat = (key, label) => h('div', {}, r[key] = h('b', { text: '0' }), h('span', { text: label }));
-  const bar = cls => { const fill = h('i'); const text = h('span'); r[`${cls}Fill`] = fill; r[`${cls}Text`] = text; return h('div', { class: `bar ${cls}` }, fill, text); };
+  // A bar is a progress bar to assistive tech (setBar keeps its value).
+  const bar = (cls, label) => {
+    const fill = h('i'); const text = h('span');
+    r[`${cls}Fill`] = fill; r[`${cls}Text`] = text;
+    return r[`${cls}Bar`] = h('div', { class: `bar ${cls}`, role: 'progressbar', 'aria-label': label, 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0' }, fill, text);
+  };
+  r.pick = h('input', { type: 'checkbox', class: 'card-pick', title: 'Select: Load script (army bar) goes to the selected tabs only', 'aria-label': `Select tab ${n}` });
   const el = h('article', { class: 'card' },
     h('div', { class: 'card-head' },
+      r.pick,
       h('span', { class: 'card-num', text: `Tab ${n}` }),
-      r.name = h('span', { class: 'card-name' }),
-      r.pill = h('span', { class: 'pill' })),
+      r.name = h('span', { class: 'card-name' })),
+    // Its state, and Shown on the tab the VibeSkua desktop shows (the Show
+    // button puts a tab there): under the name, which keeps the whole row.
+    h('div', { class: 'card-tags' },
+      r.pill = h('span', { class: 'pill' }),
+      r.shown = h('span', { class: 'shown-badge', text: 'Shown', title: 'This tab is the one shown on the VibeSkua desktop', hidden: true })),
     h('dl', { class: 'kv' }, field('map', 'Map'), field('level', 'Level'), field('gold', 'Gold'), field('script', 'Script')),
-    h('div', { class: 'bars' }, bar('hp'), bar('mp')),
+    h('div', { class: 'bars' }, bar('hp', 'HP'), bar('mp', 'MP')),
     r.fight = h('div', { class: 'fight' },
       h('div', { class: 'fight-head' }, h('span', { class: 'muted', text: 'Target' }), r.targetName = h('b'), r.targetPct = h('span', { class: 'muted' })),
-      bar('target'),
+      bar('target', 'Target HP'),
       r.cellMons = h('div', { class: 'cell-mons' })),
     r.questList = h('div', { class: 'quests' }),
     h('div', { class: 'stats' }, stat('kills', 'Kills'), stat('drops', 'Drops'), stat('quests', 'Quests'), stat('deaths', 'Deaths'), stat('relogins', 'Relogins')),
@@ -314,11 +369,17 @@ function makeCard(n) {
       h('button', { class: 'small', onclick: () => openScriptDialog([n]) }, 'Load...'),
       r.optionsBtn = h('button', { class: 'small', title: "The loaded script's options", onclick: () => openScriptOptions(n) }, 'Script options...'),
       h('button', { class: 'small', title: "This tab's Skua options (Lag Killer, Hide Players, Headless Mode...)", onclick: () => openSkuaOptions(n) }, 'Skua options...'),
+      r.loginBtn = h('button', { class: 'small', onclick: () => logInOut(n) }),
       h('button', { class: 'small', onclick: () => openLog(n) }, 'Log'),
       h('button', { class: 'small', title: 'Show this tab on the VibeSkua desktop', onclick: () => act(`Tab ${n} shown`, () => api('POST', `/api/tabs/${n}/select`)) }, 'Show'),
-      h('button', { class: 'small', title: "Restart this tab's Skua (the game stays logged in)", onclick: () => restartTab(n, false) }, 'Restart'),
+      h('button', { class: 'small', title: "Restart this tab's Skua (a running script stops; the game logs back in if it was restarted too)", onclick: () => restartTab(n, false) }, 'Restart'),
       h('button', { class: 'small', title: 'Restart Skua and reload the game page (logs in again)', onclick: () => restartTab(n, true) }, 'Reload game'),
       h('button', { class: 'small danger', onclick: () => closeTab(n) }, 'Close')));
+  r.pick.addEventListener('change', () => {
+    if (r.pick.checked) picked.add(n); else picked.delete(n);
+    el.classList.toggle('picked', r.pick.checked);
+    updatePickUi();
+  });
   return { el, r, running: false };
 }
 
@@ -328,6 +389,10 @@ function updateCard(card, tab, status) {
   const script = status?.script;
   const stats = status?.stats;
   card.el.classList.toggle('selected', tab.selected);
+  // Shown: the tab on the desktop; In grid: every running tab, in Grid View.
+  r.shown.hidden = !(tab.selected || (state.grid && tab.running));
+  r.shown.textContent = state.grid ? 'In grid' : 'Shown';
+  r.shown.title = state.grid ? "The desktop's Grid View shows every tab, this one included" : 'This tab is the one shown on the VibeSkua desktop';
   r.name.textContent = streamer ? `Player ${tab.tab}` : (game?.loggedIn && game.player) || tab.account || tab.title;
 
   let pill = ['Not running', 'bad'];
@@ -347,10 +412,8 @@ function updateCard(card, tab, status) {
   r.script.title = script?.loaded || '';
 
   const pct = (a, b) => b ? Math.max(0, Math.min(100, a / b * 100)) : 0;
-  r.hpFill.style.width = `${loggedIn ? pct(game.hp, game.maxHp) : 0}%`;
-  r.hpText.textContent = loggedIn ? `HP ${fmtNum(game.hp)} / ${fmtNum(game.maxHp)}` : 'HP';
-  r.mpFill.style.width = `${loggedIn ? pct(game.mp, game.maxMp) : 0}%`;
-  r.mpText.textContent = loggedIn ? `MP ${fmtNum(game.mp)} / ${fmtNum(game.maxMp)}` : 'MP';
+  setBar(r, 'hp', loggedIn ? pct(game.hp, game.maxHp) : 0, loggedIn ? `HP ${fmtNum(game.hp)} / ${fmtNum(game.maxHp)}` : 'HP');
+  setBar(r, 'mp', loggedIn ? pct(game.mp, game.maxMp) : 0, loggedIn ? `MP ${fmtNum(game.mp)} / ${fmtNum(game.maxMp)}` : 'MP');
 
   updateFight(r, loggedIn ? status?.combat : null);
   updateQuests(r, loggedIn ? status?.quests : null);
@@ -367,11 +430,26 @@ function updateCard(card, tab, status) {
     h('span', { text: `Restarts ${tab.restarts}` }),
   );
 
+  // Log in or Log out, whichever applies; not until the tab's Skua answers.
+  card.loggedIn = loggedIn;
+  r.loginBtn.textContent = loggedIn ? 'Log out' : 'Log in';
+  r.loginBtn.title = loggedIn ? 'Log this account out (a running script stops)' : "Log this tab's account in";
+  r.loginBtn.disabled = !status;
+
   card.running = !!script?.running;
   r.startStop.textContent = card.running ? 'Stop' : 'Start';
   r.startStop.disabled = !status || (!card.running && !script?.loaded);
   r.startStop.title = !card.running && !script?.loaded ? 'Load a script first' : '';
   r.optionsBtn.disabled = !status || !script?.loaded;
+}
+
+// A card's bar: its fill, its text, and the value a screen reader reads.
+function setBar(r, cls, pct, text) {
+  r[`${cls}Fill`].style.width = `${pct}%`;
+  r[`${cls}Text`].textContent = text;
+  r[`${cls}Bar`].setAttribute('aria-valuenow', String(Math.round(pct)));
+  if (text) r[`${cls}Bar`].setAttribute('aria-valuetext', text);
+  else r[`${cls}Bar`].removeAttribute('aria-valuetext');
 }
 
 // The target with its HP, and the cell's monsters: alive ones first, the
@@ -384,8 +462,7 @@ function updateFight(r, combat) {
   const pct = target?.maxHp ? Math.max(0, Math.min(100, target.hp / target.maxHp * 100)) : 0;
   r.targetName.textContent = target ? target.name : 'none';
   r.targetPct.textContent = target ? `${pct.toFixed(pct < 10 ? 1 : 0)}%` : '';
-  r.targetFill.style.width = `${pct}%`;
-  r.targetText.textContent = target ? `${fmtNum(target.hp)} / ${fmtNum(target.maxHp)}` : '';
+  setBar(r, 'target', pct, target ? `${fmtNum(target.hp)} / ${fmtNum(target.maxHp)}` : '');
 
   // Group same-named monsters: "Binky", "Treeant x3 (2 alive)".
   const groups = new Map();
@@ -436,6 +513,18 @@ async function startStop(n) {
   refresh();
 }
 
+// One tab's Log in / Log out, as the Army bar's do for every tab.
+async function logInOut(n) {
+  const card = cards.get(n);
+  if (card.loggedIn) {
+    if (!confirm(`Log out tab ${n}? A running script stops.`)) return;
+    await act(`Tab ${n}: logged out`, () => api('POST', `/api/tabs/${n}/api/army/logout`));
+  } else {
+    await act(`Tab ${n}: logging in`, () => api('POST', `/api/tabs/${n}/api/army/login`));
+  }
+  refresh();
+}
+
 async function restartTab(n, game) {
   const what = game ? 'restart its Skua and reload its game (it logs in again)' : "restart its Skua (a running script stops)";
   if (!confirm(`Tab ${n}: ${what}?`)) return;
@@ -453,17 +542,32 @@ async function closeTab(n) {
 
 for (const btn of document.querySelectorAll('[data-army]')) {
   btn.addEventListener('click', async () => {
-    if (btn.dataset.confirm && !confirm(btn.dataset.confirm)) return;
+    if (btn.dataset.confirm) {
+      const targets = picked.size ? pickedRunning() : null;
+      const question = targets ? btn.dataset.confirm.replace('every account', tabList(targets)) : btn.dataset.confirm;
+      if (!confirm(question)) return;
+    }
     btn.disabled = true;
-    try { await armyAll(btn.textContent, `/api/army/${btn.dataset.army}`); }
+    try { await armyAll(btn.dataset.labelSome, `/api/army/${btn.dataset.army}`); }
     finally { btn.disabled = false; refresh(); }
   });
 }
 
-// Every tab's answer: one toast, listing the tabs that failed.
-async function armyAll(label, path) {
+// An Army command (path: /api/army/...): for every tab in one call, or, with
+// cards ticked, for each ticked running tab through its own API (every:
+// always every tab). One toast, listing the tabs that failed.
+async function armyAll(label, path, every = false) {
   try {
-    const results = await api('POST', path);
+    let results;
+    if (picked.size && !every) {
+      const targets = pickedRunning();
+      if (!targets.length) { toast(`${label}: none of the selected tabs is running`, true); return; }
+      const sub = path.slice('/api'.length);   // /army/...
+      results = Object.fromEntries(await Promise.all(targets.map(n =>
+        api('POST', `/api/tabs/${n}/api${sub}`).then(r => [n, r ?? {}], e => [n, { error: e.message }]))));
+    } else {
+      results = await api('POST', path);
+    }
     const failed = Object.entries(results || {}).filter(([, r]) => !r || r.error);
     if (failed.length) toast(`${label}: failed in tab ${failed.map(([t, r]) => `${t} (${r?.error || 'no answer'})`).join(', ')}`, true);
     else toast(`${label}: done in ${Object.keys(results || {}).length} tab(s)`);
@@ -471,6 +575,28 @@ async function armyAll(label, path) {
     if (e.status !== 401) toast(`${label}: ${e.message}`, true);
   }
 }
+
+// Restart Skua in the selected tabs (every running tab when none is), as
+// each card's Restart does for its own.
+$('#restart-all').addEventListener('click', async () => {
+  const running = state.tabs.filter(t => t.running).map(t => t.tab);
+  const targets = picked.size ? running.filter(n => picked.has(n)) : running;
+  if (!targets.length) { toast(picked.size ? 'None of the selected tabs is running' : 'No running tab to restart', true); return; }
+  const which = targets.length === running.length && !picked.size ? 'every tab' : `tab${targets.length === 1 ? '' : 's'} ${targets.join(', ')}`;
+  if (!confirm(`Restart Skua in ${which}? Running scripts stop.`)) return;
+  const btn = $('#restart-all');
+  btn.disabled = true;
+  try {
+    const results = await Promise.all(targets.map(n =>
+      api('POST', `/api/tabs/${n}/restart`).then(r => [n, r?.error], e => [n, e.message])));
+    const failed = results.filter(([, err]) => err);
+    if (failed.length) toast(`Restart: failed in ${failed.map(([n, err]) => `tab ${n} (${err})`).join(', ')}`, true);
+    else toast(`Restarting ${targets.length} tab(s)`);
+  } finally {
+    btn.disabled = false;
+    refresh();
+  }
+});
 
 $('#open-tab').addEventListener('click', async () => {
   await act('Tab opened', () => api('POST', '/api/tabs'));
@@ -480,12 +606,22 @@ $('#open-tab').addEventListener('click', async () => {
 $('#grid-toggle').addEventListener('click', async () => {
   state.grid = !state.grid;
   await act(state.grid ? 'Grid View on' : 'Grid View off', () => api('POST', `/api/grid?on=${state.grid ? 1 : 0}`));
+  refresh();
 });
 
-$('#load-all').addEventListener('click', () => openScriptDialog(state.tabs.filter(t => t.running).map(t => t.tab)));
+$('#load-all').addEventListener('click', () => {
+  const running = state.tabs.filter(t => t.running).map(t => t.tab);
+  if (!picked.size) { openScriptDialog(running); return; }
+  const targets = running.filter(n => picked.has(n));
+  if (!targets.length) { toast('None of the selected tabs is running', true); return; }
+  openScriptDialog(targets);
+});
 
 $('#jump-all').addEventListener('click', () => {
   const dlg = $('#dlg-jump');
+  const targets = picked.size ? pickedRunning() : null;
+  if (targets && !targets.length) { toast('None of the selected tabs is running', true); return; }
+  dlg.querySelector('h2').textContent = targets ? `Jump ${tabList(targets)}` : 'Jump every account';
   dlg.querySelector('form').reset();
   dlg.returnValue = '';   // Escape keeps the last one
   dlg.showModal();
@@ -511,7 +647,9 @@ function onOffRows(label, send) {
 }
 
 $('#options-all').addEventListener('click', () => {
-  $('#options-title').textContent = 'Skua options for every tab';
+  const targets = picked.size ? pickedRunning() : null;
+  if (targets && !targets.length) { toast('None of the selected tabs is running', true); return; }
+  $('#options-title').textContent = targets ? `Skua options for ${tabList(targets)}` : 'Skua options for every tab';
   $('#options-info').textContent = '';
   $('#options-list').replaceChildren(...onOffRows('', (name, on, label) => armyAll(label, `/api/army/option?name=${name}&value=${on}`)));
   $('#dlg-options').showModal();
@@ -565,7 +703,8 @@ let searchTimer = null;
 function openScriptDialog(tabs) {
   if (!tabs.length) { toast('No running tab to load a script in', true); return; }
   scriptTargets = tabs;
-  $('#script-title').textContent = tabs.length === 1 ? `Load script in tab ${tabs[0]}` : `Load script in ${tabs.length} tabs`;
+  $('#script-title').textContent = tabs.length === 1 ? `Load script in tab ${tabs[0]}`
+    : tabs.length <= 6 ? `Load script in tabs ${tabs.join(', ')}` : `Load script in ${tabs.length} tabs`;
   $('#script-search').value = '';
   $('#script-category').value = 'All';
   $('#script-path').value = '';
@@ -584,7 +723,10 @@ let scriptMode = 'search', browseDir = '', browseSeq = 0;
 
 function setScriptMode(mode) {
   scriptMode = mode;
-  for (const b of document.querySelectorAll('.smode-tab')) b.classList.toggle('active', b.dataset.smode === mode);
+  for (const b of document.querySelectorAll('.smode-tab')) {
+    b.classList.toggle('active', b.dataset.smode === mode);
+    b.setAttribute('aria-selected', String(b.dataset.smode === mode));
+  }
   $('.search-row').hidden = mode !== 'search';
   $('#script-crumbs').hidden = mode !== 'browse';
   if (mode === 'browse') browseScripts(browseDir);
@@ -594,12 +736,24 @@ function setScriptMode(mode) {
 for (const b of document.querySelectorAll('.smode-tab'))
   b.addEventListener('click', () => setScriptMode(b.dataset.smode));
 
+// A list entry that works from the keyboard too: Tab reaches it, Enter or
+// Space does what a click does.
+function activatable(li, onActivate) {
+  li.tabIndex = 0;
+  li.setAttribute('role', 'button');
+  li.addEventListener('click', onActivate);
+  li.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onActivate(); }
+  });
+  return li;
+}
+
 function scriptItem(list, s, label, description) {
   const li = h('li', { title: s.path },
     h('div', { text: label }),
     h('small', { text: description || 'No description provided.' }),
     h('small', { class: 'path', text: s.path }));
-  li.addEventListener('click', () => {
+  activatable(li, () => {
     for (const x of list.children) x.classList.toggle('active', x === li);
     $('#script-path').value = s.path;
   });
@@ -645,15 +799,13 @@ async function browseScripts(dir) {
   if (reply.dir) {
     const parent = reply.dir.split('/').slice(0, -1).join('/');
     const up = h('li', { class: 'up', title: 'Up one folder' }, h('div', { text: '..' }), h('small', { text: 'Up one folder' }));
-    up.addEventListener('click', () => browseScripts(parent));
-    items.push(up);
+    items.push(activatable(up, () => browseScripts(parent)));
   }
   for (const f of reply.folders) {
     const li = h('li', { class: 'folder', title: f.path },
       h('div', { text: f.name }),
       h('small', { text: `${f.scripts} script${f.scripts === 1 ? '' : 's'}` }));
-    li.addEventListener('click', () => browseScripts(f.path));
-    items.push(li);
+    items.push(activatable(li, () => browseScripts(f.path)));
   }
   for (const s of reply.files)
     items.push(scriptItem(list, s, s.name || s.file.replace(/.cs$/i, ''), s.description));
@@ -962,6 +1114,10 @@ function openAccountDialog(account) {
   f.server.value = account?.server || '';
   f.script.value = account?.script || '';
   f.autoStart.checked = !!account?.autoStart;
+  // Skua options for a new account only: turned on once, at its first login.
+  $('#account-options').hidden = !!account;
+  $('#account-options-list').replaceChildren(...(account ? [] : OPTIONS.map(([name, text]) =>
+    h('label', { class: 'check' }, h('input', { type: 'checkbox', 'data-option': name }), text))));
   f.pass.required = !account;
   $('#pass-hint').textContent = account ? 'Leave empty to keep the saved password.' : 'Stored on the VibeSkua server; never shown again.';
   $('#dlg-account').showModal();
@@ -993,6 +1149,7 @@ $('#account-form').addEventListener('submit', async e => {
   // A changed login restarts an open tab (see PUT /accounts in the tab host API).
   const loginChanged = editing && (f.pass.value || body.user !== editing.user || (body.server || null) !== (editing.server || null));
   if (loginChanged && editing.open && !confirm(`Saving restarts tab ${n} so it logs in again. Continue?`)) return;
+  const options = editing ? [] : [...document.querySelectorAll('#account-options-list input:checked')].map(b => b.dataset.option);
   const button = $('#account-save');
   button.disabled = true;
   try {
@@ -1000,10 +1157,18 @@ $('#account-form').addEventListener('submit', async e => {
     f.pass.value = '';
     $('#dlg-account').close('saved');
     toast(`Tab ${n}: ${result.applied}`);
+    // This page's server waits for the login, so closing the page is fine.
+    if (options.length) {
+      const names = options.map(o => OPTIONS.find(([k]) => k === o)?.[1] || o).join(', ');
+      act(`Tab ${n}: ${names} will be turned on once it logs in`,
+        () => api('POST', '/api/manager/initial-options', { tab: n, options }));
+    }
     state.accounts = null;
     refresh();
   } catch (err) {
+    // Shown next to Save and focused, so it is seen and read out.
     $('#account-error').textContent = err.message;
+    $('#account-error').focus();
   } finally {
     button.disabled = false;
   }
@@ -1033,7 +1198,10 @@ function renderResources() {
   const mem = r.memory || {};
   const statCard = (label, value, fraction) => h('div', { class: 'stat' },
     h('span', { text: label }), h('b', { text: value }),
-    fraction == null ? null : h('div', { class: 'meter' }, meterFill(fraction)));
+    fraction == null ? null : h('div', {
+      class: 'meter', role: 'progressbar', 'aria-label': label, 'aria-valuemin': '0', 'aria-valuemax': '100',
+      'aria-valuenow': String(Math.round(Math.min(1, fraction) * 100)), 'aria-valuetext': value,
+    }, meterFill(fraction)));
   const memLimit = mem.containerLimitMb ?? mem.hostTotalMb;
   $('#res-cards').replaceChildren(
     statCard(`CPU (${r.cpus} cores)`, fmtCpu(r.total?.cpu), (r.total?.cpu || 0) / (r.cpus * 100)),
