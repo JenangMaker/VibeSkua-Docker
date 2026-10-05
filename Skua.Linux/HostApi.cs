@@ -107,6 +107,12 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
             var bot = services.GetRequiredService<IScriptInterface>();
             var player = bot.Player;
             bool loggedIn = player.LoggedIn;
+            // The room number, from the area name ("battleon-9721"), which
+            // Streamer Mode does not rewrite.
+            string? room = null;
+            if (loggedIn && bot.Map.FullName is { } area && area.LastIndexOf('-') is > 0 and var dash
+                && int.TryParse(area[(dash + 1)..], out _))
+                room = area[(dash + 1)..];
             game = !detail || !loggedIn
                 ? new
                 {
@@ -114,6 +120,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                     player = player.Username,
                     streamer = bot.Options.StreamerMode,
                     map = bot.Map.Name,
+                    room,
                     cell = player.Cell,
                     hp = player.Health,
                 }
@@ -123,6 +130,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                     player = player.Username,
                     streamer = bot.Options.StreamerMode,
                     map = bot.Map.Name,
+                    room,
                     cell = player.Cell,
                     hp = player.Health,
                     maxHp = player.MaxHealth,
