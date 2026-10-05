@@ -67,12 +67,12 @@ script, log in or out, **Restart...** (each tab's Skua), jump everyone to a map
 or a player, and **Skua options...** (On / Off for each option, since the tabs may differ). **Grid
 View** switches the desktop's Grid View, **+ Open tab** opens another tab.
 
-**Load script or restart some tabs only:** tick the box in the header of the
-cards you want. The Army bar then says **Load script (2 selected)...** and
-**Restart (2 selected)...** and lists the tabs, and those two act on the
-selected tabs only (the ones running). With no box ticked they act on every
-running tab. **Clear** unticks them all. The selection stays while the page is
-open; the other Army buttons still act on every tab.
+**Some tabs only:** tick the box in the header of the cards you want. Every
+Army button then acts on those tabs only (the ones running) and says so:
+**Start (2 selected)**, **Log out (2 selected)**, **Jump (2 selected)...** and
+so on, and the bar lists the tabs. The Jump and Skua options dialogs and the
+Log out question name them. With no box ticked the buttons act on every tab.
+**Clear** unticks them all. The selection stays while the page is open.
 
 ### Accounts
 
