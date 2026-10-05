@@ -144,6 +144,15 @@ input.masked { -webkit-text-security: disc; }
   margin-bottom: 16px;
 }
 .army-label { font-weight: 600; margin-right: 6px; }
+/* Wide screens: the actions sit in the bar, Grid View on the right. Phones:
+   one Execute button opens them as a panel under the bar. */
+.army { position: relative; }
+.army-actions { display: contents; }
+#grid-toggle { margin-left: auto; }
+.army-exec { display: none; align-items: center; gap: 8px; }
+.army-break { display: none; }
+.army-exec::after { content: ''; width: 6px; height: 6px; margin-top: -3px; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg); transition: transform .15s; }
+.army-exec[aria-expanded="true"]::after { margin-top: 3px; transform: rotate(-135deg); }
 /* Tabs ticked: the bar is tinted and its label is the selection, clearable. */
 .army.picking { background: color-mix(in srgb, var(--accent) 8%, transparent); border-radius: 10px; padding: 6px; margin: -6px -6px 10px; }
 .pick-chip { display: inline-flex; align-items: center; gap: 6px; margin-right: 6px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--accent); color: var(--accent-text); font-size: 13px; font-weight: 600; white-space: nowrap; }
@@ -357,6 +366,27 @@ dialog:has(.wide) { width: min(820px, calc(100vw - 32px)); }
   .topbar, .tabsbar, .content { padding-left: 16px; padding-right: 16px; }
   .res-summary { display: none; }
   .cards { grid-template-columns: 1fr; }
+  .army-exec { display: inline-flex; }
+  /* Tabs ticked: the chip on its own line, Execute and Open tab under it. */
+  .army.picking .army-break { display: block; flex-basis: 100%; height: 0; }
+  #open-tab { margin-left: auto; }
+  .army-actions {
+    display: none;
+    position: absolute;
+    inset: calc(100% + 6px) 0 auto 0;
+    z-index: 15;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+  }
+  .army-actions.open { display: flex; }
+  .army-actions button { width: 100%; padding: 10px 14px; text-align: left; }
+  .army-actions #grid-toggle { margin: 4px 0 0; position: relative; }
+  .army-actions #grid-toggle::before { content: ''; position: absolute; inset: -7px 0 auto 0; border-top: 1px solid var(--border); }
   .section-head { flex-direction: column; }
   .sopt { flex-wrap: wrap; }
   .sopt select, .sopt input[type=text], .sopt input[type=number] { width: 100%; }

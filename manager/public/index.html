@@ -53,6 +53,10 @@
         <div class="army">
           <span id="army-label" class="army-label" title="These act on the tabs ticked on their cards, or on every tab when none is ticked">Army</span>
           <span id="pick-info" class="pick-chip" hidden><span id="pick-count"></span><button id="pick-clear" class="pick-clear" title="Clear the selection (act on every tab again)" aria-label="Clear the selection">x</button></span>
+          <span class="army-break" aria-hidden="true"></span>
+          <!-- Phones: the actions fold into Execute (a panel, as Komodo's). -->
+          <button id="army-exec" class="army-exec" aria-expanded="false" aria-controls="army-actions">Execute</button>
+          <div id="army-actions" class="army-actions">
           <button data-army="start">Start all</button>
           <button data-army="stop">Stop all</button>
           <button id="load-all" title="Load a script in the selected tabs, or in every running tab when none is selected">Load script...</button>
@@ -61,8 +65,8 @@
           <button id="restart-all" title="Restart Skua in the selected tabs, or in every running tab when none is selected">Restart...</button>
           <button id="jump-all">Jump...</button>
           <button id="options-all" title="Skua options (Lag Killer, Hide Players...) for the selected tabs, or every tab">Skua options...</button>
-          <div class="spacer"></div>
           <button id="grid-toggle" class="ghost" title="Grid View on the VibeSkua desktop">Grid View</button>
+          </div>
           <button id="open-tab" class="primary">+ Open tab</button>
         </div>
         <div id="cards" class="cards"></div>

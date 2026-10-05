@@ -347,6 +347,23 @@ function updatePickUi() {
   $('#pick-count').textContent = `${tabList([...picked].sort((a, b) => a - b)).replace(/^t/, 'T')} selected`;
 }
 
+// ---- Execute (phones) -------------------------------------------------------------
+// The panel closes once an action is picked, on a click outside, and on Escape.
+
+function setExecOpen(open) {
+  $('#army-actions').classList.toggle('open', open);
+  $('#army-exec').setAttribute('aria-expanded', String(open));
+}
+
+$('#army-exec').addEventListener('click', () => setExecOpen(!$('#army-actions').classList.contains('open')));
+$('#army-actions').addEventListener('click', e => { if (e.target.closest('button')) setExecOpen(false); });
+document.addEventListener('click', e => {
+  if ($('#army-actions').classList.contains('open') && !e.target.closest('#army-actions, #army-exec')) setExecOpen(false);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('#army-actions').classList.contains('open')) { setExecOpen(false); $('#army-exec').focus(); }
+});
+
 $('#pick-clear').addEventListener('click', () => {
   picked.clear();
   for (const card of cards.values()) { card.r.pick.checked = false; card.el.classList.remove('picked'); }
