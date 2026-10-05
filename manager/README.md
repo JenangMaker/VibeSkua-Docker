@@ -35,8 +35,10 @@ nothing to reload.
 One card per tab:
 
 - **The header:** a box to select the tab (see the Army bar), the tab number,
-  the character, and its state (Logged in, Running script, Not logged in), with
-  "(headless)" when its Headless Mode is on.
+  **Shown** on the tab the VibeSkua desktop shows now (**In grid** on every
+  tab while its Grid View is on), the character, and its state (Logged in,
+  Running script, Not logged in), with "(headless)" when its Headless Mode is
+  on.
 - **Map, level and class, gold, script**, and HP / MP bars.
 - **Target:** what the character is fighting, with its HP, and every monster
   in the cell (the dead ones struck through).

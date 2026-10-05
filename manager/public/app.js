@@ -294,6 +294,11 @@ $('#pick-clear').addEventListener('click', () => {
 function renderCards() {
   const container = $('#cards');
   const seen = new Set();
+  // The host marks the tab on the desktop as selected, and none while its
+  // Grid View shows them all: running tabs with none selected is Grid View.
+  state.grid = state.tabs.some(t => t.running) && !state.tabs.some(t => t.selected);
+  $('#grid-toggle').textContent = state.grid ? 'Grid View: on' : 'Grid View';
+  $('#grid-toggle').setAttribute('aria-pressed', String(state.grid));
   for (const tab of state.tabs) {
     seen.add(tab.tab);
     let card = cards.get(tab.tab);
@@ -326,6 +331,8 @@ function makeCard(n) {
     h('div', { class: 'card-head' },
       r.pick,
       h('span', { class: 'card-num', text: `Tab ${n}` }),
+      // The tab on the VibeSkua desktop now (the Show button puts a tab there).
+      r.shown = h('span', { class: 'shown-badge', text: 'Shown', title: 'This tab is the one shown on the VibeSkua desktop', hidden: true }),
       r.name = h('span', { class: 'card-name' }),
       r.pill = h('span', { class: 'pill' })),
     h('dl', { class: 'kv' }, field('map', 'Map'), field('level', 'Level'), field('gold', 'Gold'), field('script', 'Script')),
@@ -362,6 +369,10 @@ function updateCard(card, tab, status) {
   const script = status?.script;
   const stats = status?.stats;
   card.el.classList.toggle('selected', tab.selected);
+  // Shown: the tab on the desktop; In grid: every running tab, in Grid View.
+  r.shown.hidden = !(tab.selected || (state.grid && tab.running));
+  r.shown.textContent = state.grid ? 'In grid' : 'Shown';
+  r.shown.title = state.grid ? "The desktop's Grid View shows every tab, this one included" : 'This tab is the one shown on the VibeSkua desktop';
   r.name.textContent = streamer ? `Player ${tab.tab}` : (game?.loggedIn && game.player) || tab.account || tab.title;
 
   let pill = ['Not running', 'bad'];
@@ -560,6 +571,7 @@ $('#open-tab').addEventListener('click', async () => {
 $('#grid-toggle').addEventListener('click', async () => {
   state.grid = !state.grid;
   await act(state.grid ? 'Grid View on' : 'Grid View off', () => api('POST', `/api/grid?on=${state.grid ? 1 : 0}`));
+  refresh();
 });
 
 $('#load-all').addEventListener('click', () => {

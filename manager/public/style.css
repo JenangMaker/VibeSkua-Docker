@@ -158,7 +158,8 @@ input.masked { -webkit-text-security: disc; }
   gap: 10px;
   min-width: 0;
 }
-.card.selected { border-color: var(--accent); }
+/* The tab on the desktop: a Shown badge (the accent outline means ticked). */
+.shown-badge { font-size: 12px; font-weight: 600; color: var(--accent-text); background: var(--accent); border-radius: 6px; padding: 2px 7px; white-space: nowrap; }
 /* Ticked for the army's Load script (.selected is the tab on the desktop). */
 .card.picked { outline: 2px solid var(--accent); outline-offset: -1px; background: color-mix(in srgb, var(--accent) 6%, var(--panel)); }
 .card-pick { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); cursor: pointer; flex: none; }
