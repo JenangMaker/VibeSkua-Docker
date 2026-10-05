@@ -280,6 +280,7 @@ const picked = new Set();
 function updatePickUi() {
   const n = picked.size;
   $('#load-all').textContent = n ? `Load script (${n} selected)...` : 'Load script...';
+  $('#restart-all').textContent = n ? `Restart (${n} selected)...` : 'Restart...';
   $('#pick-info').hidden = n === 0;
   $('#pick-count').textContent = `Tab${n === 1 ? '' : 's'} ${[...picked].sort((a, b) => a - b).join(', ')}`;
 }
@@ -341,9 +342,10 @@ function makeCard(n) {
       h('button', { class: 'small', onclick: () => openScriptDialog([n]) }, 'Load...'),
       r.optionsBtn = h('button', { class: 'small', title: "The loaded script's options", onclick: () => openScriptOptions(n) }, 'Script options...'),
       h('button', { class: 'small', title: "This tab's Skua options (Lag Killer, Hide Players, Headless Mode...)", onclick: () => openSkuaOptions(n) }, 'Skua options...'),
+      r.loginBtn = h('button', { class: 'small', onclick: () => logInOut(n) }),
       h('button', { class: 'small', onclick: () => openLog(n) }, 'Log'),
       h('button', { class: 'small', title: 'Show this tab on the VibeSkua desktop', onclick: () => act(`Tab ${n} shown`, () => api('POST', `/api/tabs/${n}/select`)) }, 'Show'),
-      h('button', { class: 'small', title: "Restart this tab's Skua (the game stays logged in)", onclick: () => restartTab(n, false) }, 'Restart'),
+      h('button', { class: 'small', title: "Restart this tab's Skua (a running script stops; the game logs back in if it was restarted too)", onclick: () => restartTab(n, false) }, 'Restart'),
       h('button', { class: 'small', title: 'Restart Skua and reload the game page (logs in again)', onclick: () => restartTab(n, true) }, 'Reload game'),
       h('button', { class: 'small danger', onclick: () => closeTab(n) }, 'Close')));
   r.pick.addEventListener('change', () => {
@@ -396,6 +398,12 @@ function updateCard(card, tab, status) {
     h('span', { text: `Game ${fmtCpu(tab.page?.cpu)} / ${fmtMb(tab.page?.memoryMb)}` }),
     h('span', { text: `Restarts ${tab.restarts}` }),
   );
+
+  // Log in or Log out, whichever applies; not until the tab's Skua answers.
+  card.loggedIn = loggedIn;
+  r.loginBtn.textContent = loggedIn ? 'Log out' : 'Log in';
+  r.loginBtn.title = loggedIn ? 'Log this account out (a running script stops)' : "Log this tab's account in";
+  r.loginBtn.disabled = !status;
 
   card.running = !!script?.running;
   r.startStop.textContent = card.running ? 'Stop' : 'Start';
@@ -474,6 +482,18 @@ async function startStop(n) {
   refresh();
 }
 
+// One tab's Log in / Log out, as the Army bar's do for every tab.
+async function logInOut(n) {
+  const card = cards.get(n);
+  if (card.loggedIn) {
+    if (!confirm(`Log out tab ${n}? A running script stops.`)) return;
+    await act(`Tab ${n}: logged out`, () => api('POST', `/api/tabs/${n}/api/army/logout`));
+  } else {
+    await act(`Tab ${n}: logging in`, () => api('POST', `/api/tabs/${n}/api/army/login`));
+  }
+  refresh();
+}
+
 async function restartTab(n, game) {
   const what = game ? 'restart its Skua and reload its game (it logs in again)' : "restart its Skua (a running script stops)";
   if (!confirm(`Tab ${n}: ${what}?`)) return;
@@ -509,6 +529,28 @@ async function armyAll(label, path) {
     if (e.status !== 401) toast(`${label}: ${e.message}`, true);
   }
 }
+
+// Restart Skua in the selected tabs (every running tab when none is), as
+// each card's Restart does for its own.
+$('#restart-all').addEventListener('click', async () => {
+  const running = state.tabs.filter(t => t.running).map(t => t.tab);
+  const targets = picked.size ? running.filter(n => picked.has(n)) : running;
+  if (!targets.length) { toast(picked.size ? 'None of the selected tabs is running' : 'No running tab to restart', true); return; }
+  const which = targets.length === running.length && !picked.size ? 'every tab' : `tab${targets.length === 1 ? '' : 's'} ${targets.join(', ')}`;
+  if (!confirm(`Restart Skua in ${which}? Running scripts stop.`)) return;
+  const btn = $('#restart-all');
+  btn.disabled = true;
+  try {
+    const results = await Promise.all(targets.map(n =>
+      api('POST', `/api/tabs/${n}/restart`).then(r => [n, r?.error], e => [n, e.message])));
+    const failed = results.filter(([, err]) => err);
+    if (failed.length) toast(`Restart: failed in ${failed.map(([n, err]) => `tab ${n} (${err})`).join(', ')}`, true);
+    else toast(`Restarting ${targets.length} tab(s)`);
+  } finally {
+    btn.disabled = false;
+    refresh();
+  }
+});
 
 $('#open-tab').addEventListener('click', async () => {
   await act('Tab opened', () => api('POST', '/api/tabs'));

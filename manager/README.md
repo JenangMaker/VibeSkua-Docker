@@ -53,23 +53,24 @@ Its buttons:
 | **Load...** | Pick a script: **Search** by name, path, description or tag, in a category, as the Search Scripts window does; or **Browse** the Scripts folder folder by folder (your own and extra repositories, such as `UltrasLW`, included). Click one to fill Path, double-click to load it; **Load & start** starts it too. |
 | **Script options...** | The loaded script's options, as its Options window shows them, grouped (the script's, then CoreBots' and the rest). Change them and **Save**; **Defaults** fills in each option's default. Not while the script runs. **Don't open the options window when this script starts** makes it run with the saved options, without asking (see `SKUA_SKIP_SCRIPT_OPTIONS` in [DOCKER.md](../DOCKER.md)). Options that hold a player or account name are hidden like passwords; **Reveal values** shows them. |
 | **Skua options...** | This tab's Skua options (Lag Killer, Hide Players, Disable FX, Skip Cutscenes, Infinite Range, Magnetise, Headless Mode, Function-based Skills, Streamer Mode) as checkboxes with their current values. Each change applies right away. |
+| **Log in / Log out** | Log this tab's account in, or out (asks first; a running script stops). The button shows whichever applies. |
 | **Log** | The live script, debug or Flash log, following new lines. |
 | **Show** | Bring the tab to the front on the VibeSkua desktop. |
-| **Restart** | Restart the tab's Skua; the game stays logged in. |
+| **Restart** | Restart the tab's Skua (a running script stops). With the Electron game the game stays logged in; with the native game (`:native` image) the game restarts with it and logs back in by itself. |
 | **Reload game** | Restart Skua and reload the game page (it logs in again). |
 | **Close** | Close the tab. |
 
 The **Army** bar does the same for every tab at once: start, stop, load a
-script, log in or out, jump everyone to a map or a player, and **Skua
-options...** (On / Off for each option, since the tabs may differ). **Grid
+script, log in or out, **Restart...** (each tab's Skua), jump everyone to a map
+or a player, and **Skua options...** (On / Off for each option, since the tabs may differ). **Grid
 View** switches the desktop's Grid View, **+ Open tab** opens another tab.
 
-**Load script for some tabs only:** tick the box in the header of the cards you
-want. The Army bar then says **Load script (2 selected)...** and lists the
-tabs, and it loads the script in those tabs only (the ones running). With no box
-ticked it loads in every running tab, as before. **Clear** unticks them all. The
-selection stays while the page is open; the other Army buttons still act on
-every tab.
+**Load script or restart some tabs only:** tick the box in the header of the
+cards you want. The Army bar then says **Load script (2 selected)...** and
+**Restart (2 selected)...** and lists the tabs, and those two act on the
+selected tabs only (the ones running). With no box ticked they act on every
+running tab. **Clear** unticks them all. The selection stays while the page is
+open; the other Army buttons still act on every tab.
 
 ### Accounts
 
