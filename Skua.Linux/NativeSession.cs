@@ -15,9 +15,14 @@ namespace Skua.Linux;
 /// first try (two logins at once trip each other up); if the login screen sits
 /// untouched for a minute, log in here, and tell ScriptKeeper so it restarts a
 /// script that was running.</item>
+/// <item><b>Recycling.</b> Ruffle keeps much of what each map loads, so a
+/// long session's player grows (~0.4 GB fresh, 0.7-0.95 GB after 7 hours).
+/// RECYCLE_AFTER_MINUTES, RECYCLE_AFTER_MAP_CHANGES and RECYCLE_ABOVE_MB
+/// restart the player out of combat, log back in, return to the same room and
+/// cell, and start again the script that was running. One tab at a time
+/// (a lock file), so the tabs don't all log in at once.</item>
 /// </list>
 /// A restarted player (crash, Reload game) loads again and is logged in again.
-/// Recycling (RECYCLE_AFTER_*) is not done yet in this mode.
 /// </summary>
 public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge, ScriptKeeper keeper)
 {
@@ -26,6 +31,20 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
     private bool _playing;
     private DateTime? _idleSince;
     private bool _clientLoaded;
+
+    private static int EnvInt(string name) => int.TryParse(SkuaRuntime.EnvRaw(name), out int n) && n > 0 ? n : 0;
+    private readonly int _afterMinutes = EnvInt("RECYCLE_AFTER_MINUTES");
+    private readonly int _afterMapChanges = EnvInt("RECYCLE_AFTER_MAP_CHANGES");
+    private readonly int _aboveMb = EnvInt("RECYCLE_ABOVE_MB");
+    private const string RecycleLock = "/tmp/vibeskua-recycle.lock";
+
+    // Where to go back to after a recycle, and whether a script ran there.
+    private sealed record Place(string Area, string Map, string Cell, string Pad, bool Script);
+    private volatile Place? _return;
+    private volatile bool _recycling;
+    private DateTime _gameStarted = DateTime.UtcNow;
+    private int _mapChanges;
+    private string? _lastPlace;
 
     private IFlashUtil Flash => services.GetRequiredService<IFlashUtil>();
 
@@ -44,6 +63,9 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
             if (name == "loaded")
             {
                 _clientLoaded = true;
+                _gameStarted = DateTime.UtcNow;
+                _mapChanges = 0;
+                _lastPlace = null;
                 _ = Task.Run(() => Login(_playing ? "relogin" : null));
             }
         };
@@ -53,6 +75,12 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
                 _clientLoaded = false;
         };
         _ = Task.Run(Watch);
+        var rules = new List<string>();
+        if (_afterMinutes > 0) rules.Add($"after {_afterMinutes} min");
+        if (_afterMapChanges > 0) rules.Add($"after {_afterMapChanges} map changes");
+        if (_aboveMb > 0) rules.Add($"above {_aboveMb} MB");
+        if (rules.Count > 0)
+            Console.WriteLine($"[session] recycle the game {string.Join(", or ", rules)}");
     }
 
     private bool Has(string path)
@@ -72,7 +100,7 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
         while (true)
         {
             await Task.Delay(3000);
-            if (!bridge.IsConnected || !_clientLoaded || Volatile.Read(ref _busy) == 1)
+            if (!bridge.IsConnected || !_clientLoaded || Volatile.Read(ref _busy) == 1 || _recycling)
                 continue;
             try
             {
@@ -80,6 +108,9 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
                 {
                     _playing = true;
                     _idleSince = null;
+                    CountMapChange();
+                    if (RecycleDue() is { } why)
+                        await Recycle(why);
                     continue;
                 }
                 if (!_playing)
@@ -167,6 +198,12 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
             }
             Console.WriteLine($"[session] auto-login: in on {server}");
             _playing = true;
+            if (_return is { } back)
+            {
+                _return = null;
+                await ReturnTo(back);
+                return;
+            }
             // A script left mid-loop in the game that went away restarts from
             // its saved progress. Not after the first login: auto-start covers that.
             if (reason is not null)
@@ -178,7 +215,151 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
         }
         finally
         {
+            // A failed login after a recycle: the relogin watch takes over
+            // (and returns, since _return is still set).
+            _recycling = false;
             Volatile.Write(ref _busy, 0);
         }
+    }
+
+    private void CountMapChange()
+    {
+        string place = $"{Flash.GetGameObject("world.strMapName")}#{Flash.GetGameObject("world.curRoom")}";
+        if (_lastPlace is not null && place != _lastPlace)
+            _mapChanges++;
+        _lastPlace = place;
+    }
+
+    // Why the game is due a recycle, or null.
+    private string? RecycleDue()
+    {
+        if (_afterMinutes > 0 && DateTime.UtcNow - _gameStarted >= TimeSpan.FromMinutes(_afterMinutes))
+            return $"{_afterMinutes} min";
+        if (_afterMapChanges > 0 && _mapChanges >= _afterMapChanges)
+            return $"{_mapChanges} map changes";
+        if (_aboveMb > 0 && GameMemoryMb() is { } mb && mb >= _aboveMb)
+            return $"{mb} MB";
+        return null;
+    }
+
+    private static long? GameMemoryMb()
+    {
+        if (NativeGame.Current?.Pid is not { } pid)
+            return null;
+        try
+        {
+            using var process = System.Diagnostics.Process.GetProcessById(pid);
+            return process.WorkingSet64 / 1048576;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private bool InCombat()
+    {
+        try { return Flash.GetGameObject<int>("world.myAvatar.dataLeaf.intState", 0) == 2; }
+        catch { return false; }
+    }
+
+    // Waits up to the given time to be out of combat; true if it is.
+    private async Task<bool> OutOfCombat(TimeSpan wait)
+    {
+        var until = DateTime.UtcNow + wait;
+        while (InCombat())
+        {
+            if (DateTime.UtcNow >= until)
+                return false;
+            await Task.Delay(500);
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Restarts the player out of combat; Login brings it back (ReturnTo).
+    /// Combat counts as session.js's does (intState 2), and a fight is waited
+    /// out for up to 10 minutes. One tab at a time: the others wait for the
+    /// lock file.
+    /// </summary>
+    private async Task Recycle(string why)
+    {
+        if (NativeGame.Current is not { } game)
+            return;
+        Console.WriteLine($"[session] recycle ({why}): waiting to be out of combat");
+        if (!await OutOfCombat(TimeSpan.FromMinutes(10)))
+            Console.WriteLine("[session] recycle: still in combat after 10 min; recycling anyway");
+
+        FileStream? turn = null;
+        for (int i = 0; turn is null; i++)
+        {
+            try { turn = new FileStream(RecycleLock, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
+            catch (IOException)
+            {
+                if (i == 0)
+                    Console.WriteLine("[session] recycle: another tab is recycling; waiting for it");
+                if (i >= 120)   // 10 min: try again on the next check
+                    return;
+                await Task.Delay(5000);
+            }
+        }
+        using (turn)
+        {
+            // Waiting for the lock may have taken a while.
+            await OutOfCombat(TimeSpan.FromMinutes(1));
+            var bot = services.GetRequiredService<IScriptInterface>();
+            var manager = services.GetRequiredService<IScriptManager>();
+            var place = new Place(bot.Map.FullName, bot.Map.Name, bot.Player.Cell ?? "Enter", bot.Player.Pad ?? "Spawn", manager.ScriptRunning);
+            if (place.Script)
+            {
+                // Stopped first: a running script would log back in by itself
+                // (its AutoRelogin) while this does.
+                await manager.StopScript();
+                for (int i = 0; i < 60 && manager.ScriptRunning; i++)
+                    await Task.Delay(500);
+            }
+            _return = place;
+            _recycling = true;
+            Console.WriteLine($"[session] recycle: restarting the game (back to {place.Area} {place.Cell}{(place.Script ? ", then the script" : "")})");
+            game.Restart();
+            // Hold the turn until this tab is back in, or its login gave up
+            // (then the relogin watch takes over, and still returns).
+            for (int i = 0; i < 360 && _recycling; i++)
+                await Task.Delay(1000);
+            _recycling = false;
+        }
+    }
+
+    // After the login that follows a recycle: the same room (or map) and cell,
+    // then the script that was running.
+    private async Task ReturnTo(Place back)
+    {
+        await Task.Delay(3000);
+        var bot = services.GetRequiredService<IScriptInterface>();
+        string user = Flash.GetGameObject("world.myAvatar.objData.strUsername")?.Trim('"') ?? bot.Player.Username;
+        foreach (string target in back.Area.Length > 0 && back.Area != back.Map ? new[] { back.Area, back.Map } : new[] { back.Map })
+        {
+            if (bot.Map.FullName == back.Area || (target == back.Map && bot.Map.Name == back.Map))
+                break;
+            string room = Flash.GetGameObject("world.curRoom") ?? "1";
+            Flash.CallGameFunction("sfc.sendString", $"%xt%zm%cmd%{room}%tfer%{user}%{target}%{back.Cell}%{back.Pad}%");
+            for (int i = 0; i < 20 && bot.Map.Name != back.Map; i++)
+                await Task.Delay(1000);
+        }
+        if (bot.Map.Name == back.Map && bot.Player.Cell != back.Cell)
+            Flash.CallGameFunction("world.moveToCell", back.Cell, back.Pad);
+        _mapChanges = 0;
+        _lastPlace = null;
+        Console.WriteLine($"[session] recycle: back in {bot.Map.FullName} {back.Cell}");
+        if (!back.Script)
+            return;
+        await Task.Delay(1500);
+        var manager = services.GetRequiredService<IScriptManager>();
+        if (manager.ScriptRunning)
+            return;
+        if (await manager.StartScript() is { } error)
+            Console.Error.WriteLine($"[session] recycle: could not start the script again: {error.Message}");
+        else
+            Console.WriteLine($"[session] recycle: script {Path.GetFileNameWithoutExtension(manager.LoadedScript ?? "")} started again");
     }
 }

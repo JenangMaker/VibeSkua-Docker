@@ -374,12 +374,16 @@ ActionScript runs in the same Ruffle engine either way).
 | `RUFFLE_QUALITY` | `low` | As above. |
 | `RUFFLE_LOG` | `warn,ruffle_core::avm2=off,...` | The player's log filter (`RUST_LOG`). |
 | `RUFFLE_ARGS` | | More player switches, space separated. |
+| `RECYCLE_AFTER_MINUTES`, `RECYCLE_AFTER_MAP_CHANGES` | off | As in the Electron image: restart the tab's player after this long / this many map changes, out of combat (a fight is waited out for up to 10 minutes), log back in, go back to the same room and cell, and start the script that was running again. |
+| `RECYCLE_ABOVE_MB` | off | Also recycle a tab once its player uses this much memory (RSS, as `/tabs` shows it). A fresh player uses about 400 MB; long sessions grew to 700-950 MB in 7 hours. `900` catches the big ones only. |
 
 The player's lines go to the container log as `[game] ...`, limited to 20
 lines a second. While a tab draws, the player logs a drawing summary once a
-minute (frames per second, time per frame and where it goes). Not in the
-native image yet: recycling (`RECYCLE_AFTER_*`), `RENDER_SCALE`,
-`MAX_RENDER_FPS`, the debug panel and DevTools.
+minute (frames per second, time per frame and where it goes). Recycling restarts one tab at a time:
+the others wait their turn, so the tabs don't all log in at once. A script
+that runs several tabs together (an army) loses its sync when one of them is
+recycled; use long intervals there, or none. Not in the native image yet:
+`RENDER_SCALE`, `MAX_RENDER_FPS`, the debug panel and DevTools.
 
 ## Building the image yourself
 
