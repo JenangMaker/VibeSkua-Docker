@@ -186,6 +186,8 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                     maxMp = player.MaxMana,
                     level = player.Level,
                     gold = player.Gold,
+                    // Inventory space: two reads, no inventory or bank load.
+                    bag = new { used = bot.Inventory.UsedSlots, slots = bot.Inventory.Slots },
                     className = player.CurrentClass?.Name,
                     state = player.State,
                     hasTarget = player.HasTarget,
