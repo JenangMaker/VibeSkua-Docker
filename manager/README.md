@@ -39,11 +39,16 @@ One card per tab:
   in), with "(headless)" when its Headless Mode is on, and **Shown** on the tab
   the VibeSkua desktop shows now (**In grid** on every tab while its Grid View
   is on).
-- **Map, level and class, gold, script**, and HP / MP bars.
+- **Map, room, level and class, gold, script** (the room needs VibeSkua 1.3.0 or
+  newer; it reads "hidden" with Streamer mode on), and HP / MP bars.
 - **Target:** what the character is fighting, with its HP, and every monster
   in the cell (the dead ones struck through).
 - **Quest:** the active quests and each requirement as have / need, so you can
   see a quest filling up.
+- **Equipment** (click to open; it shows the weapon while closed): class,
+  weapon, armor, helm, cape, pet, necklace and ground item, each with its
+  enhancement and special enhancement (Valiance, Awe Blast...). Needs a
+  VibeSkua 1.3.0 or newer.
 - **Kills, drops, quests, deaths, relogins** since the session started, and
   what the tab's Skua and game cost in CPU and memory.
 
@@ -55,6 +60,7 @@ Its buttons:
 | **Load...** | Pick a script: **Search** by name, path, description or tag, in a category, as the Search Scripts window does; or **Browse** the Scripts folder folder by folder (your own and extra repositories, such as `UltrasLW`, included). Click one to fill Path, double-click to load it; **Load & start** starts it too. |
 | **Script options...** | The loaded script's options, as its Options window shows them, grouped (the script's, then CoreBots' and the rest). Change them and **Save**; **Defaults** fills in each option's default. Not while the script runs. **Don't open the options window when this script starts** makes it run with the saved options, without asking (see `SKUA_SKIP_SCRIPT_OPTIONS` in [DOCKER.md](../DOCKER.md)). Options that hold a player or account name are hidden like passwords; **Reveal values** shows them. |
 | **Skua options...** | This tab's Skua options (Lag Killer, Hide Players, Disable FX, Skip Cutscenes, Infinite Range, Magnetise, Headless Mode, Function-based Skills, Streamer Mode) as checkboxes with their current values. Each change applies right away. |
+| **CoreBots options...** | This account's Options > CoreBots, as Skua's window has it. **Loadout:** the Solo, Farm, Dodge and Boss class, each class's mode (from its skills) and, with **Specify equipment**, its equipment. **Options** and **Other:** rooms, delays, auto-enhance, best gear, boosters, Nation farms and the rest. **Save** writes the account's options file; scripts use it from their next start. Needs VibeSkua 1.3.0 or newer and a logged-in tab. |
 | **Log in / Log out** | Log this tab's account in, or out (asks first; a running script stops). The button shows whichever applies. |
 | **Log** | The live script, debug or Flash log, following new lines. |
 | **Show** | Bring the tab to the front on the VibeSkua desktop. |
@@ -83,6 +89,10 @@ saves one to `accounts.json` in VibeSkua's config folder: the tab, name,
 password, server, a script and whether to start it after logging in. It opens
 its tab and logs in right away. A password can be replaced but is never shown
 again.
+
+**Open tab:** an account whose tab is closed (status "no tab"), from the
+environment or added here, has an **Open tab** button: it opens that tab number
+again, and the tab logs the account in.
 
 **Skua options** (when adding, not editing): tick the ones the new tab should
 have, such as Lag Killer or Hide Players. They are turned on once, when the tab
