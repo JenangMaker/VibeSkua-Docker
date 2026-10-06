@@ -52,7 +52,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
             string method = ctx.Request.HttpMethod;
             result = !ApiAuth.Allowed(ctx.Request) ? Unauthorized(out status) : (method, path) switch
             {
-                ("GET", "/status") => Status(ctx.Request.QueryString["detail"] is "1" or "true"),
+                ("GET", "/status") => await Status(ctx.Request.QueryString["detail"] is "1" or "true"),
                 ("POST", "/script/load") => await LoadFromRequest(ctx.Request),
                 ("POST", "/script/start") => await StartFromRequest(ctx.Request),
                 ("POST", "/script/stop") => await Stop(),
@@ -101,12 +101,78 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
         return new { error = "SKUA_API_TOKEN is set: send it as Authorization: Bearer <token>" };
     }
 
+    private sealed record GameRead(bool BridgeConnected, object? Game, object? Stats, object? Combat, object? Quests, object? Equipment)
+    {
+        public DateTime At { get; } = DateTime.UtcNow;
+    }
+
+    private readonly object _detailLock = new();
+    private Task<GameRead>? _detailRead;
+    private GameRead? _lastDetail;
+
+    // How long a detail status waits for a fresh read before it answers with
+    // the last one.
+    private static readonly TimeSpan DetailWait = TimeSpan.FromMilliseconds(500);
+
     // detail: also what a remote dashboard shows (the web manager). Each field
     // is a call into the game, so the tab host's 1.5 s poll asks without it.
-    private object Status(bool detail = false)
+    // Those calls run on the game's thread: while the game is busy (combat, a
+    // map join) a detail read takes seconds. Then the last read answers
+    // (gameAgeMs says how old it is) and the fresh one finishes in the
+    // background; only one runs at a time.
+    private async Task<object> Status(bool detail = false)
+    {
+        GameRead read;
+        if (!detail)
+            read = ReadGame(false);
+        else
+        {
+            Task<GameRead> fresh;
+            lock (_detailLock)
+                fresh = _detailRead ??= Task.Run(ReadDetail);
+            if (await Task.WhenAny(fresh, Task.Delay(DetailWait)) == fresh || _lastDetail is null)
+                read = await fresh;
+            else
+                read = _lastDetail;
+        }
+        var manager = services.GetRequiredService<IScriptManager>();
+        return new
+        {
+            instance = SkuaRuntime.Instance,
+            bridgeConnected = read.BridgeConnected,
+            game = read.Game,
+            gameAgeMs = detail ? (long)(DateTime.UtcNow - read.At).TotalMilliseconds : (long?)null,
+            stats = read.Stats,
+            combat = read.Combat,
+            quests = read.Quests,
+            equipment = read.Equipment,
+            throttle = detail ? new { hidden = IsShrunk, headless = IsHeadless } : null,
+            script = new { running = manager.ScriptRunning, loaded = manager.LoadedScript },
+            scripts = new
+            {
+                directory = ClientFileSources.SkuaScriptsDIR,
+                syncing = scripts.Syncing,
+                last = scripts.LastResult,
+            },
+        };
+    }
+
+    private Task<GameRead> ReadDetail()
+    {
+        try
+        {
+            return Task.FromResult(_lastDetail = ReadGame(true));
+        }
+        finally
+        {
+            lock (_detailLock)
+                _detailRead = null;
+        }
+    }
+
+    private GameRead ReadGame(bool detail)
     {
         var bridge = services.GetRequiredService<RuffleBridge>();
-        var manager = services.GetRequiredService<IScriptManager>();
         object? game = null, stats = null, combat = null, quests = null, equipment = null;
         if (bridge.IsConnected)
         {
@@ -119,6 +185,9 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
             if (loggedIn && bot.Map.FullName is { } area && area.LastIndexOf('-') is > 0 and var dash
                 && int.TryParse(area[(dash + 1)..], out _))
                 room = area[(dash + 1)..];
+            // The inventory, read once (the class, quests and equipment all
+            // use it): it is the biggest read, ~150 items.
+            var items = detail && loggedIn ? bot.Inventory.Items : null;
             game = !detail || !loggedIn
                 ? new
                 {
@@ -144,9 +213,9 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                     maxMp = player.MaxMana,
                     level = player.Level,
                     gold = player.Gold,
-                    // Inventory space: two reads, no inventory or bank load.
+                    // Inventory space: two small reads.
                     bag = new { used = bot.Inventory.UsedSlots, slots = bot.Inventory.Slots },
-                    className = player.CurrentClass?.Name,
+                    className = items?.Find(i => i is { Equipped: true, Category: Skua.Core.Models.Items.ItemCategory.Class })?.Name,
                     state = player.State,
                     hasTarget = player.HasTarget,
                     afk = player.AFK,
@@ -158,29 +227,12 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 if (loggedIn)
                 {
                     combat = Combat(bot);
-                    quests = Quests(bot);
-                    equipment = Equipment(bot);
+                    quests = Quests(bot, items);
+                    equipment = Equipment(items);
                 }
             }
         }
-        return new
-        {
-            instance = SkuaRuntime.Instance,
-            bridgeConnected = bridge.IsConnected,
-            game,
-            stats,
-            combat,
-            quests,
-            equipment,
-            throttle = detail ? new { hidden = IsShrunk, headless = IsHeadless } : null,
-            script = new { running = manager.ScriptRunning, loaded = manager.LoadedScript },
-            scripts = new
-            {
-                directory = ClientFileSources.SkuaScriptsDIR,
-                syncing = scripts.Syncing,
-                last = scripts.LastResult,
-            },
-        };
+        return new GameRead(bridge.IsConnected, game, stats, combat, quests, equipment);
     }
 
     /// <summary>
@@ -213,7 +265,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
     /// enhancement, and the special (proc) one if any. One read of the
     /// inventory. Null if the game could not say.
     /// </summary>
-    private static object? Equipment(IScriptInterface bot)
+    private static object? Equipment(List<Skua.Core.Models.Items.InventoryItem>? items)
     {
         // The item's sES: the slot it is worn in.
         static (int Order, string Slot) SlotOf(string? group) => group?.ToLowerInvariant() switch
@@ -230,7 +282,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
         };
         try
         {
-            return bot.Inventory.Items
+            return items?
                 .Where(i => i.Equipped)
                 .Select(i => (Slot: SlotOf(i.ItemGroup), Item: i))
                 .OrderBy(x => x.Slot.Order)
@@ -275,7 +327,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
     /// by itself (Quests.RegisterQuests). One read of the quest tree (~40 KB,
     /// a few ms) and of the inventories. Null if the game could not say.
     /// </summary>
-    private static object? Quests(IScriptInterface bot)
+    private static object? Quests(IScriptInterface bot, List<Skua.Core.Models.Items.InventoryItem>? items)
     {
         try
         {
@@ -284,7 +336,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 return new List<object>();
             // Held counts by item id, inventory and temporary items together.
             var held = new Dictionary<int, int>();
-            foreach (var item in bot.Inventory.Items.Cast<Skua.Core.Models.Items.ItemBase>().Concat(bot.TempInv.Items))
+            foreach (var item in (items ?? []).Cast<Skua.Core.Models.Items.ItemBase>().Concat(bot.TempInv.Items))
                 held[item.ID] = held.GetValueOrDefault(item.ID) + item.Quantity;
             var registered = bot.Quests.Registered.ToHashSet();
             return active.Take(10).Select(q =>
