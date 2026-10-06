@@ -65,6 +65,8 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 ("POST", "/scripts/update") => await scripts.UpdateAllAsync(),
                 ("POST", "/scripts/reset") => await scripts.ResetScriptsAsync(),
                 ("GET", "/army/options") => ArmyOptionValues(),
+                ("GET", "/cbo") => CoreBotsOptions(),
+                ("POST", "/cbo") => await SaveCoreBotsOptions(ctx.Request),
                 ("POST", _) when path.StartsWith("/army/") => await Army(path["/army/".Length..], ctx.Request),
                 _ when Routes.TryGetValue($"{method} {path}", out var route) => await route(ctx.Request),
                 _ => NotFound(out status),
@@ -101,12 +103,18 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
     {
         var bridge = services.GetRequiredService<RuffleBridge>();
         var manager = services.GetRequiredService<IScriptManager>();
-        object? game = null, stats = null, combat = null, quests = null;
+        object? game = null, stats = null, combat = null, quests = null, equipment = null;
         if (bridge.IsConnected)
         {
             var bot = services.GetRequiredService<IScriptInterface>();
             var player = bot.Player;
             bool loggedIn = player.LoggedIn;
+            // The room number, from the area name ("battleon-9721"), which
+            // Streamer Mode does not rewrite.
+            string? room = null;
+            if (loggedIn && bot.Map.FullName is { } area && area.LastIndexOf('-') is > 0 and var dash
+                && int.TryParse(area[(dash + 1)..], out _))
+                room = area[(dash + 1)..];
             game = !detail || !loggedIn
                 ? new
                 {
@@ -114,6 +122,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                     player = player.Username,
                     streamer = bot.Options.StreamerMode,
                     map = bot.Map.Name,
+                    room,
                     cell = player.Cell,
                     hp = player.Health,
                 }
@@ -123,6 +132,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                     player = player.Username,
                     streamer = bot.Options.StreamerMode,
                     map = bot.Map.Name,
+                    room,
                     cell = player.Cell,
                     hp = player.Health,
                     maxHp = player.MaxHealth,
@@ -143,6 +153,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 {
                     combat = Combat(bot);
                     quests = Quests(bot);
+                    equipment = Equipment(bot);
                 }
             }
         }
@@ -154,6 +165,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
             stats,
             combat,
             quests,
+            equipment,
             throttle = detail ? new { hidden = IsShrunk, headless = IsHeadless } : null,
             script = new { running = manager.ScriptRunning, loaded = manager.LoadedScript },
             scripts = new
@@ -188,6 +200,68 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
             return null;
         }
     }
+
+    /// <summary>
+    /// What the character wears: each equipped item's slot (class, weapon,
+    /// armor, helm, cape, pet, necklace, ground, in that order), name and
+    /// enhancement, and the special (proc) one if any. One read of the
+    /// inventory. Null if the game could not say.
+    /// </summary>
+    private static object? Equipment(IScriptInterface bot)
+    {
+        // The item's sES: the slot it is worn in.
+        static (int Order, string Slot) SlotOf(string? group) => group?.ToLowerInvariant() switch
+        {
+            "ar" => (0, "Class"),
+            "weapon" => (1, "Weapon"),
+            "co" => (2, "Armor"),
+            "he" => (3, "Helm"),
+            "ba" => (4, "Cape"),
+            "pe" => (5, "Pet"),
+            "am" => (6, "Necklace"),
+            "mi" => (7, "Ground"),
+            _ => (8, group ?? "Other"),
+        };
+        try
+        {
+            return bot.Inventory.Items
+                .Where(i => i.Equipped)
+                .Select(i => (Slot: SlotOf(i.ItemGroup), Item: i))
+                .OrderBy(x => x.Slot.Order)
+                .Select(x => new
+                {
+                    slot = x.Slot.Slot,
+                    name = x.Item.Name,
+                    enhancement = EnhancementName(x.Item.EnhancementPatternID),
+                    proc = ProcName(x.Item.ProcID),
+                })
+                .ToList();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    // As LoadoutService names them (ItemBase's EnhancementPatternID and ProcID).
+    private static string? EnhancementName(int id) => id switch
+    {
+        1 => "Adventurer", 2 => "Fighter", 3 => "Thief", 4 => "Armsman", 5 => "Hybrid",
+        6 => "Wizard", 7 => "Healer", 8 => "Spellbreaker", 9 => "Lucky", 10 => "Forge",
+        11 => "Absolution", 12 => "Avarice", 23 => "Depths", 24 => "Vainglory", 25 => "Vim",
+        26 => "Examen", 27 => "Pneuma", 28 => "Anima", 29 => "Penitence", 30 => "Lament",
+        32 => "Hearty",
+        _ => null,
+    };
+
+    private static string? ProcName(int id) => id switch
+    {
+        2 => "Spiral Carve", 3 => "Awe Blast", 4 => "Health Vamp", 5 => "Mana Vamp",
+        6 => "Powerword DIE", 7 => "Lacerate", 8 => "Smite", 9 => "Valiance",
+        10 => "Arcana's Concerto", 11 => "Acheron", 12 => "Elysium", 13 => "Praxis",
+        14 => "Dauntless", 15 => "Ravenous",
+        _ => null,
+    };
 
     /// <summary>
     /// The quests in progress (at most 10), each requirement with how many
