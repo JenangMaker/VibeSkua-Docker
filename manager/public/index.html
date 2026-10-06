@@ -11,6 +11,9 @@
   <script src="app.js" defer></script>
 </head>
 <body>
+  <!-- Runs along the top while a request you started is out (see app.js api()). -->
+  <div id="busy-bar" class="busy-bar" aria-hidden="true" hidden></div>
+
   <!-- Login -->
   <main id="login-view" class="login" hidden>
     <form id="login-form" class="login-card">
@@ -28,7 +31,7 @@
     <a class="skip-link" href="#main">Skip to content</a>
     <header class="topbar">
       <h1 class="brand"><img src="icon.svg" alt="" width="24" height="24"> VibeSkua Manager</h1>
-      <div class="conn"><span id="conn-dot" class="dot" aria-hidden="true"></span><span id="conn-text">Connecting...</span></div>
+      <div class="conn"><span id="conn-dot" class="dot wait" aria-hidden="true"></span><span id="conn-text">Connecting...</span></div>
       <div id="res-summary" class="res-summary"></div>
       <div class="spacer"></div>
       <label class="check streamer-toggle" title="Hide account and character names, and room numbers, on this page (this browser only)">
@@ -50,6 +53,10 @@
         <div class="army">
           <span id="army-label" class="army-label" title="These act on the tabs ticked on their cards, or on every tab when none is ticked">Army</span>
           <span id="pick-info" class="pick-chip" hidden><span id="pick-count"></span><button id="pick-clear" class="pick-clear" title="Clear the selection (act on every tab again)" aria-label="Clear the selection">x</button></span>
+          <span class="army-break" aria-hidden="true"></span>
+          <!-- Phones: the actions fold into Execute (a panel, as Komodo's). -->
+          <button id="army-exec" class="army-exec" aria-expanded="false" aria-controls="army-actions">Execute</button>
+          <div id="army-actions" class="army-actions">
           <button data-army="start">Start all</button>
           <button data-army="stop">Stop all</button>
           <button id="load-all" title="Load a script in the selected tabs, or in every running tab when none is selected">Load script...</button>
@@ -58,11 +65,12 @@
           <button id="restart-all" title="Restart Skua in the selected tabs, or in every running tab when none is selected">Restart...</button>
           <button id="jump-all">Jump...</button>
           <button id="options-all" title="Skua options (Lag Killer, Hide Players...) for the selected tabs, or every tab">Skua options...</button>
-          <div class="spacer"></div>
           <button id="grid-toggle" class="ghost" title="Grid View on the VibeSkua desktop">Grid View</button>
+          </div>
           <button id="open-tab" class="primary">+ Open tab</button>
         </div>
         <div id="cards" class="cards"></div>
+        <p id="cards-loading" class="loading-note loading" role="status">Loading the tabs...</p>
         <p id="no-tabs" class="empty" hidden>No tabs.</p>
       </section>
 
@@ -76,14 +84,14 @@
         <div class="table-wrap">
           <table class="table">
             <thead><tr><th>Tab</th><th>Account</th><th>Source</th><th>Server</th><th>Script</th><th>Auto start</th><th>Status</th><th></th></tr></thead>
-            <tbody id="accounts-body"></tbody>
+            <tbody id="accounts-body"><tr><td colspan="8" class="muted loading" role="status">Loading the accounts...</td></tr></tbody>
           </table>
         </div>
       </section>
 
       <!-- Resources -->
       <section id="view-resources" class="view" role="tabpanel" aria-labelledby="tab-resources" hidden>
-        <div id="res-cards" class="stat-cards"></div>
+        <div id="res-cards" class="stat-cards"><p class="loading-note loading" role="status">Reading the resources...</p></div>
         <h2>By kind of process</h2>
         <div class="table-wrap">
           <table class="table"><thead><tr><th>Kind</th><th>Processes</th><th>CPU</th><th>Memory</th></tr></thead><tbody id="kinds-body"></tbody></table>
@@ -98,7 +106,7 @@
   </div>
 
   <!-- Dialogs -->
-  <dialog id="dlg-account">
+  <dialog id="dlg-account" data-keep-open>
     <form method="dialog" id="account-form" class="dlg">
       <h2 id="account-title">Add account</h2>
       <label>Tab <input name="tab" type="number" min="1" max="50" required></label>
@@ -121,7 +129,7 @@
     </form>
   </dialog>
 
-  <dialog id="dlg-script">
+  <dialog id="dlg-script" data-keep-open>
     <form method="dialog" class="dlg wide">
       <h2 id="script-title">Load script</h2>
       <div class="smode-row" role="tablist">
@@ -147,7 +155,7 @@
     </form>
   </dialog>
 
-  <dialog id="dlg-sopts">
+  <dialog id="dlg-sopts" data-keep-open>
     <form method="dialog" id="sopts-form" class="dlg wide">
       <div class="sopts-head">
         <h2 id="sopts-title">Script options</h2>
@@ -166,7 +174,25 @@
     </form>
   </dialog>
 
-  <dialog id="dlg-jump">
+  <dialog id="dlg-cbo" data-keep-open>
+    <form method="dialog" id="cbo-form" class="dlg wide">
+      <h2 id="cbo-title">CoreBots options</h2>
+      <p id="cbo-info" class="muted small"></p>
+      <div class="smode-row" role="tablist">
+        <button type="button" class="smode-tab cbo-tab active" data-cbo="Loadout" role="tab" aria-selected="true" aria-controls="cbo-body">Loadout</button>
+        <button type="button" class="smode-tab cbo-tab" data-cbo="Options" role="tab" aria-selected="false" aria-controls="cbo-body">Options</button>
+        <button type="button" class="smode-tab cbo-tab" data-cbo="Other" role="tab" aria-selected="false" aria-controls="cbo-body">Other</button>
+      </div>
+      <div id="cbo-body" class="sopts"></div>
+      <p class="error" id="cbo-error" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" data-close class="ghost">Close</button>
+        <button id="cbo-save" value="save" class="primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-jump" data-keep-open>
     <form method="dialog" class="dlg">
       <h2>Jump every account</h2>
       <label>Map <input name="map" placeholder="e.g. yulgar-9721"></label>
@@ -198,6 +224,7 @@
         <div class="spacer"></div>
         <button id="log-close" class="ghost">Close</button>
       </div>
+      <p id="log-loading" class="loading muted small" role="status" hidden>Reading the log...</p>
       <pre id="log-text" class="log"></pre>
     </div>
   </dialog>
