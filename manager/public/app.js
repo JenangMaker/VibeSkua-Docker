@@ -418,7 +418,7 @@ function makeCard(n) {
     h('div', { class: 'card-tags' },
       r.pill = h('span', { class: 'pill' }),
       r.shown = h('span', { class: 'shown-badge', text: 'Shown', title: 'This tab is the one shown on the VibeSkua desktop', hidden: true })),
-    h('dl', { class: 'kv' }, field('map', 'Map'), field('room', 'Room'), field('level', 'Level'), field('gold', 'Gold'), field('script', 'Script')),
+    h('dl', { class: 'kv' }, field('map', 'Map'), field('room', 'Room'), field('level', 'Level'), field('gold', 'Gold'), field('bag', 'Inventory'), field('script', 'Script')),
     h('div', { class: 'bars' }, bar('hp', 'HP'), bar('mp', 'MP')),
     r.fight = h('div', { class: 'fight' },
       h('div', { class: 'fight-head' }, h('span', { class: 'muted', text: 'Target' }), r.targetName = h('b'), r.targetPct = h('span', { class: 'muted' })),
@@ -478,6 +478,13 @@ function updateCard(card, tab, status) {
   r.room.textContent = !loggedIn || !game.room ? '-' : streamer ? 'hidden' : game.room;
   r.level.textContent = loggedIn ? `${game.level ?? '-'}${game.className ? ` - ${game.className}` : ''}` : '-';
   r.gold.textContent = loggedIn ? fmtNum(game.gold) : '-';
+  // Inventory space (game.bag: VibeSkua after 1.3.0): marked when 5 or fewer
+  // slots are left (drops and quest items need room) and when it is full.
+  const bag = loggedIn && game.bag?.slots ? game.bag : null;
+  const free = bag ? bag.slots - bag.used : null;
+  r.bag.textContent = bag ? `${bag.used}/${bag.slots} (${free <= 0 ? 'full' : `${free} free`})` : '-';
+  r.bag.className = free === null ? '' : free <= 0 ? 'bag-full' : free <= 5 ? 'bag-low' : '';
+  r.bag.title = bag ? `${free > 0 ? free : 0} inventory slot${free === 1 ? '' : 's'} free` : '';
   r.script.textContent = script?.loaded ? `${scriptName(script.loaded)}${script.running ? ' (running)' : ' (loaded)'}` : 'none';
   r.script.title = script?.loaded || '';
 
