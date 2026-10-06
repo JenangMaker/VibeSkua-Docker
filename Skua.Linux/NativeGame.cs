@@ -16,7 +16,11 @@ namespace Skua.Linux;
 ///   SKUA_RUFFLE_BIN    the player       (/opt/ruffle/ruffle_desktop)
 ///   SKUA_SWF           skua.swf         (next to Skua's own files)
 ///   RUFFLE_QUALITY     low, medium, high... (low)
-///   RUFFLE_GRAPHICS    vulkan, gl...    (the player's default)
+///   RUFFLE_GRAPHICS    vulkan, gl...    (the player's default; gl when
+///                      RUFFLE_FILTERS is on, see InitialGraphics). If the GPU
+///                      fails while the player draws, it is started again one
+///                      step down: Vulkan (or the default) -> gl -> gl in
+///                      software (llvmpipe), for as long as this Skua runs
 ///   RUFFLE_ARGS        more player switches, space separated
 ///   RUFFLE_MAX_FPS     a starting cap on pictures drawn a second (1-60)
 ///   RUFFLE_PRESENT     auto (default), immediate, mailbox or fifo: how the
@@ -32,12 +36,37 @@ namespace Skua.Linux;
 /// </summary>
 public sealed class NativeGame
 {
+    /// <summary>RUFFLE_FILTERS as the player reads it: only on, 1 or true turn
+    /// the effects on (render/wgpu/src/backend.rs, offscreen_effects).</summary>
+    private static bool FiltersOn()
+    {
+        string v = SkuaRuntime.Env("RUFFLE_FILTERS", "off").Trim();
+        return v.Equals("on", StringComparison.OrdinalIgnoreCase) || v == "1" || v.Equals("true", StringComparison.OrdinalIgnoreCase);
+    }
+
     public static bool Enabled => SkuaRuntime.EnvRaw("SKUA_GAME") is { } g && g.Equals("native", StringComparison.OrdinalIgnoreCase);
 
     private readonly string _bridgeUrl;
     private readonly object _lock = new();
     private Process? _process;
     private bool _stopped;
+
+    // The graphics the player starts with (null: its default, Vulkan with a
+    // GPU; software: gl drawn by Mesa on the CPU). Keep moves it down a step
+    // when the GPU fails (FallBack), rather than starting the player again on
+    // the same GPU path to fail the same way.
+    private string? _graphics;
+    private bool _software;
+    private bool _fellBack;
+    private volatile bool _gpuFault;
+    private Task _forwarding = Task.CompletedTask;
+
+    // What the player logs when its GPU fails: a lost device (the kernel reset
+    // a hung GPU; "Acquiring a texture failed" is how that shows when the next
+    // frame starts), a wgpu error, or no usable graphics at all.
+    private static readonly System.Text.RegularExpressions.Regex GpuFault = new(
+        @"Acquiring a texture failed|[Dd]evice ?[Ll]ost|wgpu error|No compatible graphics backends",
+        System.Text.RegularExpressions.RegexOptions.Compiled);
 
     public NativeGame(string bridgePrefix)
     {
@@ -93,6 +122,7 @@ public sealed class NativeGame
         string bin = SkuaRuntime.Env("SKUA_RUFFLE_BIN", "/opt/ruffle/ruffle_desktop");
         string swf = SkuaRuntime.Env("SKUA_SWF", Path.Combine(AppContext.BaseDirectory, "skua.swf"));
         var delay = TimeSpan.FromSeconds(2);
+        _graphics = InitialGraphics();
         while (true)
         {
             lock (_lock)
@@ -105,11 +135,16 @@ public sealed class NativeGame
                 continue;
             }
             var started = DateTime.UtcNow;
+            _gpuFault = false;
             try
             {
                 using var process = Launch(bin, swf);
                 await process.WaitForExitAsync();
+                // Its last lines (the panic) may still be on their way.
+                await Task.WhenAny(_forwarding, Task.Delay(TimeSpan.FromSeconds(3)));
                 Console.Error.WriteLine($"[game] the player exited ({process.ExitCode})");
+                if (_gpuFault && process.ExitCode != 0)
+                    FallBack();
             }
             catch (Exception e)
             {
@@ -128,6 +163,39 @@ public sealed class NativeGame
         }
     }
 
+    /// <summary>RUFFLE_GRAPHICS, else gl with filters on, else the player's
+    /// default (also when RUFFLE_ARGS names its own --graphics).</summary>
+    private static string? InitialGraphics()
+    {
+        if (SkuaRuntime.EnvRaw("RUFFLE_GRAPHICS") is { } graphics)
+            return graphics;
+        // With filters on, a drawn AQW frame is hundreds of full-size passes,
+        // sent to Vulkan as one submission: on an Intel iGPU (HD P530) the
+        // kernel reset the GPU as hung within seconds and the player panicked
+        // ("Acquiring a texture failed"), every build back to the first. Mesa's
+        // OpenGL driver splits the work into smaller batches and drew it
+        // without a fault, so filters on start on gl.
+        return FiltersOn() ? "gl" : null;
+    }
+
+    /// <summary>The player died of a GPU fault: one step down, as Selkies
+    /// falls back from a hardware encoder to a software one.</summary>
+    private void FallBack()
+    {
+        string from = _software ? "gl in software" : _graphics ?? "the default graphics";
+        if (_software)
+        {
+            Console.Error.WriteLine($"[game] the GPU failed on {from}, the last fallback; trying it again");
+            return;
+        }
+        if (_graphics is not null && _graphics.Equals("gl", StringComparison.OrdinalIgnoreCase))
+            _software = true;
+        else
+            _graphics = "gl";
+        _fellBack = true;
+        Console.Error.WriteLine($"[game] the GPU failed on {from}; the player now draws with {(_software ? "gl in software (llvmpipe, slower)" : "gl")}");
+    }
+
     private Process Launch(string bin, string swf)
     {
         var info = new ProcessStartInfo(bin)
@@ -142,18 +210,30 @@ public sealed class NativeGame
         info.ArgumentList.Add("allow");
         info.ArgumentList.Add("--quality");
         info.ArgumentList.Add(SkuaRuntime.Env("RUFFLE_QUALITY", "low"));
-        if (SkuaRuntime.EnvRaw("RUFFLE_GRAPHICS") is { } graphics)
+        string[] extraArgs = (SkuaRuntime.EnvRaw("RUFFLE_ARGS") ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        // A --graphics in RUFFLE_ARGS wins, until a fallback replaces it.
+        string? graphics = _graphics;
+        if (extraArgs.Contains("--graphics"))
+        {
+            if (_fellBack)
+                extraArgs = DropGraphics(extraArgs);
+            else
+                graphics = null;
+        }
+        if (graphics is not null)
         {
             info.ArgumentList.Add("--graphics");
             info.ArgumentList.Add(graphics);
         }
-        foreach (string arg in (SkuaRuntime.EnvRaw("RUFFLE_ARGS") ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        foreach (string arg in extraArgs)
             info.ArgumentList.Add(arg);
         info.ArgumentList.Add(swf);
 
         info.Environment["SKUA_BRIDGE_URL"] = _bridgeUrl;
         info.Environment["RUST_LOG"] = SkuaRuntime.Env("RUFFLE_LOG", "warn,ruffle_core::avm2=off,ruffle_desktop::gui::controller=info");
         info.Environment["NO_COLOR"] = "1";
+        if (_software)
+            info.Environment["LIBGL_ALWAYS_SOFTWARE"] = "1";
         // Drawn as the browser build's WebGL renderer draws: the player's wgpu
         // renderer draws each filtered, cached or blended object into its own
         // full-size texture, and AQW has many. A drawing tab then took 4-36 s a
@@ -167,9 +247,25 @@ public sealed class NativeGame
         lock (_lock)
             _process = process;
         Console.Error.WriteLine($"[game] player started (pid {process.Id}): {swf}, bridge {_bridgeUrl}");
-        _ = Task.Run(() => Forward(process.StandardOutput));
-        _ = Task.Run(() => Forward(process.StandardError));
+        _forwarding = Task.WhenAll(
+            Task.Run(() => Forward(process.StandardOutput)),
+            Task.Run(() => Forward(process.StandardError)));
         return process;
+    }
+
+    private static string[] DropGraphics(string[] args)
+    {
+        var kept = new List<string>();
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (args[i] == "--graphics")
+            {
+                i++;
+                continue;
+            }
+            kept.Add(args[i]);
+        }
+        return kept.ToArray();
     }
 
     // The player's log into Skua's (and so the container's), kept small: repeats
@@ -180,7 +276,7 @@ public sealed class NativeGame
     private static readonly System.Text.RegularExpressions.Regex Noise = new(
         @"\x1b\[[0-9;]*m|^\S*\d{4}-\d\d-\d\dT[0-9:.]+Z\s*", System.Text.RegularExpressions.RegexOptions.Compiled);
 
-    private static async Task Forward(StreamReader reader)
+    private async Task Forward(StreamReader reader)
     {
         string? last = null;
         int repeats = 0, inSecond = 0, dropped = 0;
@@ -188,6 +284,8 @@ public sealed class NativeGame
         while (await reader.ReadLineAsync() is { } raw)
         {
             string line = Noise.Replace(raw, "");
+            if (GpuFault.IsMatch(line))
+                _gpuFault = true;
             if (line == last)
             {
                 repeats++;
