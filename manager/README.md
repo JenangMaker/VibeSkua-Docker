@@ -41,6 +41,9 @@ One card per tab:
   is on).
 - **Map, room, level and class, gold, script** (the room needs VibeSkua 1.3.0 or
   newer; it reads "hidden" with Streamer mode on), and HP / MP bars.
+- **Inventory:** slots used and free ("144/161 (17 free)"), amber with 5 or
+  fewer free (drops and quest items need room) and red when full. Needs a
+  VibeSkua newer than 1.3.0.
 - **Target:** what the character is fighting, with its HP, and every monster
   in the cell (the dead ones struck through).
 - **Quest:** the active quests and each requirement as have / need, so you can
