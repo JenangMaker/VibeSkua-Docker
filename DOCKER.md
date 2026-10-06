@@ -376,6 +376,7 @@ ActionScript runs in the same Ruffle engine either way).
 | `RUFFLE_ARGS` | | More player switches, space separated. |
 | `RECYCLE_AFTER_MINUTES`, `RECYCLE_AFTER_MAP_CHANGES` | off | As in the Electron image: restart the tab's player after this long / this many map changes, out of combat (a fight is waited out for up to 10 minutes), log back in, go back to the same room and cell, and start the script that was running again. |
 | `RECYCLE_ABOVE_MB` | off | Also recycle a tab once its player uses this much memory (RSS, as `/tabs` shows it). A fresh player uses about 400 MB; long sessions grew to 700-950 MB in 7 hours. `900` catches the big ones only. |
+| `RUFFLE_MALLOC_TRIM` | on | After each full collection (`System.gc()`, which AQW calls after every map change) the player hands freed memory back to the system; without it a player's memory stays near its peak. `0` turns it off. With `SKUA_MEMORY_STATS=1` each one logs `[memory] after System.gc: malloc_trim gave back N MB`. |
 
 The player's lines go to the container log as `[game] ...`, limited to 20
 lines a second. While a tab draws, the player logs a drawing summary once a
