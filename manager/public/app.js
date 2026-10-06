@@ -815,9 +815,14 @@ function openScriptDialog(tabs) {
 
 let scriptMode = 'search', browseDir = '', browseSeq = 0;
 
+// The Search / Browse tabs only (data-smode): the CoreBots window's tabs share
+// the smode-tab look, and selecting them too made a click there set the mode
+// to undefined, so the next Load script showed neither view and dropped its
+// search results ("Searching..." for good).
 function setScriptMode(mode) {
-  scriptMode = mode;
-  for (const b of document.querySelectorAll('.smode-tab')) {
+  scriptMode = mode === 'browse' ? 'browse' : 'search';
+  mode = scriptMode;
+  for (const b of document.querySelectorAll('.smode-tab[data-smode]')) {
     b.classList.toggle('active', b.dataset.smode === mode);
     b.setAttribute('aria-selected', String(b.dataset.smode === mode));
   }
@@ -827,7 +832,7 @@ function setScriptMode(mode) {
   else { searchScripts(); $('#script-search').focus(); }
 }
 
-for (const b of document.querySelectorAll('.smode-tab'))
+for (const b of document.querySelectorAll('.smode-tab[data-smode]'))
   b.addEventListener('click', () => setScriptMode(b.dataset.smode));
 
 // A list entry that works from the keyboard too: Tab reaches it, Enter or
