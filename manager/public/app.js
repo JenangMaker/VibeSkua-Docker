@@ -1022,8 +1022,10 @@ async function openCoreBotsOptions(n) {
   $('#cbo-info').textContent = 'Reading...';
   $('#cbo-info').classList.add('loading');
   cboBank = null;
+  cboInv = null;
   cboBankPane = h('div', { class: 'cbo-pane', 'data-pane': 'Bank' });
-  $('#cbo-body').replaceChildren(cboBankPane);
+  cboInvPane = h('div', { class: 'cbo-pane', 'data-pane': 'Inventory' });
+  $('#cbo-body').replaceChildren(cboInvPane, cboBankPane);
   $('#cbo-error').textContent = '';
   $('#cbo-save').disabled = true;
   $('#dlg-cbo').showModal();
@@ -1157,7 +1159,7 @@ function renderCoreBotsOptions() {
       }))));
   };
 
-  $('#cbo-body').replaceChildren(loadout, optionPane('Options'), optionPane('Other'), cboBankPane);
+  $('#cbo-body').replaceChildren(loadout, optionPane('Options'), optionPane('Other'), cboInvPane, cboBankPane);
   showCboPane(cboPane);
 }
 
@@ -1168,9 +1170,119 @@ function showCboPane(pane) {
     b.setAttribute('aria-selected', String(b.dataset.cbo === pane));
   }
   for (const p of document.querySelectorAll('#cbo-body .cbo-pane')) p.hidden = p.dataset.pane !== pane;
-  // The Bank tab acts at once; Save is for the other three.
-  $('#cbo-save').hidden = pane === 'Bank';
+  // The Inventory and Bank tabs act at once; Save is for the other three.
+  $('#cbo-save').hidden = pane === 'Bank' || pane === 'Inventory';
   if (pane === 'Bank' && !cboBank && cboTab !== null) loadBank(false);
+  if (pane === 'Inventory' && !cboInv && cboTab !== null) loadInventory();
+}
+
+// ---- Inventory tab (GET /inventory, POST /inventory/equip: VibeSkua after 1.3.0) ---
+// What the character wears, by slot, then the rest of the inventory; Equip and
+// Unequip as the game allows them (VibeSkua says why not: the class and the
+// weapon are only replaced, an unenhanced weapon or a member item cannot be
+// worn...). Refused in combat and while the tab's script runs.
+const INV_SLOTS = ['Class', 'Weapon', 'Armor', 'Helm', 'Cape', 'Pet', 'Necklace', 'Ground', 'Item'];
+let cboInv = null, cboInvPane = null, cboInvBusy = false;
+const invFilter = { text: '', category: '', wearable: true };
+
+async function loadInventory() {
+  const n = cboTab;
+  if (cboInvBusy || n === null) return;
+  cboInvBusy = true;
+  cboInvPane.replaceChildren(h('p', { class: 'muted loading', text: 'Reading the inventory...' }));
+  try {
+    const data = await api('GET', `/api/tabs/${n}/api/inventory`);
+    if (cboTab !== n) return;
+    if (data.error) { cboInvPane.replaceChildren(h('p', { class: 'error', text: data.error })); return; }
+    cboInv = data;
+    renderInventory();
+  } catch (e) {
+    if (e.status === 401 || cboTab !== n) return;
+    cboInvPane.replaceChildren(h('p', { class: 'error', text: e.status === 404 ? 'This VibeSkua cannot show the inventory yet: update its image.' : e.message }));
+  } finally {
+    cboInvBusy = false;
+  }
+}
+
+function renderInventory() {
+  const d = cboInv;
+  const categories = [...new Set(d.items.map(i => i.category).filter(Boolean))].sort();
+  if (invFilter.category && !categories.includes(invFilter.category)) invFilter.category = '';
+  const search = h('input', { type: 'search', placeholder: 'Search items', 'aria-label': 'Search items', value: invFilter.text, spellcheck: 'false', autocomplete: 'off' });
+  const category = h('select', { 'aria-label': 'Category' },
+    h('option', { value: '', text: 'All categories' }), categories.map(c => h('option', { value: c, text: c })));
+  category.value = invFilter.category;
+  const wearableBox = h('input', { type: 'checkbox' });
+  wearableBox.checked = invFilter.wearable;
+  const reload = h('button', { type: 'button', class: 'small', title: 'Read the inventory again' }, 'Reload');
+  reload.addEventListener('click', () => { cboInv = null; loadInventory(); });
+
+  const order = item => { const at = INV_SLOTS.indexOf(item.slot); return at < 0 ? INV_SLOTS.length : at; };
+  const shows = item => {
+    if (invFilter.text && !item.name.toLowerCase().includes(invFilter.text.toLowerCase())) return false;
+    if (invFilter.category && item.category !== invFilter.category) return false;
+    return !invFilter.wearable || item.slot !== null;
+  };
+  const row = item => {
+    const tags = [
+      item.slot ? h('span', { class: 'tag', text: item.slot }) : null,
+      item.category && item.category !== item.slot ? h('span', { class: 'tag', text: item.category }) : null,
+      item.ac ? h('span', { class: 'tag', text: 'AC' }) : null,
+      item.member ? h('span', { class: 'tag', text: 'Member' }) : null,
+      item.enhancement ? h('span', { class: 'tag', text: item.proc ? `${item.enhancement}, ${item.proc}` : item.enhancement }) : null,
+    ];
+    let button = null;
+    if (item.equipped || item.canEquip || item.why) {
+      const equip = !item.equipped;
+      const allowed = equip ? item.canEquip : item.canUnequip;
+      const blocked = !allowed ? (item.why || 'Not possible') : d.inCombat ? 'Not in combat' : '';
+      button = h('button', { type: 'button', class: 'small', disabled: Boolean(blocked), title: blocked || `${equip ? 'Equip' : 'Unequip'} ${item.name}` },
+        equip ? 'Equip' : 'Unequip');
+      button.addEventListener('click', () => equipInventoryItem(item, equip));
+    }
+    return h('li', { class: 'bank-item' },
+      h('div', { class: 'bank-text' },
+        h('span', { class: 'bank-name', text: item.maxStack > 1 ? `${item.name} x${item.quantity}` : item.name, title: item.name }),
+        h('span', { class: 'bank-tags' }, tags),
+        !item.equipped && !item.canEquip && item.why ? h('span', { class: 'muted small', text: item.why }) : null),
+      button);
+  };
+  const lists = () => {
+    const worn = d.items.filter(i => i.equipped).sort((a, b) => order(a) - order(b));
+    const rest = d.items.filter(i => !i.equipped && shows(i)).sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name));
+    return h('div', { class: 'bank-cols' },
+      h('section', { class: 'bank-col' },
+        h('h3', { text: 'Equipped' }),
+        worn.length ? h('ul', { class: 'bank-list' }, worn.map(row)) : h('p', { class: 'muted small', text: 'Nothing equipped.' })),
+      h('section', { class: 'bank-col' },
+        h('h3', {}, 'Other items ', h('span', { class: 'muted', text: `${d.used}/${d.slots} slots` })),
+        rest.length ? h('ul', { class: 'bank-list' }, rest.map(row)) : h('p', { class: 'muted small', text: 'Nothing matches the filters.' })));
+  };
+  const relist = () => cboInvPane.querySelector('.bank-cols').replaceWith(lists());
+  search.addEventListener('input', () => { invFilter.text = search.value.trim(); relist(); });
+  category.addEventListener('change', () => { invFilter.category = category.value; relist(); });
+  wearableBox.addEventListener('change', () => { invFilter.wearable = wearableBox.checked; relist(); });
+
+  cboInvPane.replaceChildren(
+    h('div', { class: 'bank-head' }, search, category, h('label', { class: 'check inv-wearable' }, wearableBox, ' Equippable only'), reload),
+    h('p', { class: 'muted small', text: `Level ${d.level}${d.member ? ', member' : ''}. Changes apply at once, through the logged-in tab; not in combat or while its script runs.${d.inCombat ? ' In combat now.' : ''}` }),
+    lists());
+}
+
+async function equipInventoryItem(item, equip) {
+  const n = cboTab;
+  if (n === null) return;
+  $('#cbo-error').textContent = '';
+  try {
+    const result = await api('POST', `/api/tabs/${n}/api/inventory/equip`, { id: item.id, equip });
+    if (cboTab !== n) return;
+    if (result.error) { $('#cbo-error').textContent = result.error; return; }
+    toast(`Tab ${n}: ${result.message}`, !result.done);
+    cboBank = null; // its equipped marks are stale now
+    if (result.state) { cboInv = result.state; renderInventory(); }
+  } catch (e) {
+    if (e.status !== 401 && cboTab === n) $('#cbo-error').textContent = e.message;
+  }
 }
 
 // ---- Bank tab (GET /bank, POST /bank/move: VibeSkua after 1.3.0) ------------------
@@ -1280,6 +1392,7 @@ async function moveBankItem(item, to) {
     if (cboTab !== n) return;
     if (result.error) { $('#cbo-error').textContent = result.error; return; }
     toast(`Tab ${n}: ${result.message}`, !result.moved);
+    cboInv = null; // the inventory tab reads again when opened
     if (result.state) { cboBank = result.state; renderBank(); }
   } catch (e) {
     if (e.status !== 401 && cboTab === n) $('#cbo-error').textContent = e.message;
