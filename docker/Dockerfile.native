@@ -5,7 +5,7 @@
 # Skua.Linux/NativeGame.cs and NativeSession.cs). Same KasmVNC desktop on :3000
 # as docker/Dockerfile.kasm, and the same environment for accounts and Skua.
 #
-# Experimental (branch native). Not supported yet: RECYCLE_AFTER_*, DevTools
+# Experimental (branch native). Not supported yet: DevTools
 # (REMOTE_DEBUG_PORT) and the browser build's render settings (RUFFLE_RENDERER,
 # RENDER_SCALE, MAX_RENDER_FPS); see Skua.Linux/NativeGame.cs for its own.
 
