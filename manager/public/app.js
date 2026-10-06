@@ -474,7 +474,7 @@ function updateCard(card, tab, status) {
 
   const loggedIn = !!game?.loggedIn;
   r.map.textContent = loggedIn ? `${anonMap(game.map) || '-'}${game.cell ? ` (${game.cell})` : ''}` : '-';
-  // The room (game.room: VibeSkua after 1.2.0); hidden on stream, as in the logs.
+  // The room (game.room: VibeSkua 1.3.0+); hidden on stream, as in the logs.
   r.room.textContent = !loggedIn || !game.room ? '-' : streamer ? 'hidden' : game.room;
   r.level.textContent = loggedIn ? `${game.level ?? '-'}${game.className ? ` - ${game.className}` : ''}` : '-';
   r.gold.textContent = loggedIn ? fmtNum(game.gold) : '-';
@@ -578,7 +578,7 @@ function updateQuests(r, quests) {
     ...(more > 0 ? [h('div', { class: 'muted small', text: `+${more} more` })] : []));
 }
 
-// What the character wears (status.equipment: VibeSkua after 1.2.0): slot,
+// What the character wears (status.equipment: VibeSkua 1.3.0+): slot,
 // item and its enhancement, and the special one (proc) if any. Rebuilt only
 // when it changes.
 function updateEquipment(r, items) {
@@ -967,7 +967,7 @@ $('#dlg-script').addEventListener('close', async () => {
 });
 
 // ---- CoreBots options dialog ----------------------------------------------------
-// Options > CoreBots for one account (GET/POST /cbo: VibeSkua after 1.2.0):
+// Options > CoreBots for one account (GET/POST /cbo: VibeSkua 1.3.0+):
 // Loadout (a class, its mode and optionally its equipment, for solo, farm,
 // dodge and boss fights), Options and Other, as Skua's window has them. Saved
 // to the account's CBO_Storage file; scripts read it when they start.
@@ -1046,7 +1046,7 @@ function renderCoreBotsOptions() {
   $('#cbo-save').disabled = false;
   const value = (key, def = '') => d.values[key] ?? def;
   // "Battle Oracle Hood (Wizard)": the item's enhancement beside its name
-  // (choices.enhancements: VibeSkua after 1.2.0). The value stays the name.
+  // (choices.enhancements: VibeSkua 1.3.0+). The value stays the name.
   const withEnh = name => (d.choices.enhancements?.[name] ? `${name} (${d.choices.enhancements[name]})` : name);
 
   // A select of the given [value, text] choices; a saved value the account no
