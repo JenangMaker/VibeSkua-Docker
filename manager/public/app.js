@@ -272,10 +272,12 @@ async function refresh() {
     state.tabs = tabs;
     state.resources = resources;
     setConnected(true, host);
+    // Each card updates when its own tab answers: a tab whose game is busy
+    // answers in seconds and would hold up every card. It keeps its last
+    // status meanwhile, and is not asked again until it answers.
     if (view === 'bots') {
-      const statuses = await Promise.all(tabs.map(t =>
-        t.running ? api('GET', `/api/tabs/${t.tab}/api/status?detail=1`, undefined, opts).catch(() => null) : null));
-      state.statuses = Object.fromEntries(tabs.map((t, i) => [t.tab, statuses[i]]));
+      for (const n of Object.keys(state.statuses)) if (!tabs.some(t => t.running && t.tab === +n)) delete state.statuses[n];
+      for (const t of tabs) if (t.running) fetchStatus(t.tab, opts);
     }
     if (view === 'accounts' || state.accounts === null) state.accounts = await api('GET', '/api/accounts', undefined, opts);
     loaded = true;
@@ -285,6 +287,19 @@ async function refresh() {
   } finally {
     refreshing = false;
   }
+}
+
+const statusInFlight = new Set();
+
+async function fetchStatus(n, opts) {
+  if (statusInFlight.has(n)) return;
+  statusInFlight.add(n);
+  try {
+    state.statuses[n] = await api('GET', `/api/tabs/${n}/api/status?detail=1`, undefined, opts).catch(() => null);
+  } finally {
+    statusInFlight.delete(n);
+  }
+  if (view === 'bots' && state.tabs.some(t => t.running && t.tab === n)) render();
 }
 
 function setConnected(ok, host, error) {
@@ -464,7 +479,9 @@ function updateCard(card, tab, status) {
   r.name.textContent = streamer ? `Player ${tab.tab}` : (game?.loggedIn && game.player) || tab.account || tab.title;
 
   let pill = ['Not running', 'bad'];
-  if (tab.running && !status) pill = ['Starting', 'warn'];
+  // undefined: no answer yet (the page just opened); null: the call failed.
+  if (tab.running && status === undefined) pill = ['Loading...', 'warn'];
+  else if (tab.running && !status) pill = ['Starting', 'warn'];
   else if (status && !status.bridgeConnected) pill = ['Game not connected', 'warn'];
   else if (game && !game.loggedIn) pill = [tab.account ? 'Logged out' : 'No account', 'warn'];
   else if (game?.loggedIn) pill = script?.running ? ['Running script', 'ok'] : ['Logged in', 'ok'];
