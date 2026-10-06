@@ -1021,10 +1021,13 @@ async function openCoreBotsOptions(n) {
   $('#cbo-title').textContent = `CoreBots options, tab ${n}`;
   $('#cbo-info').textContent = 'Reading...';
   $('#cbo-info').classList.add('loading');
-  $('#cbo-body').replaceChildren();
+  cboBank = null;
+  cboBankPane = h('div', { class: 'cbo-pane', 'data-pane': 'Bank' });
+  $('#cbo-body').replaceChildren(cboBankPane);
   $('#cbo-error').textContent = '';
   $('#cbo-save').disabled = true;
   $('#dlg-cbo').showModal();
+  showCboPane(cboPane);
   try {
     const data = await api('GET', `/api/tabs/${n}/api/cbo`);
     if (cboTab !== n) return;
@@ -1154,7 +1157,7 @@ function renderCoreBotsOptions() {
       }))));
   };
 
-  $('#cbo-body').replaceChildren(loadout, optionPane('Options'), optionPane('Other'));
+  $('#cbo-body').replaceChildren(loadout, optionPane('Options'), optionPane('Other'), cboBankPane);
   showCboPane(cboPane);
 }
 
@@ -1165,6 +1168,122 @@ function showCboPane(pane) {
     b.setAttribute('aria-selected', String(b.dataset.cbo === pane));
   }
   for (const p of document.querySelectorAll('#cbo-body .cbo-pane')) p.hidden = p.dataset.pane !== pane;
+  // The Bank tab acts at once; Save is for the other three.
+  $('#cbo-save').hidden = pane === 'Bank';
+  if (pane === 'Bank' && !cboBank && cboTab !== null) loadBank(false);
+}
+
+// ---- Bank tab (GET /bank, POST /bank/move: VibeSkua after 1.3.0) ------------------
+// The account's bank and inventory side by side, filtered by name, AC or not
+// and category; each item moves with one click. The bank is read when the tab
+// opens (VibeSkua loads it from the game the first time) and on Reload.
+// VibeSkua refuses a move while a script runs, for an equipped item, or into
+// a full side.
+let cboBank = null, cboBankPane = null, cboBankBusy = false;
+const bankFilter = { text: '', kind: 'all', category: '' };
+
+async function loadBank(reload) {
+  const n = cboTab;
+  if (cboBankBusy || n === null) return;
+  cboBankBusy = true;
+  cboBankPane.replaceChildren(h('p', { class: 'muted loading', text: reload ? 'Reloading the bank...' : 'Loading the bank from the game...' }));
+  try {
+    const data = await api('GET', `/api/tabs/${n}/api/bank`);
+    if (cboTab !== n) return;
+    if (data.error) { cboBankPane.replaceChildren(h('p', { class: 'error', text: data.error })); return; }
+    cboBank = data;
+    renderBank();
+  } catch (e) {
+    if (e.status === 401 || cboTab !== n) return;
+    cboBankPane.replaceChildren(h('p', { class: 'error', text: e.status === 404 ? 'This VibeSkua cannot show the bank yet: update its image.' : e.message }));
+  } finally {
+    cboBankBusy = false;
+  }
+}
+
+function renderBank() {
+  const d = cboBank;
+  const all = [...d.bank.items, ...d.inventory.items];
+  const categories = [...new Set(all.map(i => i.category).filter(Boolean))].sort();
+  if (bankFilter.category && !categories.includes(bankFilter.category)) bankFilter.category = '';
+
+  const search = h('input', { type: 'search', placeholder: 'Search items', 'aria-label': 'Search items', value: bankFilter.text, spellcheck: 'false', autocomplete: 'off' });
+  const kind = h('select', { 'aria-label': 'AC or not' },
+    [['all', 'AC and non-AC'], ['ac', 'AC only'], ['nonac', 'Non-AC only']].map(([v, text]) => h('option', { value: v, text })));
+  kind.value = bankFilter.kind;
+  const category = h('select', { 'aria-label': 'Category' },
+    h('option', { value: '', text: 'All categories' }), categories.map(c => h('option', { value: c, text: c })));
+  category.value = bankFilter.category;
+  const reload = h('button', { type: 'button', class: 'small', title: 'Read the bank from the game again' }, 'Reload');
+  reload.addEventListener('click', () => loadBank(true));
+
+  const shows = item => {
+    if (bankFilter.text && !item.name.toLowerCase().includes(bankFilter.text.toLowerCase())) return false;
+    if (bankFilter.kind === 'ac' && !item.ac) return false;
+    if (bankFilter.kind === 'nonac' && item.ac) return false;
+    return !bankFilter.category || item.category === bankFilter.category;
+  };
+  const bankFull = d.bank.used >= d.bank.slots;
+  const invFull = d.inventory.used >= d.inventory.slots;
+
+  const row = (item, to) => {
+    const tags = [
+      item.category ? h('span', { class: 'tag', text: item.category }) : null,
+      item.ac ? h('span', { class: 'tag', text: 'AC' }) : null,
+      item.member ? h('span', { class: 'tag', text: 'Member' }) : null,
+      item.enhancement ? h('span', { class: 'tag', text: item.proc ? `${item.enhancement}, ${item.proc}` : item.enhancement }) : null,
+      item.equipped ? h('span', { class: 'tag bank-worn', text: 'Equipped' }) : null,
+    ];
+    let button = null;
+    if (!item.equipped) {
+      const blocked = to === 'inventory' ? (invFull ? 'The inventory is full' : '') : (bankFull && !item.ac ? 'The bank is full (AC items still fit)' : '');
+      button = h('button', { type: 'button', class: 'small', disabled: Boolean(blocked), title: blocked || `Move ${item.name} to the ${to}` },
+        to === 'bank' ? 'To bank' : 'To inventory');
+      button.addEventListener('click', () => moveBankItem(item, to));
+    }
+    return h('li', { class: 'bank-item' },
+      h('div', { class: 'bank-text' },
+        h('span', { class: 'bank-name', text: item.maxStack > 1 ? `${item.name} x${item.quantity}` : item.name, title: item.name }),
+        h('span', { class: 'bank-tags' }, tags)),
+      button);
+  };
+  const column = (title, side, to, note) => {
+    const items = side.items.filter(shows).sort((a, b) => a.name.localeCompare(b.name));
+    return h('section', { class: 'bank-col' },
+      h('h3', {}, `${title} `, h('span', { class: 'muted', text: `${side.used}/${side.slots} slots${note}` })),
+      items.length
+        ? h('ul', { class: 'bank-list' }, items.map(i => row(i, to)))
+        : h('p', { class: 'muted small', text: side.items.length ? 'Nothing matches the filters.' : 'Empty.' }));
+  };
+
+  const lists = () => h('div', { class: 'bank-cols' },
+    column('Bank', d.bank, 'inventory', ', AC items take none'),
+    column('Inventory', d.inventory, 'bank', ''));
+  // A filter change redraws the two lists only, so the search box keeps focus.
+  const relist = () => cboBankPane.querySelector('.bank-cols').replaceWith(lists());
+  search.addEventListener('input', () => { bankFilter.text = search.value.trim(); relist(); });
+  kind.addEventListener('change', () => { bankFilter.kind = kind.value; relist(); });
+  category.addEventListener('change', () => { bankFilter.category = category.value; relist(); });
+
+  cboBankPane.replaceChildren(
+    h('div', { class: 'bank-head' }, search, kind, category, reload),
+    h('p', { class: 'muted small', text: 'Moves apply at once, through the logged-in tab. Stop its script first; equipped items stay where they are.' }),
+    lists());
+}
+
+async function moveBankItem(item, to) {
+  const n = cboTab;
+  if (n === null) return;
+  $('#cbo-error').textContent = '';
+  try {
+    const result = await api('POST', `/api/tabs/${n}/api/bank/move`, { id: item.id, to });
+    if (cboTab !== n) return;
+    if (result.error) { $('#cbo-error').textContent = result.error; return; }
+    toast(`Tab ${n}: ${result.message}`, !result.moved);
+    if (result.state) { cboBank = result.state; renderBank(); }
+  } catch (e) {
+    if (e.status !== 401 && cboTab === n) $('#cbo-error').textContent = e.message;
+  }
 }
 
 for (const b of document.querySelectorAll('.cbo-tab')) b.addEventListener('click', () => showCboPane(b.dataset.cbo));
