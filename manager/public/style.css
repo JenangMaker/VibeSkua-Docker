@@ -194,6 +194,8 @@ input.masked { -webkit-text-security: disc; }
 .kv { display: grid; grid-template-columns: 70px 1fr; gap: 3px 10px; font-size: 13px; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kv dd.bag-low { color: var(--warn); font-weight: 600; }
+.kv dd.bag-full { color: var(--bad); font-weight: 600; }
 
 .bars { display: grid; gap: 4px; }
 .bar { position: relative; height: 14px; background: var(--panel-2); border-radius: 7px; overflow: hidden; font-size: 10px; }
