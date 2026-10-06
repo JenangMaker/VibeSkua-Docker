@@ -30,12 +30,52 @@ class ApiError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 
-async function api(method, path, body) {
+// Loaders for the requests a person starts (quiet: the 4 s poll's, which would
+// keep them on): the bar along the top runs while any is out, after 150 ms so
+// a quick one does not flash it, and the button that was clicked spins until
+// its own are back. A click's handler asks before its first await, so the
+// button is the one clicked in this same task.
+let pending = 0, barTimer = null, clickedButton = null;
+document.addEventListener('click', e => {
+  clickedButton = e.target.closest?.('button') || null;
+  setTimeout(() => { clickedButton = null; });
+}, true);
+
+function trackRequest() {
+  // Not a button that opened a dialog: the dialog shows its own loader.
+  const dialog = document.querySelector('dialog[open]');
+  const btn = clickedButton?.isConnected && (!dialog || dialog.contains(clickedButton)) ? clickedButton : null;
+  if (btn) {
+    btn.dataset.busy = String((+btn.dataset.busy || 0) + 1);
+    btn.classList.add('busy');
+    btn.setAttribute('aria-busy', 'true');
+  }
+  if (pending++ === 0) barTimer = setTimeout(() => { $('#busy-bar').hidden = false; }, 150);
+  return () => {
+    if (btn) {
+      const left = +btn.dataset.busy - 1;
+      if (left > 0) btn.dataset.busy = String(left);
+      else {
+        delete btn.dataset.busy;
+        btn.classList.remove('busy');
+        btn.removeAttribute('aria-busy');
+      }
+    }
+    if (--pending === 0) { clearTimeout(barTimer); $('#busy-bar').hidden = true; }
+  };
+}
+
+async function api(method, path, body, { quiet = false } = {}) {
   const init = { method, headers: { 'X-Manager': '1' } };
   if (method !== 'GET') {
     init.headers['Content-Type'] = 'application/json';
     init.body = body === undefined ? '' : JSON.stringify(body);
   }
+  const done = quiet ? null : trackRequest();
+  try { return await request(path, init); } finally { done?.(); }
+}
+
+async function request(path, init) {
   const res = await fetch(path, init);
   let data = null;
   try { data = await res.json(); } catch { /* empty */ }
@@ -204,6 +244,7 @@ for (const btn of document.querySelectorAll('.view-tab')) {
 
 let state = { host: null, tabs: [], statuses: {}, resources: null, accounts: null, grid: false };
 let refreshing = false;
+let loaded = false;   // the first refresh is done (the placeholders are gone)
 
 function startPolling() {
   stopPolling();
@@ -221,9 +262,11 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 async function refresh() {
   if (refreshing) return;
   refreshing = true;
+  // The first load shows the bar; the poll after it does not.
+  const opts = { quiet: loaded };
   try {
     const [host, tabs, resources] = await Promise.all([
-      api('GET', '/api/status'), api('GET', '/api/tabs'), api('GET', '/api/resources'),
+      api('GET', '/api/status', undefined, opts), api('GET', '/api/tabs', undefined, opts), api('GET', '/api/resources', undefined, opts),
     ]);
     state.host = host;
     state.tabs = tabs;
@@ -231,10 +274,11 @@ async function refresh() {
     setConnected(true, host);
     if (view === 'bots') {
       const statuses = await Promise.all(tabs.map(t =>
-        t.running ? api('GET', `/api/tabs/${t.tab}/api/status?detail=1`).catch(() => null) : null));
+        t.running ? api('GET', `/api/tabs/${t.tab}/api/status?detail=1`, undefined, opts).catch(() => null) : null));
       state.statuses = Object.fromEntries(tabs.map((t, i) => [t.tab, statuses[i]]));
     }
-    if (view === 'accounts' || state.accounts === null) state.accounts = await api('GET', '/api/accounts');
+    if (view === 'accounts' || state.accounts === null) state.accounts = await api('GET', '/api/accounts', undefined, opts);
+    loaded = true;
     render();
   } catch (e) {
     if (e.status !== 401) setConnected(false, null, e.message);
@@ -303,6 +347,23 @@ function updatePickUi() {
   $('#pick-count').textContent = `${tabList([...picked].sort((a, b) => a - b)).replace(/^t/, 'T')} selected`;
 }
 
+// ---- Execute (phones) -------------------------------------------------------------
+// The panel closes once an action is picked, on a click outside, and on Escape.
+
+function setExecOpen(open) {
+  $('#army-actions').classList.toggle('open', open);
+  $('#army-exec').setAttribute('aria-expanded', String(open));
+}
+
+$('#army-exec').addEventListener('click', () => setExecOpen(!$('#army-actions').classList.contains('open')));
+$('#army-actions').addEventListener('click', e => { if (e.target.closest('button')) setExecOpen(false); });
+document.addEventListener('click', e => {
+  if ($('#army-actions').classList.contains('open') && !e.target.closest('#army-actions, #army-exec')) setExecOpen(false);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('#army-actions').classList.contains('open')) { setExecOpen(false); $('#army-exec').focus(); }
+});
+
 $('#pick-clear').addEventListener('click', () => {
   picked.clear();
   for (const card of cards.values()) { card.r.pick.checked = false; card.el.classList.remove('picked'); }
@@ -331,7 +392,9 @@ function renderCards() {
   // In tab order.
   const ordered = [...cards.entries()].sort((a, b) => a[0] - b[0]).map(([, c]) => c.el);
   if (ordered.some((el, i) => container.children[i] !== el)) container.replaceChildren(...ordered);
-  $('#no-tabs').hidden = state.tabs.length > 0;
+  // Until the first refresh is in, "Loading the tabs..." rather than "No tabs."
+  $('#cards-loading').hidden = loaded;
+  $('#no-tabs').hidden = !loaded || state.tabs.length > 0;
 }
 
 function makeCard(n) {
@@ -355,13 +418,17 @@ function makeCard(n) {
     h('div', { class: 'card-tags' },
       r.pill = h('span', { class: 'pill' }),
       r.shown = h('span', { class: 'shown-badge', text: 'Shown', title: 'This tab is the one shown on the VibeSkua desktop', hidden: true })),
-    h('dl', { class: 'kv' }, field('map', 'Map'), field('level', 'Level'), field('gold', 'Gold'), field('script', 'Script')),
+    h('dl', { class: 'kv' }, field('map', 'Map'), field('room', 'Room'), field('level', 'Level'), field('gold', 'Gold'), field('script', 'Script')),
     h('div', { class: 'bars' }, bar('hp', 'HP'), bar('mp', 'MP')),
     r.fight = h('div', { class: 'fight' },
       h('div', { class: 'fight-head' }, h('span', { class: 'muted', text: 'Target' }), r.targetName = h('b'), r.targetPct = h('span', { class: 'muted' })),
       bar('target', 'Target HP'),
       r.cellMons = h('div', { class: 'cell-mons' })),
     r.questList = h('div', { class: 'quests' }),
+    // Closed by default (the card stays short); open or closed, it stays so.
+    r.equip = h('details', { class: 'equip', hidden: true },
+      r.equipSummary = h('summary'),
+      r.equipList = h('ul', { class: 'equip-list' })),
     h('div', { class: 'stats' }, stat('kills', 'Kills'), stat('drops', 'Drops'), stat('quests', 'Quests'), stat('deaths', 'Deaths'), stat('relogins', 'Relogins')),
     r.usage = h('div', { class: 'usage' }),
     h('div', { class: 'actions' },
@@ -369,6 +436,7 @@ function makeCard(n) {
       h('button', { class: 'small', onclick: () => openScriptDialog([n]) }, 'Load...'),
       r.optionsBtn = h('button', { class: 'small', title: "The loaded script's options", onclick: () => openScriptOptions(n) }, 'Script options...'),
       h('button', { class: 'small', title: "This tab's Skua options (Lag Killer, Hide Players, Headless Mode...)", onclick: () => openSkuaOptions(n) }, 'Skua options...'),
+      r.cboBtn = h('button', { class: 'small', title: "This account's CoreBots options (Options > CoreBots in Skua): classes for solo, farm, dodge and boss, delays, rooms...", onclick: () => openCoreBotsOptions(n) }, 'CoreBots options...'),
       r.loginBtn = h('button', { class: 'small', onclick: () => logInOut(n) }),
       h('button', { class: 'small', onclick: () => openLog(n) }, 'Log'),
       h('button', { class: 'small', title: 'Show this tab on the VibeSkua desktop', onclick: () => act(`Tab ${n} shown`, () => api('POST', `/api/tabs/${n}/select`)) }, 'Show'),
@@ -406,6 +474,8 @@ function updateCard(card, tab, status) {
 
   const loggedIn = !!game?.loggedIn;
   r.map.textContent = loggedIn ? `${anonMap(game.map) || '-'}${game.cell ? ` (${game.cell})` : ''}` : '-';
+  // The room (game.room: VibeSkua 1.3.0+); hidden on stream, as in the logs.
+  r.room.textContent = !loggedIn || !game.room ? '-' : streamer ? 'hidden' : game.room;
   r.level.textContent = loggedIn ? `${game.level ?? '-'}${game.className ? ` - ${game.className}` : ''}` : '-';
   r.gold.textContent = loggedIn ? fmtNum(game.gold) : '-';
   r.script.textContent = script?.loaded ? `${scriptName(script.loaded)}${script.running ? ' (running)' : ' (loaded)'}` : 'none';
@@ -417,6 +487,7 @@ function updateCard(card, tab, status) {
 
   updateFight(r, loggedIn ? status?.combat : null);
   updateQuests(r, loggedIn ? status?.quests : null);
+  updateEquipment(r, loggedIn ? status?.equipment : null);
 
   r.kills.textContent = fmtNum(stats?.kills ?? 0);
   r.drops.textContent = fmtNum(stats?.drops ?? 0);
@@ -441,6 +512,7 @@ function updateCard(card, tab, status) {
   r.startStop.disabled = !status || (!card.running && !script?.loaded);
   r.startStop.title = !card.running && !script?.loaded ? 'Load a script first' : '';
   r.optionsBtn.disabled = !status || !script?.loaded;
+  r.cboBtn.disabled = !loggedIn;
 }
 
 // A card's bar: its fill, its text, and the value a screen reader reads.
@@ -504,6 +576,26 @@ function updateQuests(r, quests) {
     h('div', { class: 'quests-title muted', text: quests.length === 1 ? 'Quest' : `Quests (${quests.length})` }),
     ...shown,
     ...(more > 0 ? [h('div', { class: 'muted small', text: `+${more} more` })] : []));
+}
+
+// What the character wears (status.equipment: VibeSkua 1.3.0+): slot,
+// item and its enhancement, and the special one (proc) if any. Rebuilt only
+// when it changes.
+function updateEquipment(r, items) {
+  r.equip.hidden = !items?.length;
+  if (r.equip.hidden) return;
+  const key = JSON.stringify(items);
+  if (r.equip.dataset.key === key) return;
+  r.equip.dataset.key = key;
+  const weapon = items.find(i => i.slot === 'Weapon');
+  r.equipSummary.replaceChildren(
+    h('span', { text: 'Equipment' }),
+    weapon ? h('span', { class: 'muted equip-peek', text: weapon.name }) : null);
+  r.equipList.replaceChildren(...items.map(i => h('li', {},
+    h('span', { class: 'equip-slot muted', text: i.slot }),
+    h('span', { class: 'equip-name', text: i.name, title: i.name }),
+    i.enhancement ? h('span', { class: 'tag', text: i.enhancement, title: 'Enhancement' }) : null,
+    i.proc ? h('span', { class: 'tag ok', text: i.proc, title: 'Special enhancement' }) : null)));
 }
 
 async function startStop(n) {
@@ -665,6 +757,7 @@ async function openSkuaOptions(n) {
   skuaOptionsTab = n;
   $('#options-title').textContent = `Skua options, tab ${n}`;
   $('#options-info').textContent = 'Reading...';
+  $('#options-info').classList.add('loading');
   $('#options-list').replaceChildren();
   $('#dlg-options').showModal();
   let values = null;
@@ -674,6 +767,7 @@ async function openSkuaOptions(n) {
     if (e.status === 401) return;
   }
   if (skuaOptionsTab !== n) return;
+  $('#options-info').classList.remove('loading');
   if (!values || values.error || typeof values.LagKiller !== 'boolean') {
     $('#options-info').textContent = 'This VibeSkua cannot tell the current values (update its image); set each one on or off.';
     $('#options-list').replaceChildren(...onOffRows(`Tab ${n}: `, (name, on, label) => setTabOption(n, name, on, label)));
@@ -776,7 +870,7 @@ async function browseScripts(dir) {
   const list = $('#script-list');
   const seq = ++browseSeq;
   renderCrumbs(dir);
-  list.replaceChildren(h('li', { class: 'none', text: 'Reading the folder...' }));
+  list.replaceChildren(h('li', { class: 'none loading', text: 'Reading the folder...' }));
   let reply;
   try {
     reply = await api('GET', `/api/tabs/${scriptTargets[0]}/api/scripts/browse?dir=${q(dir)}`);
@@ -832,6 +926,9 @@ async function searchScripts() {
   const category = $('#script-category').value;
   const list = $('#script-list');
   const seq = ++searchSeq;
+  // The old results stay, dimmed, while a new search runs; an empty list says so.
+  list.setAttribute('aria-busy', 'true');
+  if (!list.querySelector('li:not(.none)')) list.replaceChildren(h('li', { class: 'none loading', text: 'Searching...' }));
   try {
     const params = `limit=500${term ? `&q=${q(term)}` : ''}${category !== 'All' ? `&category=${q(category)}` : ''}`;
     const reply = await api('GET', `/api/tabs/${scriptTargets[0]}/api/scripts?${params}`);
@@ -850,6 +947,8 @@ async function searchScripts() {
     list.replaceChildren(...items);
   } catch (e) {
     if (e.status !== 401 && seq === searchSeq && scriptMode === 'search') list.replaceChildren(h('li', { class: 'none', text: e.message }));
+  } finally {
+    if (seq === searchSeq) list.removeAttribute('aria-busy');
   }
 }
 
@@ -867,6 +966,234 @@ $('#dlg-script').addEventListener('close', async () => {
   refresh();
 });
 
+// ---- CoreBots options dialog ----------------------------------------------------
+// Options > CoreBots for one account (GET/POST /cbo: VibeSkua 1.3.0+):
+// Loadout (a class, its mode and optionally its equipment, for solo, farm,
+// dodge and boss fights), Options and Other, as Skua's window has them. Saved
+// to the account's CBO_Storage file; scripts read it when they start.
+
+const CBO_ROLES = [['Solo', 1], ['Farm', 2], ['Dodge', 3], ['Boss', 4]];
+const CBO_SLOTS = [['Helm', 'helm'], ['Armor', 'armor'], ['Cape', 'cape'], ['Weapon', 'weapon'], ['Pet', 'pet'], ['GroundItem', 'groundItem']];
+let cboTab = null, cboData = null, cboControls = new Map(), cboPane = 'Loadout';
+
+// Auto-assign: for each role, the account's class that fits best, scored on
+// what the scripts already know: a skill setup for the role in Skua's
+// Advanced Skills (Farm for farming, Solo or Atk for solo...: 3 points, 2 for
+// the second-best mode), and the community's role lists (Tools/CheckArmyRoles.cs
+// in the Skua scripts: 3 points, 1 for support classes at bosses). Rank 10
+// breaks ties. Nothing is saved until Save.
+const CBO_DPS = ['Dragon of Time', 'Glacial Berserker', 'Guardian', 'Legion DoomKnight', 'Legion Revenant', 'LightCaster', 'Lycan', 'Psionic MindBreaker', 'Void HighLord'];
+const CBO_FARMERS = ['Abyssal Angel', 'ArchMage', 'Blaze Binder', 'Daimon', 'Dragon of Time', 'Eternal Inversionist', 'Firelord Summoner', 'Legion Revenant', 'Dark Master of Moglins', 'Master of Moglins', 'NCM', 'Scarlet Sorceress', 'ShadowScythe General', 'Shaman'];
+const CBO_SUPPORT = ['ArchFiend', 'ArchPaladin', 'Frostval Barbarian', 'Infinity Titan', 'Dark Legendary Hero', 'Legendary Hero', 'Legion Revenant', 'LightCaster', 'Lord of Order', 'NorthLands Monk', 'Quantum Chronomancer', 'Continuum Chronomancer', 'StoneCrusher'];
+const CBO_AUTO = {
+  Solo: { modes: ['Solo', 'Atk'], lists: [[CBO_DPS, 'a DPS class', 3]] },
+  Farm: { modes: ['Farm'], lists: [[CBO_FARMERS, 'a farming class', 3]] },
+  Dodge: { modes: ['Dodge', 'Def'], lists: [] },
+  Boss: { modes: ['Ultra', 'Solo', 'Atk'], lists: [[CBO_DPS, 'a DPS class', 3], [CBO_SUPPORT, 'a support class', 1]] },
+};
+const CBO_RANK10 = 302500;
+
+function cboAutoPick(role, d) {
+  const rule = CBO_AUTO[role];
+  const same = (a, b) => a.toLowerCase() === b.toLowerCase();
+  let best = null;
+  for (const cls of d.choices.classes) {
+    const modes = d.choices.modes[cls] || ['Base'];
+    const why = [];
+    let score = 0;
+    const at = rule.modes.findIndex(m => modes.includes(m));
+    const mode = at >= 0 ? rule.modes[at] : modes.includes('Base') ? 'Base' : modes[0];
+    if (at >= 0) { score += at === 0 ? 3 : 2; why.push(`${/^[AEIOU]/.test(mode) ? 'an' : 'a'} ${mode} skill setup`); }
+    for (const [list, text, points] of rule.lists)
+      if (list.some(c => same(c, cls))) { score += points; why.push(text); }
+    const rank10 = (d.choices.classPoints?.[cls] ?? 0) >= CBO_RANK10;
+    if (rank10) why.push('rank 10');
+    if (score > 0 && (!best || score > best.score || (score === best.score && rank10 && !best.rank10)))
+      best = { cls, mode, score, rank10, why };
+  }
+  return best;
+}
+
+async function openCoreBotsOptions(n) {
+  cboTab = n;
+  cboData = null;
+  cboControls = new Map();
+  $('#cbo-title').textContent = `CoreBots options, tab ${n}`;
+  $('#cbo-info').textContent = 'Reading...';
+  $('#cbo-info').classList.add('loading');
+  $('#cbo-body').replaceChildren();
+  $('#cbo-error').textContent = '';
+  $('#cbo-save').disabled = true;
+  $('#dlg-cbo').showModal();
+  try {
+    const data = await api('GET', `/api/tabs/${n}/api/cbo`);
+    if (cboTab !== n) return;
+    if (data.error) { $('#cbo-info').textContent = ''; $('#cbo-error').textContent = data.error; return; }
+    cboData = data;
+    renderCoreBotsOptions();
+  } catch (e) {
+    if (e.status === 401 || cboTab !== n) return;
+    $('#cbo-info').textContent = '';
+    $('#cbo-error').textContent = e.status === 404 ? 'This VibeSkua cannot edit CoreBots options yet: update its image.' : e.message;
+  } finally {
+    if (cboTab === n) $('#cbo-info').classList.remove('loading');
+  }
+}
+
+function renderCoreBotsOptions() {
+  const d = cboData;
+  $('#cbo-info').textContent = `${streamer ? 'This account' : d.user}: ${d.exists ? 'saved' : 'not saved yet, defaults shown'}. Scripts read these when they start.`;
+  $('#cbo-save').disabled = false;
+  const value = (key, def = '') => d.values[key] ?? def;
+  // "Battle Oracle Hood (Wizard)": the item's enhancement beside its name
+  // (choices.enhancements: VibeSkua 1.3.0+). The value stays the name.
+  const withEnh = name => (d.choices.enhancements?.[name] ? `${name} (${d.choices.enhancements[name]})` : name);
+
+  // A select of the given [value, text] choices; a saved value the account no
+  // longer lists is kept, marked.
+  const select = (key, choices, saved, label) => {
+    const el = h('select', { id: `cbo-${key}`, 'aria-label': label });
+    const list = [...choices];
+    if (saved && !list.some(c => c[0] === saved)) list.push([saved, `${saved} (not in inventory)`]);
+    for (const [v, text] of list) el.append(h('option', { value: v, text }));
+    el.value = saved ?? '';
+    cboControls.set(key, () => el.value);
+    return el;
+  };
+  const check = (key, def, label) => {
+    const el = h('input', { type: 'checkbox', id: `cbo-${key}` });
+    el.checked = String(value(key, def)).toLowerCase() === 'true';
+    cboControls.set(key, () => (el.checked ? 'True' : 'False'));
+    return h('label', { class: 'check' }, el, ` ${label}`);
+  };
+
+  const roleUi = {};
+  const roles = CBO_ROLES.map(([role, n]) => {
+    const current = d.currentClass ? `Current class (${d.currentClass})` : 'Current class';
+    const classSel = select(`${role}ClassSelect`, [['', '(none)'], [d.currentClassOption, current], ...d.choices.classes.map(c => [c, withEnh(c)])],
+      value(`${role}ClassSelect`), `${role} class`);
+    // The modes Skua's Advanced Skills have for the chosen class (Base if none).
+    const modeSel = h('select', { id: `cbo-${role}ModeSelect`, 'aria-label': `${role} class mode` });
+    const fillModes = want => {
+      const cls = classSel.value === d.currentClassOption ? d.currentClass : classSel.value;
+      const modes = d.choices.modes[cls] || ['Base'];
+      const list = want && !modes.includes(want) ? [...modes, want] : modes;
+      modeSel.replaceChildren(...list.map(m => h('option', { value: m, text: m })));
+      modeSel.value = want && list.includes(want) ? want : modes[0];
+    };
+    fillModes(value(`${role}ModeSelect`, 'Base'));
+    const why = h('p', { class: 'muted small cbo-why', hidden: true });
+    classSel.addEventListener('change', () => { fillModes(null); why.hidden = true; });
+    cboControls.set(`${role}ModeSelect`, () => modeSel.value);
+    roleUi[role] = { classSel, fillModes, why };
+
+    const equip = h('div', { class: 'cbo-equip' }, CBO_SLOTS.map(([slot, list]) => h('label', { class: 'cbo-slot' },
+      h('span', { class: 'muted', text: slot === 'GroundItem' ? 'Ground' : slot }),
+      select(`${slot}${n}Select`, [['', '(none)'], ...d.choices[list].map(c => [c, withEnh(c)])], value(`${slot}${n}Select`), `${role} ${slot}`))));
+    const equipCheck = check(`${role}EquipCheck`, 'False', 'Specify equipment');
+    const box = equipCheck.querySelector('input');
+    equip.hidden = !box.checked;
+    box.addEventListener('change', () => { equip.hidden = !box.checked; });
+    return h('section', { class: 'cbo-role' },
+      h('h3', { text: `${role} class` }),
+      h('div', { class: 'cbo-pair' }, classSel, modeSel),
+      why,
+      equipCheck,
+      equip);
+  });
+  const autoNote = h('span', { class: 'muted small', text: "Fills each role's class and mode from your classes; check them, then Save." });
+  const autoBtn = h('button', { type: 'button', class: 'small', title: 'Picks by Skua skill setups for the role and the community role lists (rank 10 breaks ties)' }, 'Auto-assign');
+  autoBtn.addEventListener('click', () => {
+    const changed = [];
+    for (const [role] of CBO_ROLES) {
+      const pick = cboAutoPick(role, d);
+      const ui = roleUi[role];
+      if (!pick) {
+        ui.why.textContent = 'Auto: none of your classes fits; left as it was.';
+        ui.why.hidden = false;
+        continue;
+      }
+      ui.classSel.value = pick.cls;
+      ui.fillModes(pick.mode);
+      ui.why.textContent = `Auto: ${pick.why.join(', ')}.`;
+      ui.why.hidden = false;
+      changed.push(`${role} ${pick.cls}`);
+    }
+    autoNote.textContent = changed.length ? `${changed.join(', ')}. Not saved yet.` : 'None of your classes fits a role.';
+  });
+  const loadout = h('div', { class: 'cbo-pane', 'data-pane': 'Loadout' },
+    h('div', { class: 'cbo-auto' }, autoBtn, autoNote),
+    h('div', { class: 'cbo-roles' }, roles));
+
+  // Options and Other: Skua's own option list (label, key, type, default).
+  const optionPane = tab => {
+    const groups = new Map();
+    for (const o of d.options.filter(o => o.tab === tab)) {
+      if (!groups.has(o.group)) groups.set(o.group, []);
+      groups.get(o.group).push(o);
+    }
+    return h('div', { class: 'cbo-pane', 'data-pane': tab }, [...groups].map(([group, opts]) => h('section', { class: 'sopt-group' },
+      group !== tab ? h('h3', { text: group }) : null,
+      opts.map(o => {
+        const id = `cbo-${o.key}`;
+        const saved = value(o.key, o.default ?? '');
+        let control;
+        if (o.type === 'bool') {
+          control = h('input', { id, type: 'checkbox' });
+          control.checked = String(saved).toLowerCase() === 'true';
+          cboControls.set(o.key, () => (control.checked ? 'True' : 'False'));
+        } else {
+          control = h('input', { id, type: o.type === 'int' ? 'number' : 'text', value: saved, spellcheck: 'false', autocomplete: 'off' });
+          cboControls.set(o.key, () => control.value.trim());
+        }
+        return h('div', { class: 'sopt' },
+          h('div', { class: 'sopt-text' },
+            h('label', { for: id, text: o.label }),
+            o.description ? h('small', { class: 'muted', text: o.description }) : null),
+          control);
+      }))));
+  };
+
+  $('#cbo-body').replaceChildren(loadout, optionPane('Options'), optionPane('Other'));
+  showCboPane(cboPane);
+}
+
+function showCboPane(pane) {
+  cboPane = pane;
+  for (const b of document.querySelectorAll('.cbo-tab')) {
+    b.classList.toggle('active', b.dataset.cbo === pane);
+    b.setAttribute('aria-selected', String(b.dataset.cbo === pane));
+  }
+  for (const p of document.querySelectorAll('#cbo-body .cbo-pane')) p.hidden = p.dataset.pane !== pane;
+}
+
+for (const b of document.querySelectorAll('.cbo-tab')) b.addEventListener('click', () => showCboPane(b.dataset.cbo));
+
+$('#cbo-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!cboData || cboTab === null) return;
+  const values = Object.fromEntries([...cboControls].map(([key, get]) => [key, get()]));
+  // As Skua's window asks before saving public rooms.
+  if (values.PrivateRooms === 'False' && String(cboData.values.PrivateRooms ?? 'True').toLowerCase() !== 'false'
+    && !confirm('We highly recommend staying in private rooms while botting. Use public rooms at your own risk?')) return;
+  const tab = cboTab;
+  const button = $('#cbo-save');
+  button.disabled = true;
+  $('#cbo-error').textContent = '';
+  try {
+    const result = await api('POST', `/api/tabs/${tab}/api/cbo`, { values });
+    if (result.error) { $('#cbo-error').textContent = result.error; return; }
+    toast(`Tab ${tab}: CoreBots options saved (used from the next script start)`);
+    $('#dlg-cbo').close('saved');
+  } catch (err) {
+    if (err.status !== 401) $('#cbo-error').textContent = err.message;
+  } finally {
+    button.disabled = !cboData;
+  }
+});
+
+$('#dlg-cbo').addEventListener('close', () => { cboTab = null; });
+
 // ---- script options dialog ------------------------------------------------------
 // The loaded script's options, as the Script Loader's Options button shows
 // them: grouped (Options, then CoreBots' and other groups), each by its type.
@@ -881,6 +1208,7 @@ async function openScriptOptions(n) {
   $('#sopts-reveal').hidden = true;
   $('#sopts-title').textContent = `Script options, tab ${n}`;
   $('#sopts-info').textContent = 'Compiling the script to read its options...';
+  $('#sopts-info').classList.add('loading');
   $('#sopts-body').replaceChildren();
   $('#sopts-error').textContent = '';
   $('.sopts-skip').hidden = true;
@@ -895,6 +1223,8 @@ async function openScriptOptions(n) {
     renderScriptOptions(data);
   } catch (e) {
     if (e.status !== 401) { $('#sopts-info').textContent = ''; $('#sopts-error').textContent = e.message; }
+  } finally {
+    if (soptsTab === n) $('#sopts-info').classList.remove('loading');
   }
 }
 
@@ -1048,15 +1378,19 @@ function openLog(n) {
   logSince = 0;
   $('#log-title').textContent = `Tab ${n} log`;
   $('#log-text').textContent = '';
+  $('#log-loading').hidden = false;
   $('#dlg-log').showModal();
   pollLog();
   logTimer = setInterval(pollLog, 2000);
 }
 
+// Every 2 s: only the first read of a log shows the loaders.
 async function pollLog() {
   if (logTab === null) return;
+  const first = !$('#log-loading').hidden;
   try {
-    const log = await api('GET', `/api/tabs/${logTab}/api/log?type=${$('#log-type').value}&since=${logSince}`);
+    const log = await api('GET', `/api/tabs/${logTab}/api/log?type=${$('#log-type').value}&since=${logSince}`, undefined, { quiet: !first });
+    $('#log-loading').hidden = true;
     const pre = $('#log-text');
     if (log.total < logSince) { pre.textContent = ''; logSince = 0; return; }   // cleared
     if (log.lines.length) {
@@ -1067,7 +1401,7 @@ async function pollLog() {
   } catch { /* try again next time */ }
 }
 
-$('#log-type').addEventListener('change', () => { logSince = 0; $('#log-text').textContent = ''; pollLog(); });
+$('#log-type').addEventListener('change', () => { logSince = 0; $('#log-text').textContent = ''; $('#log-loading').hidden = false; pollLog(); });
 $('#log-close').addEventListener('click', () => $('#dlg-log').close());
 $('#dlg-log').addEventListener('close', () => { clearInterval(logTimer); logTab = null; });
 
@@ -1093,10 +1427,19 @@ function renderAccounts() {
       class: `pill ${a.loggedIn ? 'ok' : a.open ? 'warn' : ''}`,
       text: a.loggedIn ? 'logged in' : a.open ? 'open, logged out' : 'no tab',
     })),
-    h('td', { class: 'actions-cell' }, a.editable ? [
-      h('button', { class: 'small', onclick: () => openAccountDialog(a) }, 'Edit'),
-      h('button', { class: 'small danger', onclick: () => deleteAccount(a) }, 'Remove'),
-    ] : h('span', { class: 'muted small', text: 'set in the environment' })))));
+    h('td', { class: 'actions-cell' },
+      // A closed tab opens again with its number, and logs its account in.
+      a.open ? null : h('button', { class: 'small primary', title: `Open tab ${a.tab}; it logs this account in`, onclick: () => openAccountTab(a) }, 'Open tab'),
+      ...(a.editable ? [
+        h('button', { class: 'small', onclick: () => openAccountDialog(a) }, 'Edit'),
+        h('button', { class: 'small danger', onclick: () => deleteAccount(a) }, 'Remove'),
+      ] : [h('span', { class: 'muted small', text: 'set in the environment' })])))));
+}
+
+async function openAccountTab(a) {
+  await act(`Tab ${a.tab} opened`, () => api('POST', `/api/tabs?tab=${a.tab}`));
+  state.accounts = null;
+  refresh();
 }
 
 let editing = null;
@@ -1223,6 +1566,24 @@ function renderResources() {
 
 for (const btn of document.querySelectorAll('[data-close]')) {
   btn.addEventListener('click', () => btn.closest('dialog').close('cancel'));
+}
+
+// A click on the backdrop (outside the dialog's box) closes it, as Cancel
+// does. Only when the press began there too: selecting text in a field and
+// letting go outside the box must not close it. Not the dialogs with fields
+// to fill in (data-keep-open): a stray tap would lose what was typed.
+for (const dlg of document.querySelectorAll('dialog:not([data-keep-open])')) {
+  const outside = e => {
+    if (e.target !== dlg) return false;
+    const r = dlg.getBoundingClientRect();
+    return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+  };
+  let pressedOutside = false;
+  dlg.addEventListener('pointerdown', e => { pressedOutside = outside(e); });
+  dlg.addEventListener('click', e => {
+    if (pressedOutside && outside(e)) dlg.close('cancel');
+    pressedOutside = false;
+  });
 }
 
 // Enter in the search box searches now rather than submitting the dialog.
