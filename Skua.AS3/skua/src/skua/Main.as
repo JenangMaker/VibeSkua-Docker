@@ -348,6 +348,36 @@ public class Main extends MovieClip {
         return JSON.stringify(nArray);
     }
 
+    /**
+     * The items of the array at path whose ItemID is id, or whose sName is
+     * name ignoring case and whitespace, as JSON ([] when it is no array).
+     * Skua applies its own exact rule to these few: a bank of ~1450 items is
+     * ~1 MB of JSON, and Bank.Contains (CoreBots' CheckInventory) read all of
+     * it several times a second while a script farmed an item.
+     */
+    public static function findItems(path:String, name:String, id:int):String {
+        var obj:* = _getObjectS(instance.game, path);
+        var found:Array = [];
+        if (!(obj is Array)) {
+            return JSON.stringify(found);
+        }
+        var key:String = name ? _looseName(name) : null;
+        for each (var item:* in obj) {
+            if (item == null) {
+                continue;
+            }
+            if ((id > 0 && int(item.ItemID) == id)
+                    || (key && item.sName != null && _looseName(String(item.sName)) == key)) {
+                found.push(item);
+            }
+        }
+        return JSON.stringify(found);
+    }
+
+    private static function _looseName(s:String):String {
+        return s.replace(/\s+/g, '').toLowerCase();
+    }
+
     public static function _getObjectS(root:*, path:String):* {
         return _getObjectA(root, path.split('.'));
     }
