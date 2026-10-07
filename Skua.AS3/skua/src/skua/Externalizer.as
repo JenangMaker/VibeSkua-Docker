@@ -36,6 +36,7 @@ public class Externalizer {
         this.addCallback("callGameFunction", Main.callGameFunction);
         this.addCallback("callGameFunction0", Main.callGameFunction0);
         this.addCallback("selectArrayObjects", Main.selectArrayObjects);
+        this.addCallback("findItems", Main.findItems);
 
         // Server
         this.addCallback("connectToServer", Server.connectToServer);
