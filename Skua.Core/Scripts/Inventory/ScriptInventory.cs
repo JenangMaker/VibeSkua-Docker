@@ -44,6 +44,17 @@ public partial class ScriptInventory : IScriptInventory
     [ObjectBinding("world.myAvatar.items", Default = "new()")]
     private List<InventoryItem> _items;
 
+    // Without reading the whole list: see ItemLookup.
+    private const string ItemsPath = "world.myAvatar.items";
+
+    public bool Contains(string name, int quantity = 1) => ItemLookup.Contains(Flash, ItemsPath, () => Items, name, quantity);
+
+    public bool Contains(int id, int quantity = 1) => ItemLookup.Contains(Flash, ItemsPath, () => Items, id, quantity);
+
+    public InventoryItem? GetItem(string name) => ItemLookup.GetItem(Flash, ItemsPath, () => Items, name);
+
+    public InventoryItem? GetItem(int id) => ItemLookup.GetItem(Flash, ItemsPath, () => Items, id);
+
     [ObjectBinding("world.myAvatar.objData.iBagSlots")]
     private int _slots;
 
