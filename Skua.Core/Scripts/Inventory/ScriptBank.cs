@@ -54,45 +54,16 @@ public partial class ScriptBank : IScriptBank
     [ObjectBinding("world.bankinfo.items", Default = "new()")]
     private List<InventoryItem> _items = new();
 
-    // A bank of ~1450 items is ~1 MB of JSON, and Contains (CoreBots'
-    // CheckInventory) read all of it several times a second while a script
-    // farmed an item. These ask skua.swf (findItems) for the entries that can
-    // match and apply ICheckInventory's own rules to them; without findItems
-    // (an older skua.swf) they read the whole bank as before.
-    private List<InventoryItem>? Candidates(string? name, int id)
-    {
-        string? json = Flash.Call("findItems", "world.bankinfo.items", name ?? string.Empty, id);
-        if (json is null)
-            return null;
-        try
-        {
-            return Newtonsoft.Json.JsonConvert.DeserializeObject<List<InventoryItem>>(json);
-        }
-        catch
-        {
-            return null;
-        }
-    }
+    // Without reading the whole list: see ItemLookup.
+    private const string ItemsPath = "world.bankinfo.items";
 
-    public bool Contains(string name, int quantity = 1)
-    {
-        return quantity == 0 || (Candidates(name, 0) ?? Items).Any(i => i.Name == name && (i.Quantity >= quantity || i.Category == ItemCategory.Class));
-    }
+    public bool Contains(string name, int quantity = 1) => ItemLookup.Contains(Flash, ItemsPath, () => Items, name, quantity);
 
-    public bool Contains(int id, int quantity = 1)
-    {
-        return quantity == 0 || (Candidates(null, id) ?? Items).Any(i => i.ID == id && (i.Quantity >= quantity || i.Category == ItemCategory.Class));
-    }
+    public bool Contains(int id, int quantity = 1) => ItemLookup.Contains(Flash, ItemsPath, () => Items, id, quantity);
 
-    public InventoryItem? GetItem(string name)
-    {
-        return (Candidates(name, 0) ?? Items)?.Find(x => x.Name == name);
-    }
+    public InventoryItem? GetItem(string name) => ItemLookup.GetItem(Flash, ItemsPath, () => Items, name);
 
-    public InventoryItem? GetItem(int id)
-    {
-        return (Candidates(null, id) ?? Items)?.Find(x => x.ID == id);
-    }
+    public InventoryItem? GetItem(int id) => ItemLookup.GetItem(Flash, ItemsPath, () => Items, id);
 
     [ObjectBinding("world.myAvatar.objData.iBankSlots")]
     private int _slots;
