@@ -36,6 +36,7 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
     private readonly int _afterMinutes = EnvInt("RECYCLE_AFTER_MINUTES");
     private readonly int _afterMapChanges = EnvInt("RECYCLE_AFTER_MAP_CHANGES");
     private readonly int _aboveMb = EnvInt("RECYCLE_ABOVE_MB");
+    private readonly int _minMinutes = int.TryParse(SkuaRuntime.EnvRaw("RECYCLE_MIN_MINUTES"), out int m) && m >= 0 ? m : 30;
     private const string RecycleLock = "/tmp/vibeskua-recycle.lock";
 
     // Where to go back to after a recycle, and whether a script ran there.
@@ -78,7 +79,7 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
         var rules = new List<string>();
         if (_afterMinutes > 0) rules.Add($"after {_afterMinutes} min");
         if (_afterMapChanges > 0) rules.Add($"after {_afterMapChanges} map changes");
-        if (_aboveMb > 0) rules.Add($"above {_aboveMb} MB");
+        if (_aboveMb > 0) rules.Add($"above {_aboveMb} MB (after {_minMinutes} min)");
         if (rules.Count > 0)
             Console.WriteLine($"[session] recycle the game {string.Join(", or ", rules)}");
     }
@@ -237,8 +238,17 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
             return $"{_afterMinutes} min";
         if (_afterMapChanges > 0 && _mapChanges >= _afterMapChanges)
             return $"{_mapChanges} map changes";
-        if (_aboveMb > 0 && GameMemoryMb() is { } mb && mb >= _aboveMb)
+        // Memory only once the game has run a while: a script whose own
+        // working set is above the line (one went from a fresh player to over
+        // 850 MB in 4 minutes) restarted every few minutes.
+        if (_aboveMb > 0 && DateTime.UtcNow - _gameStarted >= TimeSpan.FromMinutes(_minMinutes)
+            && GameMemoryMb() is { } mb && mb >= _aboveMb)
+        {
+            if (DateTime.UtcNow - _gameStarted < TimeSpan.FromMinutes(_minMinutes + 5))
+                Console.WriteLine($"[session] recycle: this tab's game is at {mb} MB already {_minMinutes} min after it started; "
+                    + "its script may need that much (raise RECYCLE_ABOVE_MB or RECYCLE_MIN_MINUTES)");
             return $"{mb} MB";
+        }
         return null;
     }
 
@@ -350,7 +360,7 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
             Flash.CallGameFunction("world.moveToCell", back.Cell, back.Pad);
         _mapChanges = 0;
         _lastPlace = null;
-        Console.WriteLine($"[session] recycle: back in {bot.Map.FullName} {back.Cell}");
+        Console.WriteLine($"[session] recycle: back in {(bot.Map.Name == back.Map ? back.Area : bot.Map.Name)} {back.Cell}");
         if (!back.Script)
             return;
         await Task.Delay(1500);
