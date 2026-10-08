@@ -374,6 +374,32 @@ public class Main extends MovieClip {
         return JSON.stringify(found);
     }
 
+    /**
+     * Removes the item notification toasts (DFrameMC: "added", quest
+     * rewards, temporary items) from the drop stack; returns how many. They
+     * remove themselves after a number of frames, so at the 1-2 frames a
+     * second of a hidden or Headless tab they live 15-30 times longer and pile
+     * up (60+ on a farm), each looping gotoAndPlay every frame: a goto runs a
+     * pass over the whole stage, and the tab's game cost grew all session.
+     * Skua calls this while the tab is throttled. Drops still waiting for a
+     * yes or no (DFrame2MC) are left alone.
+     */
+    public static function clearDropToasts():int {
+        var stack:* = instance.game.ui ? instance.game.ui.dropStack : null;
+        if (stack == null) {
+            return 0;
+        }
+        var removed:int = 0;
+        for (var i:int = stack.numChildren - 1; i >= 0; i--) {
+            var child:* = stack.getChildAt(i);
+            if (getQualifiedClassName(child) == "DFrameMC") {
+                stack.removeChild(child);
+                removed++;
+            }
+        }
+        return removed;
+    }
+
     private static function _looseName(s:String):String {
         return s.replace(/\s+/g, '').toLowerCase();
     }
