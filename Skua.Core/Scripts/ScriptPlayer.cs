@@ -131,8 +131,37 @@ public partial class ScriptPlayer : IScriptPlayer
     [ObjectBinding("world.SCALE", HasSetter = true)]
     private int _scale;
 
-    [JsonCallBinding("getTargetMonster", Default = "new()")]
-    private Monster? _target;
+    // A skill pass reads the target several times (HasTarget, its key, aura
+    // rules), each a call into the game: reads within 100 ms share one answer,
+    // like Quests.Tree. Attacking or cancelling the target forgets it.
+    private Monster? _cachedTarget;
+    private int _lastTargetRead;
+
+    public Monster? Target
+    {
+        get
+        {
+            int now = Environment.TickCount;
+            if (_cachedTarget is { } cached && now - _lastTargetRead <= 100)
+                return cached;
+            Monster target;
+            try
+            {
+                target = Flash.Call("getTargetMonster") is { Length: > 0 } json
+                    ? Newtonsoft.Json.JsonConvert.DeserializeObject<Monster>(json) ?? new()
+                    : new();
+            }
+            catch
+            {
+                target = new();
+            }
+            _lastTargetRead = now;
+            _cachedTarget = target;
+            return target;
+        }
+    }
+
+    internal void ForgetTarget() => _cachedTarget = null;
 
     [ObjectBinding("world.myAvatar.dataLeaf.sta")]
     private PlayerStats? _stats;

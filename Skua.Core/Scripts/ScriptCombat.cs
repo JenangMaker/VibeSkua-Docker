@@ -55,6 +55,7 @@ public partial class ScriptCombat : IScriptCombat
     [MethodCallBinding("world.cancelTarget", RunMethodPost = true, GameFunction = true)]
     private void _cancelTarget()
     {
+        (Player as ScriptPlayer)?.ForgetTarget();
     }
 
     [MethodCallBinding("world.cancelAutoAttack", GameFunction = true)]
@@ -81,7 +82,9 @@ public partial class ScriptCombat : IScriptCombat
             return false;
         }
 
-        return Flash.Call<bool>("attackMonsterName", name);
+        bool attacked = Flash.Call<bool>("attackMonsterName", name);
+        (Player as ScriptPlayer)?.ForgetTarget();   // after: a read during the call is stale
+        return attacked;
     }
 
     public bool Attack(int id)
@@ -92,7 +95,9 @@ public partial class ScriptCombat : IScriptCombat
             return false;
         }
 
-        return Flash.Call<bool>("attackMonsterID", id);
+        bool attacked = Flash.Call<bool>("attackMonsterID", id);
+        (Player as ScriptPlayer)?.ForgetTarget();   // after: a read during the call is stale
+        return attacked;
     }
 
     public bool AttackPlayer(string name)
