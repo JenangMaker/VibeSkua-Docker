@@ -86,6 +86,7 @@ public partial class ScriptQuest : ObservableRecipient, IScriptQuest
 
     private List<Quest>? _cachedTree;
     private int _lastTreeUpdate;
+    private string? _treeStamp;
     public List<Quest> Tree
     {
         get
@@ -93,11 +94,27 @@ public partial class ScriptQuest : ObservableRecipient, IScriptQuest
             int currentTick = Environment.TickCount;
             if (_cachedTree == null || currentTick - _lastTreeUpdate > 100)
             {
-                _cachedTree = Quests.Values.ToList();
+                // The whole tree is 30-50 KB of JSON; skip reading it while
+                // the game's quests and their statuses are unchanged. The
+                // stamp is read first: a change in between shows up next time.
+                string? stamp = TreeStamp();
+                if (_cachedTree == null || stamp is null || stamp != _treeStamp)
+                {
+                    _cachedTree = Quests.Values.ToList();
+                    _treeStamp = stamp;
+                }
                 _lastTreeUpdate = currentTick;
             }
             return _cachedTree;
         }
+    }
+
+    // null when the loaded skua.swf has no questTreeStamp (or the tree is
+    // empty, which is cheap to read): read the tree every time.
+    private string? TreeStamp()
+    {
+        try { return Flash.Call("questTreeStamp") is { Length: > 0 } stamp && stamp != "null" ? stamp : null; }
+        catch { return null; }
     }
     public List<Quest> Active => Tree.FindAll(x => x.Active);
     public List<Quest> Completed => Tree.FindAll(x => x.Status == "c");
