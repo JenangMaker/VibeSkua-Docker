@@ -320,10 +320,14 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
             var bot = services.GetRequiredService<IScriptInterface>();
             var manager = services.GetRequiredService<IScriptManager>();
             var place = new Place(bot.Map.FullName, bot.Map.Name, bot.Player.Cell ?? "Enter", bot.Player.Pad ?? "Spawn", manager.ScriptRunning);
+            // Skua's own AutoRelogin stays off until this tab is back: it saw
+            // the game restart as a disconnect and logged in and restarted the
+            // script itself, racing this login (CoreBots' stop routine, which
+            // turns it off, still ran for seconds after the stop). The
+            // restarted script turns it on again.
+            HoldRelogin();
             if (place.Script)
             {
-                // Stopped first: a running script would log back in by itself
-                // (its AutoRelogin) while this does.
                 await manager.StopScript();
                 for (int i = 0; i < 60 && manager.ScriptRunning; i++)
                     await Task.Delay(500);
@@ -336,8 +340,37 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
             // (then the relogin watch takes over, and still returns).
             for (int i = 0; i < 360 && _recycling; i++)
                 await Task.Delay(1000);
+            ReleaseRelogin();
             _recycling = false;
         }
+    }
+
+    private CancellationTokenSource? _holdRelogin;
+    private bool _reloginBefore;
+
+    private void HoldRelogin()
+    {
+        var options = services.GetRequiredService<IScriptOption>();
+        _reloginBefore = options.AutoRelogin;
+        var hold = _holdRelogin = new CancellationTokenSource();
+        _ = Task.Run(async () =>
+        {
+            while (!hold.IsCancellationRequested)
+            {
+                try { options.AutoRelogin = false; } catch { }
+                try { await Task.Delay(250, hold.Token); } catch { }
+            }
+        });
+    }
+
+    // Before the script starts again (it sets AutoRelogin as it wants), or
+    // when the recycle ends without one: back to what it was.
+    private void ReleaseRelogin()
+    {
+        if (Interlocked.Exchange(ref _holdRelogin, null) is not { } hold)
+            return;
+        hold.Cancel();
+        try { services.GetRequiredService<IScriptOption>().AutoRelogin = _reloginBefore; } catch { }
     }
 
     // After the login that follows a recycle: the same room (or map) and cell,
@@ -361,12 +394,16 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
         _mapChanges = 0;
         _lastPlace = null;
         Console.WriteLine($"[session] recycle: back in {(bot.Map.Name == back.Map ? back.Area : bot.Map.Name)} {back.Cell}");
+        ReleaseRelogin();
         if (!back.Script)
             return;
         await Task.Delay(1500);
         var manager = services.GetRequiredService<IScriptManager>();
         if (manager.ScriptRunning)
+        {
+            Console.WriteLine($"[session] recycle: script {Path.GetFileNameWithoutExtension(manager.LoadedScript ?? "")} was already running again");
             return;
+        }
         if (await manager.StartScript() is { } error)
             Console.Error.WriteLine($"[session] recycle: could not start the script again: {error.Message}");
         else
