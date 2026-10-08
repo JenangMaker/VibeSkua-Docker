@@ -400,6 +400,25 @@ public class Main extends MovieClip {
         return removed;
     }
 
+    /**
+     * A short signature of world.questTree: each quest's id and status. The
+     * game adds and removes whole quests and otherwise changes only their
+     * status, so Skua reads the whole tree (30-50 KB of JSON, several times a
+     * second on a farm) only when this changes.
+     */
+    public static function questTreeStamp():String {
+        var tree:* = instance.game.world ? instance.game.world.questTree : null;
+        if (tree == null) {
+            return "";
+        }
+        var parts:Array = [];
+        for (var id:String in tree) {
+            var quest:* = tree[id];
+            parts.push(id + ":" + (quest == null ? "-" : quest.status));
+        }
+        return parts.join(",");
+    }
+
     private static function _looseName(s:String):String {
         return s.replace(/\s+/g, '').toLowerCase();
     }
