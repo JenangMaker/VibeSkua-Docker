@@ -422,7 +422,10 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
         if (references.Count > 0)
             compiler.AddAssemblies(references.ToArray());
 
-        dynamic? assembly = compiler.CompileClass(final, cacheHash, loadContext, scriptName);
+        // object, not dynamic: anything done to a dynamic (even != null)
+        // goes through the dynamic binder, whose process-wide table then holds
+        // the script's type and its load context could never unload.
+        object? assembly = compiler.CompileClass(final, cacheHash, loadContext, scriptName);
 
         sw.Stop();
         Trace.WriteLine($"Script compilation took {sw.ElapsedMilliseconds}ms.");
@@ -1133,7 +1136,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
             if (includeReferences.Count > 0)
                 includeCompiler.AddAssemblies(includeReferences.ToArray());
 
-            dynamic? assembly = includeCompiler.CompileClass(processedInclude, includeHash, loadContext, includeFileName);
+            object? assembly = includeCompiler.CompileClass(processedInclude, includeHash, loadContext, includeFileName);   // not dynamic: see above
 
             if (includeCompiler.Error)
             {
