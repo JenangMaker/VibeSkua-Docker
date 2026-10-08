@@ -121,9 +121,19 @@ public sealed class GameEmbed : IDisposable
         if (xid == _game && host == _host && ParentOf(xid) == host)
         {
             // Still ours; put it back if something (main.js's own placement
-            // right after start) moved it.
+            // right after start) moved it, at the size the throttle wants.
+            _shrunk = HostApi.IsShrunk;
             _placed = default;
             Place();
+            // And shown: with seven tabs embedding at once on a busy server,
+            // three games were left unmapped, as if the window manager acted
+            // on the unmap below after the map; those tabs stayed blank.
+            if (!IsMapped(xid))
+            {
+                X.XMapWindow(_display, xid);
+                X.XFlush(_display);
+                Console.WriteLine($"[host] game window 0x{xid:x} was hidden; showing it again");
+            }
             return;
         }
 
@@ -188,6 +198,14 @@ public sealed class GameEmbed : IDisposable
             X.XSync(_display, false);
             Console.WriteLine($"[host] game window 0x{game:x} handed back to the desktop");
         }
+    }
+
+    // Mapped by its own state (IsUnmapped is 0), whether or not its parent is:
+    // a hidden tab's game is mapped but unviewable.
+    private bool IsMapped(ulong window)
+    {
+        X.WindowAttributes attributes = default;
+        return X.XGetWindowAttributes(_display, window, ref attributes) == 0 || attributes.map_state != 0;
     }
 
     private ulong ParentOf(ulong window)
@@ -369,5 +387,22 @@ public sealed class GameEmbed : IDisposable
         [DllImport(Lib)] public static extern int XFree(IntPtr data);
         [DllImport(Lib)] public static extern ulong XDefaultRootWindow(IntPtr display);
         [DllImport(Lib)] public static extern int XQueryTree(IntPtr display, ulong window, out ulong root, out ulong parent, out IntPtr children, out uint count);
+        [DllImport(Lib)] public static extern int XGetWindowAttributes(IntPtr display, ulong window, ref WindowAttributes attributes);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct WindowAttributes
+        {
+            public int x, y, width, height, border_width, depth;
+            public IntPtr visual;
+            public ulong root;
+            public int c_class, bit_gravity, win_gravity, backing_store;
+            public ulong backing_planes, backing_pixel;
+            public int save_under;
+            public ulong colormap;
+            public int map_installed, map_state;
+            public long all_event_masks, your_event_mask, do_not_propagate_mask;
+            public int override_redirect;
+            public IntPtr screen;
+        }
     }
 }
