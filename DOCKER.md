@@ -132,6 +132,16 @@ are listed in a pop-up.
   for one tab, and `SKUA_SCRIPT_2: "none"` gives tab 2 no script.
   Auto-start waits while the script sync is downloading (up to 15 minutes),
   so no tab compiles its script from half-updated files.
+- **Pick up where you left off after a restart:** `SKUA_RESUME_SCRIPTS: "1"`.
+  Each tab remembers the script it had loaded and whether it ran (in
+  `/config/.config/vibeskua/resume.json`); after a redeploy, a container
+  restart or a tab's Skua restarting, it loads that script again and starts
+  it once logged in if it was running. Only for the same account, and only
+  for tabs not given a script of their own (`SKUA_SCRIPT_N` or the Accounts
+  page); it comes before the every-tab `SKUA_SCRIPT`. A script you stop
+  counts as stopped after 2 minutes (a recycle or a relogin stops it for a
+  moment), and then comes back loaded but not started. Closing a tab keeps
+  its script loaded but not started.
 - **Scripts that open their options window on every start** (UltrasLW's
   do, for one): tick **Don't open this window when this script starts** in
   that window, or in the web manager's Options dialog. The script then runs
@@ -233,6 +243,7 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `SKUA_TABS` | `1` | `0`: one Skua, no tabs. `N`: open N tabs at start (at least one per configured account). |
 | `SKUA_SCRIPT`, `SKUA_SCRIPT_<N>` | | Script to load at start: every tab's / tab N's (`none`: no script for that tab). |
 | `SKUA_SCRIPT_AUTO_START`, `SKUA_SCRIPT_AUTO_START_<N>` | `0` | `1`: also start it once logged in (every tab / tab N). |
+| `SKUA_RESUME_SCRIPTS` | `0` | `1`: after a restart each tab loads the script it had again, and starts it if it was running (see above). |
 | `SKUA_ROOM_NUMBER`, `SKUA_ROOM_NUMBER_<N>` | unset (CoreBots Options) | Private room number (1-999999) CoreBots scripts use, for every tab / tab N. |
 | `SKUA_SKIP_SCRIPT_OPTIONS` | `0` | `1`: a starting script's options window never opens; it runs with its saved options (per script: the window's checkbox, see [Scripts](#scripts)). |
 | `SKUA_SCRIPT_SYNC` | `auto` | `auto` (follow Skua's options), `ask`, or `off`. |
