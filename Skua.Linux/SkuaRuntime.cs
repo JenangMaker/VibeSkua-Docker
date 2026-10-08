@@ -128,6 +128,7 @@ public sealed class SkuaRuntime
         Bridge.Start();
         new ScriptKeeper(provider, Bridge).Start();
         new OptionKeeper(provider, Bridge).Start();
+        new MemoryTrim(provider).Start();
         string apiPrefix = Env("SKUA_API_PREFIX", "http://127.0.0.1:8791/");
         try
         {

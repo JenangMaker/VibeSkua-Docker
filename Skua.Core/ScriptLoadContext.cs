@@ -19,6 +19,22 @@ public class ScriptLoadContext : AssemblyLoadContext
         if (assemblyName.Name == null)
             return null;
 
+        // The dynamic binder (Microsoft.CSharp) keeps every type it has bound
+        // against in one process-wide table, so a script's types, and with
+        // them its whole context, never unloaded: every run kept its compiled
+        // script and CoreBots in memory. With its own copy of the binder the
+        // table lives in this context and goes with it.
+        if (assemblyName.Name == "Microsoft.CSharp")
+        {
+            try
+            {
+                return LoadFromAssemblyPath(typeof(Microsoft.CSharp.RuntimeBinder.Binder).Assembly.Location);
+            }
+            catch
+            {
+            }
+        }
+
         if (!Directory.Exists(_cacheDirectory))
             return null;
 
