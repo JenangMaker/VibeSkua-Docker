@@ -68,11 +68,16 @@ public sealed partial class HostApi
 
     private void UpdateThrottle()
     {
-        bool headless = Get<IScriptOption>().HeadlessMode;
-        bool shrink, restore = false;
+        bool headless, shrink, restore = false, headlessChanged, shrinkChanged;
         int target;
+        // Updates run on several threads at once (a tab click and a Headless
+        // toggle). The option is read, and the state decided, under the lock:
+        // otherwise a thread holding an old value that finished last could leave
+        // a shown tab's game shrunk to 1x1, or the state saying one thing and
+        // the window another.
         lock (_throttleLock)
         {
+            headless = Get<IScriptOption>().HeadlessMode;
             target = headless ? HeadlessFps : _hidden ? _hiddenFps : 0;
             shrink = target > 0;
             if (target > 0 && _throttleLoop is null)
@@ -87,6 +92,10 @@ public sealed partial class HostApi
                 restore = true;
             }
             _throttleFps = target;
+            headlessChanged = headless != IsHeadless;
+            IsHeadless = headless;
+            shrinkChanged = shrink != IsShrunk;
+            IsShrunk = shrink;
         }
         if (target > 0)
         {
@@ -97,14 +106,10 @@ public sealed partial class HostApi
             int own = Get<IScriptOption>().SetFPS;
             ApplyFrameRate(own > 0 ? own : 30);
         }
-        if (headless != IsHeadless)
-        {
-            IsHeadless = headless;
+        if (headlessChanged)
             HeadlessChanged?.Invoke(headless);
-        }
-        if (shrink != IsShrunk)
+        if (shrinkChanged)
         {
-            IsShrunk = shrink;
             Shrunk?.Invoke(shrink);
             if (shrink)
                 _ = Task.Run(TrimMemory);
