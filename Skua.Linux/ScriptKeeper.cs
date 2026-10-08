@@ -20,6 +20,12 @@ namespace Skua.Linux;
 /// Skua only targets monsters that have one: the bot stands still until it
 /// goes AFK. A move request rebuilds them, so after 20 s of living monsters
 /// in the cell and none targetable, this moves to another cell and back.</item>
+/// <item><b>Lost respawns.</b> The game asks the server to respawn the player
+/// when its 10 s death countdown ends, once. Sometimes no answer comes (four
+/// army tabs died in an ultra boss room together and two stayed dead for
+/// 15 minutes, their countdowns long finished), and the script waits for the
+/// player to be alive forever. Asking again revived them at once, so after
+/// 15 s dead with no countdown running, this asks again.</item>
 /// </list>
 /// </summary>
 public sealed class ScriptKeeper(IServiceProvider services, RuffleBridge bridge)
@@ -36,6 +42,37 @@ public sealed class ScriptKeeper(IServiceProvider services, RuffleBridge bridge)
                 _ = Task.Run(() => RestartAfterPageLogin(args.Length > 0 ? args[0]?.ToString() : null));
         };
         _ = Task.Run(WatchTargets);
+        _ = Task.Run(WatchRespawn);
+    }
+
+    private async Task WatchRespawn()
+    {
+        const int checkMs = 5000, stuckChecks = 3, backoffChecks = 4;
+        int streak = 0;
+        while (true)
+        {
+            await Task.Delay(checkMs);
+            try
+            {
+                var bot = services.GetRequiredService<IScriptInterface>();
+                if (!bridge.IsConnected || !bot.Player.LoggedIn || !bot.Player.Loaded || bot.Player.Alive
+                    || bot.Flash.GetGameObject<bool>("ui.mcRes.resTimer.running"))
+                {
+                    streak = Math.Min(streak, 0) + (streak < 0 ? 1 : 0);   // count down a backoff, else reset
+                    continue;
+                }
+                if (++streak < stuckChecks)
+                    continue;
+                Console.WriteLine($"[host] {bot.Map.Name}: still dead {stuckChecks * checkMs / 1000} s after the respawn countdown; asking the server again");
+                bot.Flash.CallGameFunction("world.resPlayer");
+                streak = -backoffChecks;   // give it 20 s before asking again
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine($"[host] respawn watch: {e.Message}");
+                streak = 0;
+            }
+        }
     }
 
     /// <summary>
