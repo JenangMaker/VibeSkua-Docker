@@ -116,9 +116,22 @@ public sealed partial class HostApi
         while (!token.IsCancellationRequested)
         {
             ApplyFrameRate(_throttleFps);
+            ClearDropToasts();
             try { await Task.Delay(3000, token); }
             catch (OperationCanceledException) { }
         }
+    }
+
+    // The game's item toasts ("added", quest rewards) go away after a number of
+    // frames: at 1-2 fps they pile up, each looping a goto every frame, and a
+    // farming tab's game cost grew all session (enter phase 25 -> 316 ms a
+    // frame in 5 minutes). Nobody sees them while the tab is throttled.
+    private void ClearDropToasts()
+    {
+        if (!Get<Skua.Ruffle.RuffleBridge>().IsConnected)
+            return;
+        try { Get<IScriptInterface>().Flash.Call("clearDropToasts"); }
+        catch { }
     }
 
     private void ApplyFrameRate(int fps)
