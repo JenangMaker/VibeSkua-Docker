@@ -181,6 +181,7 @@ public partial class TabHostWindow : Window
     private async Task CloseTabAsync(SkuaTab tab)
     {
         tab.Closed = true;
+        ScriptResume.Closed(tab.Number + 1);
         int index = Tabs.IndexOf(tab);
         Tabs.Remove(tab);
         if (_selected == tab || _selected is null)
@@ -250,14 +251,22 @@ public partial class TabHostWindow : Window
         // Tab N's script: SKUA_SCRIPT_N, else plain SKUA_SCRIPT (every tab's);
         // SKUA_SCRIPT_N=none gives that tab none. Started once logged in if
         // SKUA_SCRIPT_AUTO_START_N, else SKUA_SCRIPT_AUTO_START, says so.
-        // Between the two: what the accounts file gives this tab's account.
+        // Between the two: what the accounts file gives this tab's account,
+        // then (SKUA_RESUME_SCRIPTS) the script it had before a restart.
         var account = AccountStore.InEnvironment(n + 1) ? null : AccountStore.Get(n + 1);
-        string? script = SkuaRuntime.EnvRaw($"SKUA_SCRIPT_{n + 1}") ?? NullIfBlank(account?.Script) ?? SkuaRuntime.EnvRaw("SKUA_SCRIPT");
+        string? script = SkuaRuntime.EnvRaw($"SKUA_SCRIPT_{n + 1}") ?? NullIfBlank(account?.Script);
+        string? autoStart = SkuaRuntime.EnvRaw($"SKUA_SCRIPT_AUTO_START_{n + 1}")
+            ?? (account?.AutoStart is bool on ? (on ? "1" : "0") : null);
+        if (script is null && ScriptResume.For(n + 1, AccountStore.UserFor(n + 1)) is { } saved)
+        {
+            script = saved.Script;
+            autoStart = saved.Running ? "1" : "0";
+            Console.WriteLine($"[tabs] tab {n + 1}: {(saved.Running ? "resuming" : "loading")} {Path.GetFileName(saved.Script)} as before the restart");
+        }
+        script ??= SkuaRuntime.EnvRaw("SKUA_SCRIPT");
+        autoStart ??= SkuaRuntime.EnvRaw("SKUA_SCRIPT_AUTO_START");
         if (script?.ToLowerInvariant() is "none" or "off" or "-")
             script = null;
-        string? autoStart = SkuaRuntime.EnvRaw($"SKUA_SCRIPT_AUTO_START_{n + 1}")
-            ?? (account?.AutoStart is bool on ? (on ? "1" : "0") : null)
-            ?? SkuaRuntime.EnvRaw("SKUA_SCRIPT_AUTO_START");
         SetOrRemove(psi, "SKUA_SCRIPT", script);
         SetOrRemove(psi, "SKUA_SCRIPT_AUTO_START", autoStart);
         // CoreBots room: SKUA_ROOM_NUMBER_N, else SKUA_ROOM_NUMBER (every tab's).
@@ -405,6 +414,13 @@ public partial class TabHostWindow : Window
             bool loggedIn = game.ValueKind == JsonValueKind.Object && game.GetProperty("loggedIn").GetBoolean();
             string? player = loggedIn ? game.GetProperty("player").GetString() : null;
             tab.LoggedIn = loggedIn;
+            // What it runs, for SKUA_RESUME_SCRIPTS.
+            if (loggedIn && doc.RootElement.TryGetProperty("script", out var sc) && sc.ValueKind == JsonValueKind.Object)
+                ScriptResume.Note(tab.Number + 1, AccountStore.UserFor(tab.Number + 1),
+                    sc.TryGetProperty("loaded", out var l) && l.ValueKind == JsonValueKind.String ? l.GetString() : null,
+                    sc.TryGetProperty("running", out var r) && r.ValueKind == JsonValueKind.True, tab.Started);
+            else
+                ScriptResume.NotPlaying(tab.Number + 1);
             // Streamer Mode (the game option) hides the name in the tab header too
             bool streamer = game.ValueKind == JsonValueKind.Object && game.TryGetProperty("streamer", out var s) && s.ValueKind == JsonValueKind.True;
             tab.Title = string.IsNullOrWhiteSpace(player) ? $"Skua {tab.Number + 1}"
