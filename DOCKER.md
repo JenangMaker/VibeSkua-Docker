@@ -243,6 +243,7 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `SKUA_SCRIPT`, `SKUA_SCRIPT_<N>` | | Script to load at start: every tab's / tab N's (`none`: no script for that tab). |
 | `SKUA_SCRIPT_AUTO_START`, `SKUA_SCRIPT_AUTO_START_<N>` | `0` | `1`: also start it once logged in (every tab / tab N). |
 | `SKUA_RESUME_SCRIPTS` | `0` | `1`: after a restart each tab loads the script it had again, and starts it if it was running (see above). |
+| `RUFFLE_STRING_GC_DEBT` | on | Big strings (1 KB and up) count toward when the game's garbage collector runs. Without it, a script that reads the bank on an account with a big bank (each read a ~1 MB string, about 3 a second) grew the player from 0.5 to 1.1 GB in minutes. `0` turns it off. |
 | `SKUA_ROOM_NUMBER`, `SKUA_ROOM_NUMBER_<N>` | unset (CoreBots Options) | Private room number (1-999999) CoreBots scripts use, for every tab / tab N. |
 | `SKUA_SKIP_SCRIPT_OPTIONS` | `0` | `1`: a starting script's options window never opens; it runs with its saved options (per script: the window's checkbox, see [Scripts](#scripts)). |
 | `SKUA_SCRIPT_SYNC` | `auto` | `auto` (follow Skua's options), `ask`, or `off`. |
