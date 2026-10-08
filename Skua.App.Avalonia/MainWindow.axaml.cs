@@ -34,10 +34,12 @@ public partial class MainWindow : Window
             _embed.Embedded += () => GameAreaText.IsVisible = false;
             _embed.Failed += () => WindowPlacement.ToTopBar(this, GameArea);
             _embed.Start();
-            Skua.Linux.HostApi.Shrunk += on => Dispatcher.UIThread.Post(() => _embed?.SetShrunk(on));
+            // The state when the post runs, not the event's: two throttle
+            // updates on different threads can post in the other order.
+            Skua.Linux.HostApi.Shrunk += _ => Dispatcher.UIThread.Post(() => _embed?.SetShrunk(Skua.Linux.HostApi.IsShrunk));
             _embed.SetShrunk(Skua.Linux.HostApi.IsShrunk);
         };
-        Skua.Linux.HostApi.HeadlessChanged += on => Dispatcher.UIThread.Post(() => HeadlessOverlay.IsVisible = on);
+        Skua.Linux.HostApi.HeadlessChanged += _ => Dispatcher.UIThread.Post(() => HeadlessOverlay.IsVisible = Skua.Linux.HostApi.IsHeadless);
         HeadlessOverlay.IsVisible = Skua.Linux.HostApi.IsHeadless;
         Dashboard.DataContext = App.Service<ScriptStatsViewModel>();
         GameRow.PropertyChanged += (_, e) =>
