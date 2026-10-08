@@ -129,6 +129,7 @@ public sealed class SkuaRuntime
         var keeper = new ScriptKeeper(provider, Bridge);
         keeper.Start();
         new OptionKeeper(provider, Bridge).Start();
+        new MemoryTrim(provider).Start();
         AuraWatch.Start(provider, Bridge);
         if (NativeGame.Enabled)
         {
