@@ -77,21 +77,21 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
     [MethodCallBinding("connectTo", RunMethodPost = true, GameFunction = true)]
     private bool _connectIP(string ip)
     {
-        Wait.ForTrue(() => !Manager.ShouldExit && Player.Playing && Flash.IsWorldLoaded, Options.LoginTimeout / 100);
+        Wait.ForTrue(() => !Manager.ShouldExit && Player.Playing && Flash.IsWorldLoaded, LoginWaitMs / 100);
         return Player.Playing;
     }
 
     [MethodCallBinding("connectTo", RunMethodPost = true, GameFunction = true)]
     private bool _connectIP(string ip, int port)
     {
-        Wait.ForTrue(() => !Manager.ShouldExit && Player.Playing && Flash.IsWorldLoaded, Options.LoginTimeout / 100);
+        Wait.ForTrue(() => !Manager.ShouldExit && Player.Playing && Flash.IsWorldLoaded, LoginWaitMs / 100);
         return Player.Playing;
     }
 
     [MethodCallBinding("connectToServer", RunMethodPost = true)]
     private bool _connectToServer(string server)
     {
-        Wait.ForTrue(() => !Manager.ShouldExit && Player.Playing && Flash.IsWorldLoaded, Options.LoginTimeout / 100);
+        Wait.ForTrue(() => !Manager.ShouldExit && Player.Playing && Flash.IsWorldLoaded, LoginWaitMs / 100);
         return Player.Playing;
     }
 
@@ -350,6 +350,7 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
 
         Thread.Sleep(2000);
         Logout();
+        WaitForLoginForm();
 
         Stats.Relogins++;
         if (_loginInfoSetted)
@@ -368,7 +369,7 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
         Thread.Sleep(1000);
         ConnectIP(ip);
 
-        Wait.ForTrue(() => Player.Playing && Flash.IsWorldLoaded, Options.LoginTimeout / 100);
+        Wait.ForTrue(() => Player.Playing && Flash.IsWorldLoaded, LoginWaitMs / 100);
         Options.AutoRelogin = autoRelogSwitch;
         bool connected = Player.Playing;
         ReloginLog(connected ? "Relogin by IP successful." : "Relogin by IP failed.");
@@ -398,6 +399,7 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
         ReloginLog($"Relogging on server {server.Name} [{server.PlayerCount}/{server.MaxPlayers}].");
 
         Logout();
+        WaitForLoginForm();
         Stats.Relogins++;
 
         if (_loginInfoSetted)
@@ -416,7 +418,7 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
         Thread.Sleep(1000);
         ConnectToServer(JsonConvert.SerializeObject(server));
 
-        Wait.ForTrue(() => Player.Playing && Flash.IsWorldLoaded, Options.LoginTimeout / 100);
+        Wait.ForTrue(() => Player.Playing && Flash.IsWorldLoaded, LoginWaitMs / 100);
         Options.AutoRelogin = autoRelogSwitch;
         bool connected = Player.Playing;
         ReloginLog(connected ? $"Relogin successful on {server.Name}." : $"Relogin failed on {server.Name}.");
@@ -480,9 +482,31 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
         catch { }
     }
 
+    // The login screen and its server list are built frame by frame. Under
+    // Ruffle a hidden or Headless tab runs the game at 1-2 fps, so after a log
+    // out from the game they took longer than LoginTimeout (5 s, capped below
+    // 30 s by the options) and Relogin gave up (Army Control or the manager's
+    // Log in after a log out failed every time); at Flash's 24 fps they
+    // took far less. The waits for the server list and for the game world
+    // return as soon as the game is ready.
+    private int LoginWaitMs => Math.Max(Options.LoginTimeout, 30000);
+
+    // A log out sends the game to its login screen, which it builds frame by
+    // frame; a login sent before the form exists is lost, and the screen stayed
+    // on its first form while Relogin waited for a server list that never came
+    // (3 of 4 tries on a Headless tab under Ruffle). Wait for the form, as the
+    // container's own login does, and give it a frame more to settle.
+    private void WaitForLoginForm()
+    {
+        if (Wait.ForTrue(() => !Flash.IsNull("mcLogin.ni") && Flash.GetGameObject<bool>("mcLogin.visible", false), LoginWaitMs / 1000, 1000))
+            Thread.Sleep(2000);
+        else
+            ReloginLog("The login screen did not appear; trying to log in anyway.");
+    }
+
     private async Task<bool> WaitForServerListReady(CancellationToken token)
     {
-        using CancellationTokenSource waitServerList = new(Options.LoginTimeout);
+        using CancellationTokenSource waitServerList = new(LoginWaitMs);
         try
         {
             while (!token.IsCancellationRequested && !Manager.ShouldExit && !waitServerList.IsCancellationRequested)
@@ -543,6 +567,7 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
                     Logout();
                     await Task.Delay(2000, token);
                 }
+                await Task.Run(WaitForLoginForm, token);
 
                 if (_loginInfoSetted)
                     Login(_username, _password);
@@ -567,7 +592,7 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
                         ConnectIP(targetServer.IP);
                 }
 
-                using CancellationTokenSource waitLogin = new(Options.LoginTimeout);
+                using CancellationTokenSource waitLogin = new(LoginWaitMs);
                 try
                 {
                     while ((!Player.Playing || !Flash.IsWorldLoaded) && !waitLogin.IsCancellationRequested && !token.IsCancellationRequested)

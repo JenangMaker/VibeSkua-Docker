@@ -53,6 +53,65 @@ public sealed partial class HostApi
                     _ = Task.Run(UpdateThrottle);
             };
         UpdateThrottle();
+        _ = Task.Run(RestoreHeadless);
+    }
+
+    // Headless Mode is a runtime option (Skua does not save it), so a redeploy
+    // turned it off on every tab: hidden tabs ran at twice the frame rate and
+    // the shown one drew at full rate, until someone switched it on again.
+    // Each tab keeps its last state in headless-tab<N> next to accounts.json
+    // (one file per tab: tabs never write the same file); SKUA_HEADLESS (1 or
+    // 0) is the state of a tab with none saved yet.
+    private static string HeadlessFile =>
+        Path.Combine(Path.GetDirectoryName(AccountStore.FilePath)!, $"headless-tab{SkuaRuntime.Instance + 1}");
+
+    private void RestoreHeadless()
+    {
+        bool? on = null;
+        string from = "as before the restart";
+        try
+        {
+            if (File.Exists(HeadlessFile))
+                on = File.ReadAllText(HeadlessFile).Trim() == "1";
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine($"[host] could not read {HeadlessFile}: {e.Message}");
+        }
+        if (on is null)
+        {
+            from = "SKUA_HEADLESS";
+            on = SkuaRuntime.EnvRaw("SKUA_HEADLESS")?.Trim().ToLowerInvariant() switch
+            {
+                "1" or "true" or "yes" or "on" => true,
+                "0" or "false" or "no" or "off" => false,
+                _ => null,
+            };
+        }
+        var options = Get<IScriptOption>();
+        if (on is not { } value || options.HeadlessMode == value)
+            return;
+        // As Army Control sets it, without sending it on to the other tabs.
+        Get<IDispatcherService>().Invoke(() =>
+        {
+            options.IsIpcMessageProcessing = true;
+            try { options.HeadlessMode = value; }
+            finally { options.IsIpcMessageProcessing = false; }
+        });
+        Console.WriteLine($"[host] Headless Mode {(value ? "on" : "off")} ({from})");
+    }
+
+    private static void SaveHeadless(bool on)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(HeadlessFile)!);
+            File.WriteAllText(HeadlessFile, on ? "1" : "0");
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine($"[host] could not save Headless Mode to {HeadlessFile}: {e.Message}");
+        }
     }
 
     private object Throttle(bool on, int fps)
@@ -107,7 +166,10 @@ public sealed partial class HostApi
             ApplyFrameRate(own > 0 ? own : 30);
         }
         if (headlessChanged)
+        {
             HeadlessChanged?.Invoke(headless);
+            SaveHeadless(headless);
+        }
         if (shrinkChanged)
         {
             Shrunk?.Invoke(shrink);
