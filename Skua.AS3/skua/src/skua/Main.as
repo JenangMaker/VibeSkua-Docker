@@ -147,7 +147,43 @@ public class Main extends MovieClip {
     }
 
     public function onExtensionResponse(packet:*):void {
+        this.repairItemIds(packet);
         this.external.call('pext', JSON.stringify(packet));
+    }
+
+    // The game adds an item that is new to the inventory as the server sent it
+    // in "addItems", and for some (quest rewards such as Soul Sand) that object
+    // has no ItemID: only its key in "items" says which item it is, until the
+    // next login reloads the inventory. Skua checks quest requirements by ID,
+    // so such a stack counted as missing and a quest needing it could never be
+    // turned in (a farm looped for hours); the game itself would also merge the
+    // next ID-less item into it. The game's handler has run by now (it
+    // listened first): give its new stack the ID from the key.
+    private function repairItemIds(packet:*):void {
+        try {
+            var data:* = packet.params.dataObj;
+            if (data == null || data.cmd != "addItems" || data.items == null)
+                return;
+            var avatar:* = this.game.world.myAvatar;
+            for (var key:String in data.items) {
+                var sent:* = data.items[key];
+                var id:int = int(key);
+                if (sent == null || id <= 0 || sent.ItemID != null)
+                    continue;
+                for each (var list:* in [avatar.items, avatar.tempitems, avatar.houseitems]) {
+                    if (list == null)
+                        continue;
+                    for each (var item:* in list) {
+                        if (item.ItemID == null && item.sName == sent.sName) {
+                            item.ItemID = id;
+                            if (this.game.world.invTree[key] == null)
+                                this.game.world.invTree[key] = item;
+                        }
+                    }
+                }
+            }
+        } catch (e:Error) {
+        }
     }
 
     private function onGameClick(event:MouseEvent) : void
