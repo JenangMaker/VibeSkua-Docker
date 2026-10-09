@@ -3,9 +3,15 @@
 VibeSkua runs on Linux in a container and you use it from a browser: Skua's
 full UI with the game embedded under its menu, several accounts in tabs, Army
 Control and Grid View, as in the Windows app. Underneath, the game runs in
-[Ruffle](https://ruffle.rs) (a Flash player in Rust/WebAssembly) inside
-Electron, and Skua is the Windows client's UI ported to
-[Avalonia](https://avaloniaui.net), on the same Skua.Core.
+[Ruffle](https://ruffle.rs)'s desktop player (a Flash player in Rust), one per
+tab, started and logged in by that tab's Skua; Skua is the Windows client's UI
+ported to [Avalonia](https://avaloniaui.net), on the same Skua.Core.
+
+> **2.0 changes the game player.** The 1.x images ran Ruffle's web player
+> inside Electron; 2.0 runs its desktop player (see
+> [Game player](#game-player)). The compose file, accounts and Skua settings
+> stay the same. A few Electron-only settings no longer apply (marked below).
+> The last Electron image stays available as `vibeskua-web:1.3`.
 
 The image is built on LinuxServer's
 [KasmVNC base](https://github.com/linuxserver/docker-baseimage-kasmvnc): the
@@ -23,6 +29,7 @@ container is a small desktop you open at `http://<host>:3000`.
 - [Web manager](#web-manager)
 - [Advanced: control API and DevTools](#advanced-control-api-and-devtools)
 - [Troubleshooting](#troubleshooting)
+- [Game player](#game-player)
 - [Building the image yourself](#building-the-image-yourself)
 
 ## Quick start
@@ -253,20 +260,20 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `SKUA_HOST` | `1` | `0`: the game only, without Skua. |
 | `SKUA_UI` | `1` | `0`: Skua without windows, driven through its control API only. |
 | `SKUA_EMBED_GAME` | `1` | `0`: the game in its own window below Skua's instead of inside it (no tabs). |
-| `RUFFLE_RENDERER` | `webgl` with a GPU, `canvas` without | `wgpu-webgl` draws every effect but is much heavier; see [Performance](#performance). |
+| `RUFFLE_RENDERER` | `webgl` with a GPU, `canvas` without | `wgpu-webgl` draws every effect but is much heavier; see [Performance](#performance). 1.x (Electron) only. |
 | `RUFFLE_QUALITY` | `low` | `low`, `medium`, `high`. |
-| `RENDER_SCALE` | `1` | Fraction of the window's resolution to draw at. |
-| `SHOW_DEBUG_PANEL` | `0` | `1` shows the render controls and log under the game (the log goes to the container log either way; `?debug=1` on the page URL shows them for that page). |
+| `RENDER_SCALE` | `1` | Fraction of the window's resolution to draw at. 1.x (Electron) only. |
+| `SHOW_DEBUG_PANEL` | `0` | `1` shows the render controls and log under the game (the log goes to the container log either way; `?debug=1` on the page URL shows them for that page). 1.x (Electron) only. |
 | `SKUA_HIDDEN_FPS` | `2` | Game frame rate of tabs not on screen (1-60). |
 | `SKUA_HIDDEN_DRAW` | `0` | `1`: keep drawing tabs not on screen (at 1x1). Off, they are not drawn at all; Headless Mode never draws. |
 | `SKUA_DASHBOARD` | auto | Bot dashboard (kills, drops, quests, deaths, relogins, time) beside the game: `1` always, `0` never; auto shows it when the window is wide enough. |
-| `MAX_RENDER_FPS` | unlimited with a GPU, `15` without | Frames drawn per second; `0` draws nothing. |
+| `MAX_RENDER_FPS` | unlimited with a GPU, `15` without | Frames drawn per second; `0` draws nothing. 1.x (Electron) only. |
 | `ENABLE_MODULES`, `DISABLE_MODULES` | `""`, `QuestRequirementWiki,QuestItemRates` | Skua modules to switch on / off once the game loads. |
 | `SKUA_API_PREFIX` | `http://127.0.0.1:8791/` | Where the first tab's control API listens (see below). |
 | `SKUA_HOST_API_PREFIX` | `http://127.0.0.1:8789/` | Where the tab host API listens (see below). |
 | `SKUA_API_TOKEN` | unset | When set, every control API (the tabs' and the tab host's) requires it: `Authorization: Bearer <token>`. |
 | `VIBESKUA_ACCOUNTS_FILE` | `/config/.config/vibeskua/accounts.json` | Accounts added through the tab host API. |
-| `REMOTE_DEBUG_PORT` | off | Chrome DevTools port (see below). |
+| `REMOTE_DEBUG_PORT` | off | Chrome DevTools port (see below). 1.x (Electron) only. |
 
 ## Web manager
 
@@ -365,20 +372,22 @@ them controls the bot, so keep them on a LAN address, never on the internet.
 - **Very slow, or the host fans spin up**: see [Performance](#performance);
   above all, pass the GPU in.
 - **Logs**: `docker logs -f vibeskua`. Lines start with `[skua]` (Skua; `[tab N]`
-  for other tabs), `[page]` / `[page N]` (the game pages) and `[host]`.
+  for other tabs), `[game]` (the game's player; `[page]` in 1.x) and `[host]`.
 
-## Native game player (experimental)
+## Game player
 
-The `native` branch builds an image (`vibeskua-web:native`, from
-`docker/Dockerfile.native`) that runs the game in Ruffle's desktop player
-instead of Electron: each tab's Skua starts its own player, embeds its window
-and logs it in. There is no Node.js and no browser in it. Idle and loading
-cost much less; in a fight the game costs about the same (the game's own
-ActionScript runs in the same Ruffle engine either way).
+Since 2.0 the image (from `docker/Dockerfile.native`, branch `native`) runs
+the game in Ruffle's desktop player instead of Electron: each tab's Skua
+starts its own player, embeds its window and logs it in. There is no Node.js
+and no browser in it. Idle and loading cost much less than in 1.x; in a fight
+the game costs about the same (the game's own ActionScript runs in the same
+Ruffle engine either way). How fast a tab you watch runs depends on the CPU:
+about 30 fps on a recent desktop CPU, about 10 on an older 4-core server
+shared by several tabs.
 
 | Variable | Default | What |
 | :--- | :--- | :--- |
-| `SKUA_GAME` | `native` in that image | `native`: Skua starts the desktop player for its tab. |
+| `SKUA_GAME` | `native` | `native`: Skua starts the desktop player for its tab. |
 | `RUFFLE_GRAPHICS` | the player's choice (Vulkan with a GPU); `gl` when `RUFFLE_FILTERS` is on | `vulkan` or `gl`. With filters on, Vulkan on an Intel iGPU had the GPU reset as hung within seconds of drawing (the player then exits); OpenGL draws the same frames fine. If the GPU fails while drawing, that tab's player is started again one step down (Vulkan or the default, then `gl`, then `gl` in software) instead of failing the same way again. |
 | `RUFFLE_FILTERS` | `off` | `on` draws filters (glows, blurs, shadows), bitmap caches and blend effects. Off draws as Electron's WebGL renderer does; on, AQW frames can take seconds, even on a GPU, and Skua waits behind them. |
 | `RUFFLE_PRESENT` | `auto` | How frames reach the screen: `auto` (no vsync; Immediate under KasmVNC), `mailbox`, `immediate`, `fifo` (vsync). A mode the GPU does not offer falls back to `auto`. Measured on an Intel iGPU, `mailbox` cost much more CPU (mostly in KasmVNC) for the same smoothness. |
@@ -396,16 +405,20 @@ lines a second. While a tab draws, the player logs a drawing summary once a
 minute (frames per second, time per frame and where it goes). Recycling restarts one tab at a time:
 the others wait their turn, so the tabs don't all log in at once. A script
 that runs several tabs together (an army) loses its sync when one of them is
-recycled; use long intervals there, or none. Not in the native image yet:
-`RENDER_SCALE`, `MAX_RENDER_FPS`, the debug panel and DevTools.
+recycled; use long intervals there, or none. Not in 2.0: `RENDER_SCALE`,
+`MAX_RENDER_FPS` (use `RUFFLE_MAX_FPS`), the debug panel and DevTools.
 
 ## Building the image yourself
 
 ```bash
-docker build -f docker/Dockerfile.kasm -t vibeskua-web .
+docker build -f docker/Dockerfile.native -t vibeskua-web .
 ```
 
-By default the image uses the official Ruffle release. VibeSkua works best
+This builds Ruffle's desktop player from the fork's commit pinned in
+`docker/ruffle-native.ref` (a Rust build: it takes a while the first time).
+
+The 1.x (Electron) image is built from branch `avalonia-ui` with
+`docker/Dockerfile.kasm`. By default it uses the official Ruffle release. VibeSkua works best
 with the patched Ruffle build ([JenangMaker/ruffle](https://github.com/JenangMaker/ruffle),
 branch `aqw-loader-fixes`: Loader and renderer fixes AQW needs, and the
 renderer/fps controls), which the published image uses. Pass a zip of its web
