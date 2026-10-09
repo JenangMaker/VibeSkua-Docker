@@ -238,26 +238,31 @@ Run these from inside the folder.
 browser ── KasmVNC (port 3000) ── a small Linux desktop in the container
                                     ├─ Skua (Avalonia port of the WPF UI, one process per tab)
                                     │     └─ Skua.Core, unchanged scripts API
-                                    └─ Electron ── Ruffle (Flash player, WebAssembly) ── AQW
+                                    └─ Ruffle's desktop player (one per tab, started by its Skua) ── AQW
                                           the game window is embedded under Skua's menu
 ```
 
 - **Skua.App.Avalonia** is the Windows client's WPF UI ported to
   [Avalonia](https://avaloniaui.net), on the same Skua.Core, so scripts run as
   they do on Windows.
-- **The game** runs in [Ruffle](https://ruffle.rs) inside Electron. It uses a
-  fork with fixes for AQW (loader, canvas rendering, speed without a GPU):
-  [JenangMaker/ruffle](https://github.com/JenangMaker/ruffle), branch
-  `aqw-loader-fixes`.
+- **The game** runs in [Ruffle](https://ruffle.rs)'s desktop player (Rust,
+  drawing with Vulkan or OpenGL), from a fork with fixes for AQW and a Skua
+  bridge: [JenangMaker/ruffle](https://github.com/JenangMaker/ruffle), branch
+  `native-skua`. Since 2.0 there is no Electron and no browser in the
+  container; the 1.x images (`vibeskua-web:1.3`) ran Ruffle's web player
+  inside Electron.
 - **Skua.Linux** connects the two (a WebSocket bridge in place of Flash's COM
   interface) and adds the container's extras: script sync, a control API, tab
-  throttling.
+  throttling, recycling and resuming scripts.
 
 ## Differences from the Windows app
 
 - **Ruffle is not Flash.** The game plays and scripts run, but a few effects are
-  missing with the default `webgl` renderer (skill cooldown darkening, aura
-  fades). Where Ruffle behaves differently in ways scripts notice (for example
+  missing while filters are off, the default (glows, blurs, aura fades). The
+  game's own code also runs slower than in Flash: a tab you watch reaches
+  about 30 fps on a recent desktop CPU, but only about 10 on an older server
+  CPU shared by several tabs. Hidden and Headless tabs, where bots spend
+  their time, are not affected. Where Ruffle behaves differently in ways scripts notice (for example
   the order of a quest's requirements), Skua.Core corrects for it.
 - **Without a GPU** the game is drawn on the CPU: it works, but slowly and at a
   CPU cost. Pass `/dev/dri` through if the host has an Intel or AMD GPU.
@@ -269,7 +274,8 @@ browser ── KasmVNC (port 3000) ── a small Linux desktop in the container
 
 - **The Docker image:** see [Building the image yourself](DOCKER.md#building-the-image-yourself).
   Pushing a `v*` tag, or running the **Publish image** workflow, publishes
-  `ghcr.io/jenangmaker/vibeskua-web` from GitHub Actions.
+  `ghcr.io/jenangmaker/vibeskua-web` from GitHub Actions (2.x from the
+  `native` branch; 1.x from `avalonia-ui`).
 - **The Windows app,** as upstream:
   1. **Automated:** run **BuildRelease.bat** in the root folder. The output lands
      in a new **Build** folder.
