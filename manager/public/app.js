@@ -30,12 +30,52 @@ class ApiError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 
-async function api(method, path, body) {
+// Loaders for the requests a person starts (quiet: the 4 s poll's, which would
+// keep them on): the bar along the top runs while any is out, after 150 ms so
+// a quick one does not flash it, and the button that was clicked spins until
+// its own are back. A click's handler asks before its first await, so the
+// button is the one clicked in this same task.
+let pending = 0, barTimer = null, clickedButton = null;
+document.addEventListener('click', e => {
+  clickedButton = e.target.closest?.('button') || null;
+  setTimeout(() => { clickedButton = null; });
+}, true);
+
+function trackRequest() {
+  // Not a button that opened a dialog: the dialog shows its own loader.
+  const dialog = document.querySelector('dialog[open]');
+  const btn = clickedButton?.isConnected && (!dialog || dialog.contains(clickedButton)) ? clickedButton : null;
+  if (btn) {
+    btn.dataset.busy = String((+btn.dataset.busy || 0) + 1);
+    btn.classList.add('busy');
+    btn.setAttribute('aria-busy', 'true');
+  }
+  if (pending++ === 0) barTimer = setTimeout(() => { $('#busy-bar').hidden = false; }, 150);
+  return () => {
+    if (btn) {
+      const left = +btn.dataset.busy - 1;
+      if (left > 0) btn.dataset.busy = String(left);
+      else {
+        delete btn.dataset.busy;
+        btn.classList.remove('busy');
+        btn.removeAttribute('aria-busy');
+      }
+    }
+    if (--pending === 0) { clearTimeout(barTimer); $('#busy-bar').hidden = true; }
+  };
+}
+
+async function api(method, path, body, { quiet = false } = {}) {
   const init = { method, headers: { 'X-Manager': '1' } };
   if (method !== 'GET') {
     init.headers['Content-Type'] = 'application/json';
     init.body = body === undefined ? '' : JSON.stringify(body);
   }
+  const done = quiet ? null : trackRequest();
+  try { return await request(path, init); } finally { done?.(); }
+}
+
+async function request(path, init) {
   const res = await fetch(path, init);
   let data = null;
   try { data = await res.json(); } catch { /* empty */ }
@@ -137,7 +177,7 @@ function setStreamer(on, fromUser) {
   try { localStorage.setItem('vsm-streamer', on ? '1' : '0'); } catch { /* private window */ }
   $('#who').textContent = on ? '' : $('#who').dataset.user || '';
   if (fromUser && on && confirm("Also turn on the game's own Streamer Mode in every tab (names, guild and room number in the game)?"))
-    armyAll('Streamer Mode on', '/api/army/option?name=StreamerMode&value=true');
+    armyAll('Streamer Mode on', '/api/army/option?name=StreamerMode&value=true', true);
   if (logTab !== null) { logSince = 0; $('#log-text').textContent = ''; pollLog(); }
   render();
 }
@@ -191,7 +231,10 @@ let view = 'bots';
 for (const btn of document.querySelectorAll('.view-tab')) {
   btn.addEventListener('click', () => {
     view = btn.dataset.view;
-    for (const b of document.querySelectorAll('.view-tab')) b.classList.toggle('active', b === btn);
+    for (const b of document.querySelectorAll('.view-tab')) {
+      b.classList.toggle('active', b === btn);
+      b.setAttribute('aria-selected', String(b === btn));
+    }
     for (const s of document.querySelectorAll('.view')) s.hidden = s.id !== `view-${view}`;
     refresh();
   });
@@ -201,6 +244,7 @@ for (const btn of document.querySelectorAll('.view-tab')) {
 
 let state = { host: null, tabs: [], statuses: {}, resources: null, accounts: null, grid: false };
 let refreshing = false;
+let loaded = false;   // the first refresh is done (the placeholders are gone)
 
 function startPolling() {
   stopPolling();
@@ -218,26 +262,44 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 async function refresh() {
   if (refreshing) return;
   refreshing = true;
+  // The first load shows the bar; the poll after it does not.
+  const opts = { quiet: loaded };
   try {
     const [host, tabs, resources] = await Promise.all([
-      api('GET', '/api/status'), api('GET', '/api/tabs'), api('GET', '/api/resources'),
+      api('GET', '/api/status', undefined, opts), api('GET', '/api/tabs', undefined, opts), api('GET', '/api/resources', undefined, opts),
     ]);
     state.host = host;
     state.tabs = tabs;
     state.resources = resources;
     setConnected(true, host);
+    // Each card updates when its own tab answers: a tab whose game is busy
+    // answers in seconds and would hold up every card. It keeps its last
+    // status meanwhile, and is not asked again until it answers.
     if (view === 'bots') {
-      const statuses = await Promise.all(tabs.map(t =>
-        t.running ? api('GET', `/api/tabs/${t.tab}/api/status?detail=1`).catch(() => null) : null));
-      state.statuses = Object.fromEntries(tabs.map((t, i) => [t.tab, statuses[i]]));
+      for (const n of Object.keys(state.statuses)) if (!tabs.some(t => t.running && t.tab === +n)) delete state.statuses[n];
+      for (const t of tabs) if (t.running) fetchStatus(t.tab, opts);
     }
-    if (view === 'accounts' || state.accounts === null) state.accounts = await api('GET', '/api/accounts');
+    if (view === 'accounts' || state.accounts === null) state.accounts = await api('GET', '/api/accounts', undefined, opts);
+    loaded = true;
     render();
   } catch (e) {
     if (e.status !== 401) setConnected(false, null, e.message);
   } finally {
     refreshing = false;
   }
+}
+
+const statusInFlight = new Set();
+
+async function fetchStatus(n, opts) {
+  if (statusInFlight.has(n)) return;
+  statusInFlight.add(n);
+  try {
+    state.statuses[n] = await api('GET', `/api/tabs/${n}/api/status?detail=1`, undefined, opts).catch(() => null);
+  } finally {
+    statusInFlight.delete(n);
+  }
+  if (view === 'bots' && state.tabs.some(t => t.running && t.tab === n)) render();
 }
 
 function setConnected(ok, host, error) {
@@ -270,10 +332,67 @@ function renderSummary() {
 // ---- bot cards ------------------------------------------------------------------
 
 const cards = new Map();   // tab number -> card
+// Tabs ticked on their card: the whole Army bar acts on these only (on
+// every tab when none is). Kept while the page is open.
+const picked = new Set();
+
+// The ticked tabs that are running, in order.
+const pickedRunning = () => state.tabs.filter(t => t.running && picked.has(t.tab)).map(t => t.tab);
+// "tab 2" / "tabs 2, 4", for titles and questions.
+const tabList = tabs => `tab${tabs.length === 1 ? '' : 's'} ${tabs.join(', ')}`;
+
+// Each Army button's two labels: for every tab ("Start all", "Jump..."),
+// and for the ticked ones ("Start (2 selected)", "Jump (2 selected)...").
+const ARMY_BUTTONS = ['load-all', 'restart-all', 'jump-all', 'options-all'].map(id => document.getElementById(id))
+  .concat([...document.querySelectorAll('[data-army]')]);
+for (const b of ARMY_BUTTONS) {
+  b.dataset.labelAll = b.textContent;
+  b.dataset.labelSome = b.textContent.replace(/ all$/, '').replace(/\.\.\.$/, '');
+  b.dataset.dots = b.textContent.endsWith('...') ? '...' : '';
+}
+
+// With tabs ticked the bar says so once, in place of its "Army" label (a chip
+// with its own clear button), and the buttons drop their "all".
+function updatePickUi() {
+  const n = picked.size;
+  for (const b of ARMY_BUTTONS) b.textContent = n ? `${b.dataset.labelSome}${b.dataset.dots}` : b.dataset.labelAll;
+  $('#army-label').hidden = n > 0;
+  $('#pick-info').hidden = n === 0;
+  $('.army').classList.toggle('picking', n > 0);
+  $('#pick-count').textContent = `${tabList([...picked].sort((a, b) => a - b)).replace(/^t/, 'T')} selected`;
+}
+
+// ---- Execute (phones) -------------------------------------------------------------
+// The panel closes once an action is picked, on a click outside, and on Escape.
+
+function setExecOpen(open) {
+  $('#army-actions').classList.toggle('open', open);
+  $('#army-exec').setAttribute('aria-expanded', String(open));
+}
+
+$('#army-exec').addEventListener('click', () => setExecOpen(!$('#army-actions').classList.contains('open')));
+$('#army-actions').addEventListener('click', e => { if (e.target.closest('button')) setExecOpen(false); });
+document.addEventListener('click', e => {
+  if ($('#army-actions').classList.contains('open') && !e.target.closest('#army-actions, #army-exec')) setExecOpen(false);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('#army-actions').classList.contains('open')) { setExecOpen(false); $('#army-exec').focus(); }
+});
+
+$('#pick-clear').addEventListener('click', () => {
+  picked.clear();
+  for (const card of cards.values()) { card.r.pick.checked = false; card.el.classList.remove('picked'); }
+  updatePickUi();
+});
 
 function renderCards() {
   const container = $('#cards');
   const seen = new Set();
+  // The host marks the tab on the desktop as selected, and none while its
+  // Grid View shows them all: running tabs with none selected is Grid View.
+  state.grid = state.tabs.some(t => t.running) && !state.tabs.some(t => t.selected);
+  $('#grid-toggle').textContent = state.grid ? 'Grid View: on' : 'Grid View';
+  $('#grid-toggle').setAttribute('aria-pressed', String(state.grid));
   for (const tab of state.tabs) {
     seen.add(tab.tab);
     let card = cards.get(tab.tab);
@@ -283,30 +402,48 @@ function renderCards() {
     }
     updateCard(card, tab, state.statuses[tab.tab]);
   }
-  for (const [n, card] of cards) if (!seen.has(n)) { card.el.remove(); cards.delete(n); }
+  for (const [n, card] of cards) if (!seen.has(n)) { card.el.remove(); cards.delete(n); picked.delete(n); }
+  updatePickUi();
   // In tab order.
   const ordered = [...cards.entries()].sort((a, b) => a[0] - b[0]).map(([, c]) => c.el);
   if (ordered.some((el, i) => container.children[i] !== el)) container.replaceChildren(...ordered);
-  $('#no-tabs').hidden = state.tabs.length > 0;
+  // Until the first refresh is in, "Loading the tabs..." rather than "No tabs."
+  $('#cards-loading').hidden = loaded;
+  $('#no-tabs').hidden = !loaded || state.tabs.length > 0;
 }
 
 function makeCard(n) {
   const r = {};
   const field = (key, label) => [h('dt', { text: label }), r[key] = h('dd')];
   const stat = (key, label) => h('div', {}, r[key] = h('b', { text: '0' }), h('span', { text: label }));
-  const bar = cls => { const fill = h('i'); const text = h('span'); r[`${cls}Fill`] = fill; r[`${cls}Text`] = text; return h('div', { class: `bar ${cls}` }, fill, text); };
+  // A bar is a progress bar to assistive tech (setBar keeps its value).
+  const bar = (cls, label) => {
+    const fill = h('i'); const text = h('span');
+    r[`${cls}Fill`] = fill; r[`${cls}Text`] = text;
+    return r[`${cls}Bar`] = h('div', { class: `bar ${cls}`, role: 'progressbar', 'aria-label': label, 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0' }, fill, text);
+  };
+  r.pick = h('input', { type: 'checkbox', class: 'card-pick', title: 'Select: Load script (army bar) goes to the selected tabs only', 'aria-label': `Select tab ${n}` });
   const el = h('article', { class: 'card' },
     h('div', { class: 'card-head' },
+      r.pick,
       h('span', { class: 'card-num', text: `Tab ${n}` }),
-      r.name = h('span', { class: 'card-name' }),
-      r.pill = h('span', { class: 'pill' })),
-    h('dl', { class: 'kv' }, field('map', 'Map'), field('level', 'Level'), field('gold', 'Gold'), field('script', 'Script')),
-    h('div', { class: 'bars' }, bar('hp'), bar('mp')),
+      r.name = h('span', { class: 'card-name' })),
+    // Its state, and Shown on the tab the VibeSkua desktop shows (the Show
+    // button puts a tab there): under the name, which keeps the whole row.
+    h('div', { class: 'card-tags' },
+      r.pill = h('span', { class: 'pill' }),
+      r.shown = h('span', { class: 'shown-badge', text: 'Shown', title: 'This tab is the one shown on the VibeSkua desktop', hidden: true })),
+    h('dl', { class: 'kv' }, field('map', 'Map'), field('room', 'Room'), field('level', 'Level'), field('gold', 'Gold'), field('bag', 'Inventory'), field('script', 'Script')),
+    h('div', { class: 'bars' }, bar('hp', 'HP'), bar('mp', 'MP')),
     r.fight = h('div', { class: 'fight' },
       h('div', { class: 'fight-head' }, h('span', { class: 'muted', text: 'Target' }), r.targetName = h('b'), r.targetPct = h('span', { class: 'muted' })),
-      bar('target'),
+      bar('target', 'Target HP'),
       r.cellMons = h('div', { class: 'cell-mons' })),
     r.questList = h('div', { class: 'quests' }),
+    // Closed by default (the card stays short); open or closed, it stays so.
+    r.equip = h('details', { class: 'equip', hidden: true },
+      r.equipSummary = h('summary'),
+      r.equipList = h('ul', { class: 'equip-list' })),
     h('div', { class: 'stats' }, stat('kills', 'Kills'), stat('drops', 'Drops'), stat('quests', 'Quests'), stat('deaths', 'Deaths'), stat('relogins', 'Relogins')),
     r.usage = h('div', { class: 'usage' }),
     h('div', { class: 'actions' },
@@ -314,11 +451,18 @@ function makeCard(n) {
       h('button', { class: 'small', onclick: () => openScriptDialog([n]) }, 'Load...'),
       r.optionsBtn = h('button', { class: 'small', title: "The loaded script's options", onclick: () => openScriptOptions(n) }, 'Script options...'),
       h('button', { class: 'small', title: "This tab's Skua options (Lag Killer, Hide Players, Headless Mode...)", onclick: () => openSkuaOptions(n) }, 'Skua options...'),
+      r.cboBtn = h('button', { class: 'small', title: "This account's CoreBots options (Options > CoreBots in Skua): classes for solo, farm, dodge and boss, delays, rooms...", onclick: () => openCoreBotsOptions(n) }, 'CoreBots options...'),
+      r.loginBtn = h('button', { class: 'small', onclick: () => logInOut(n) }),
       h('button', { class: 'small', onclick: () => openLog(n) }, 'Log'),
       h('button', { class: 'small', title: 'Show this tab on the VibeSkua desktop', onclick: () => act(`Tab ${n} shown`, () => api('POST', `/api/tabs/${n}/select`)) }, 'Show'),
-      h('button', { class: 'small', title: "Restart this tab's Skua (the game stays logged in)", onclick: () => restartTab(n, false) }, 'Restart'),
+      h('button', { class: 'small', title: "Restart this tab's Skua (a running script stops; the game logs back in if it was restarted too)", onclick: () => restartTab(n, false) }, 'Restart'),
       h('button', { class: 'small', title: 'Restart Skua and reload the game page (logs in again)', onclick: () => restartTab(n, true) }, 'Reload game'),
       h('button', { class: 'small danger', onclick: () => closeTab(n) }, 'Close')));
+  r.pick.addEventListener('change', () => {
+    if (r.pick.checked) picked.add(n); else picked.delete(n);
+    el.classList.toggle('picked', r.pick.checked);
+    updatePickUi();
+  });
   return { el, r, running: false };
 }
 
@@ -328,10 +472,16 @@ function updateCard(card, tab, status) {
   const script = status?.script;
   const stats = status?.stats;
   card.el.classList.toggle('selected', tab.selected);
+  // Shown: the tab on the desktop; In grid: every running tab, in Grid View.
+  r.shown.hidden = !(tab.selected || (state.grid && tab.running));
+  r.shown.textContent = state.grid ? 'In grid' : 'Shown';
+  r.shown.title = state.grid ? "The desktop's Grid View shows every tab, this one included" : 'This tab is the one shown on the VibeSkua desktop';
   r.name.textContent = streamer ? `Player ${tab.tab}` : (game?.loggedIn && game.player) || tab.account || tab.title;
 
   let pill = ['Not running', 'bad'];
-  if (tab.running && !status) pill = ['Starting', 'warn'];
+  // undefined: no answer yet (the page just opened); null: the call failed.
+  if (tab.running && status === undefined) pill = ['Loading...', 'warn'];
+  else if (tab.running && !status) pill = ['Starting', 'warn'];
   else if (status && !status.bridgeConnected) pill = ['Game not connected', 'warn'];
   else if (game && !game.loggedIn) pill = [tab.account ? 'Logged out' : 'No account', 'warn'];
   else if (game?.loggedIn) pill = script?.running ? ['Running script', 'ok'] : ['Logged in', 'ok'];
@@ -341,19 +491,27 @@ function updateCard(card, tab, status) {
 
   const loggedIn = !!game?.loggedIn;
   r.map.textContent = loggedIn ? `${anonMap(game.map) || '-'}${game.cell ? ` (${game.cell})` : ''}` : '-';
+  // The room (game.room: VibeSkua 1.3.0+); hidden on stream, as in the logs.
+  r.room.textContent = !loggedIn || !game.room ? '-' : streamer ? 'hidden' : game.room;
   r.level.textContent = loggedIn ? `${game.level ?? '-'}${game.className ? ` - ${game.className}` : ''}` : '-';
   r.gold.textContent = loggedIn ? fmtNum(game.gold) : '-';
+  // Inventory space (game.bag: VibeSkua after 1.3.0): marked when 5 or fewer
+  // slots are left (drops and quest items need room) and when it is full.
+  const bag = loggedIn && game.bag?.slots ? game.bag : null;
+  const free = bag ? bag.slots - bag.used : null;
+  r.bag.textContent = bag ? `${bag.used}/${bag.slots} (${free <= 0 ? 'full' : `${free} free`})` : '-';
+  r.bag.className = free === null ? '' : free <= 0 ? 'bag-full' : free <= 5 ? 'bag-low' : '';
+  r.bag.title = bag ? `${free > 0 ? free : 0} inventory slot${free === 1 ? '' : 's'} free` : '';
   r.script.textContent = script?.loaded ? `${scriptName(script.loaded)}${script.running ? ' (running)' : ' (loaded)'}` : 'none';
   r.script.title = script?.loaded || '';
 
   const pct = (a, b) => b ? Math.max(0, Math.min(100, a / b * 100)) : 0;
-  r.hpFill.style.width = `${loggedIn ? pct(game.hp, game.maxHp) : 0}%`;
-  r.hpText.textContent = loggedIn ? `HP ${fmtNum(game.hp)} / ${fmtNum(game.maxHp)}` : 'HP';
-  r.mpFill.style.width = `${loggedIn ? pct(game.mp, game.maxMp) : 0}%`;
-  r.mpText.textContent = loggedIn ? `MP ${fmtNum(game.mp)} / ${fmtNum(game.maxMp)}` : 'MP';
+  setBar(r, 'hp', loggedIn ? pct(game.hp, game.maxHp) : 0, loggedIn ? `HP ${fmtNum(game.hp)} / ${fmtNum(game.maxHp)}` : 'HP');
+  setBar(r, 'mp', loggedIn ? pct(game.mp, game.maxMp) : 0, loggedIn ? `MP ${fmtNum(game.mp)} / ${fmtNum(game.maxMp)}` : 'MP');
 
   updateFight(r, loggedIn ? status?.combat : null);
   updateQuests(r, loggedIn ? status?.quests : null);
+  updateEquipment(r, loggedIn ? status?.equipment : null);
 
   r.kills.textContent = fmtNum(stats?.kills ?? 0);
   r.drops.textContent = fmtNum(stats?.drops ?? 0);
@@ -367,11 +525,27 @@ function updateCard(card, tab, status) {
     h('span', { text: `Restarts ${tab.restarts}` }),
   );
 
+  // Log in or Log out, whichever applies; not until the tab's Skua answers.
+  card.loggedIn = loggedIn;
+  r.loginBtn.textContent = loggedIn ? 'Log out' : 'Log in';
+  r.loginBtn.title = loggedIn ? 'Log this account out (a running script stops)' : "Log this tab's account in";
+  r.loginBtn.disabled = !status;
+
   card.running = !!script?.running;
   r.startStop.textContent = card.running ? 'Stop' : 'Start';
   r.startStop.disabled = !status || (!card.running && !script?.loaded);
   r.startStop.title = !card.running && !script?.loaded ? 'Load a script first' : '';
   r.optionsBtn.disabled = !status || !script?.loaded;
+  r.cboBtn.disabled = !loggedIn;
+}
+
+// A card's bar: its fill, its text, and the value a screen reader reads.
+function setBar(r, cls, pct, text) {
+  r[`${cls}Fill`].style.width = `${pct}%`;
+  r[`${cls}Text`].textContent = text;
+  r[`${cls}Bar`].setAttribute('aria-valuenow', String(Math.round(pct)));
+  if (text) r[`${cls}Bar`].setAttribute('aria-valuetext', text);
+  else r[`${cls}Bar`].removeAttribute('aria-valuetext');
 }
 
 // The target with its HP, and the cell's monsters: alive ones first, the
@@ -384,8 +558,7 @@ function updateFight(r, combat) {
   const pct = target?.maxHp ? Math.max(0, Math.min(100, target.hp / target.maxHp * 100)) : 0;
   r.targetName.textContent = target ? target.name : 'none';
   r.targetPct.textContent = target ? `${pct.toFixed(pct < 10 ? 1 : 0)}%` : '';
-  r.targetFill.style.width = `${pct}%`;
-  r.targetText.textContent = target ? `${fmtNum(target.hp)} / ${fmtNum(target.maxHp)}` : '';
+  setBar(r, 'target', pct, target ? `${fmtNum(target.hp)} / ${fmtNum(target.maxHp)}` : '');
 
   // Group same-named monsters: "Binky", "Treeant x3 (2 alive)".
   const groups = new Map();
@@ -429,10 +602,42 @@ function updateQuests(r, quests) {
     ...(more > 0 ? [h('div', { class: 'muted small', text: `+${more} more` })] : []));
 }
 
+// What the character wears (status.equipment: VibeSkua 1.3.0+): slot,
+// item and its enhancement, and the special one (proc) if any. Rebuilt only
+// when it changes.
+function updateEquipment(r, items) {
+  r.equip.hidden = !items?.length;
+  if (r.equip.hidden) return;
+  const key = JSON.stringify(items);
+  if (r.equip.dataset.key === key) return;
+  r.equip.dataset.key = key;
+  const weapon = items.find(i => i.slot === 'Weapon');
+  r.equipSummary.replaceChildren(
+    h('span', { text: 'Equipment' }),
+    weapon ? h('span', { class: 'muted equip-peek', text: weapon.name }) : null);
+  r.equipList.replaceChildren(...items.map(i => h('li', {},
+    h('span', { class: 'equip-slot muted', text: i.slot }),
+    h('span', { class: 'equip-name', text: i.name, title: i.name }),
+    i.enhancement ? h('span', { class: 'tag', text: i.enhancement, title: 'Enhancement' }) : null,
+    i.proc ? h('span', { class: 'tag ok', text: i.proc, title: 'Special enhancement' }) : null)));
+}
+
 async function startStop(n) {
   const card = cards.get(n);
   if (card.running) await act(`Tab ${n}: script stopped`, () => api('POST', `/api/tabs/${n}/api/script/stop`));
   else await act(`Tab ${n}: script started`, () => api('POST', `/api/tabs/${n}/api/script/start`));
+  refresh();
+}
+
+// One tab's Log in / Log out, as the Army bar's do for every tab.
+async function logInOut(n) {
+  const card = cards.get(n);
+  if (card.loggedIn) {
+    if (!confirm(`Log out tab ${n}? A running script stops.`)) return;
+    await act(`Tab ${n}: logged out`, () => api('POST', `/api/tabs/${n}/api/army/logout`));
+  } else {
+    await act(`Tab ${n}: logging in`, () => api('POST', `/api/tabs/${n}/api/army/login`));
+  }
   refresh();
 }
 
@@ -453,17 +658,32 @@ async function closeTab(n) {
 
 for (const btn of document.querySelectorAll('[data-army]')) {
   btn.addEventListener('click', async () => {
-    if (btn.dataset.confirm && !confirm(btn.dataset.confirm)) return;
+    if (btn.dataset.confirm) {
+      const targets = picked.size ? pickedRunning() : null;
+      const question = targets ? btn.dataset.confirm.replace('every account', tabList(targets)) : btn.dataset.confirm;
+      if (!confirm(question)) return;
+    }
     btn.disabled = true;
-    try { await armyAll(btn.textContent, `/api/army/${btn.dataset.army}`); }
+    try { await armyAll(btn.dataset.labelSome, `/api/army/${btn.dataset.army}`); }
     finally { btn.disabled = false; refresh(); }
   });
 }
 
-// Every tab's answer: one toast, listing the tabs that failed.
-async function armyAll(label, path) {
+// An Army command (path: /api/army/...): for every tab in one call, or, with
+// cards ticked, for each ticked running tab through its own API (every:
+// always every tab). One toast, listing the tabs that failed.
+async function armyAll(label, path, every = false) {
   try {
-    const results = await api('POST', path);
+    let results;
+    if (picked.size && !every) {
+      const targets = pickedRunning();
+      if (!targets.length) { toast(`${label}: none of the selected tabs is running`, true); return; }
+      const sub = path.slice('/api'.length);   // /army/...
+      results = Object.fromEntries(await Promise.all(targets.map(n =>
+        api('POST', `/api/tabs/${n}/api${sub}`).then(r => [n, r ?? {}], e => [n, { error: e.message }]))));
+    } else {
+      results = await api('POST', path);
+    }
     const failed = Object.entries(results || {}).filter(([, r]) => !r || r.error);
     if (failed.length) toast(`${label}: failed in tab ${failed.map(([t, r]) => `${t} (${r?.error || 'no answer'})`).join(', ')}`, true);
     else toast(`${label}: done in ${Object.keys(results || {}).length} tab(s)`);
@@ -471,6 +691,28 @@ async function armyAll(label, path) {
     if (e.status !== 401) toast(`${label}: ${e.message}`, true);
   }
 }
+
+// Restart Skua in the selected tabs (every running tab when none is), as
+// each card's Restart does for its own.
+$('#restart-all').addEventListener('click', async () => {
+  const running = state.tabs.filter(t => t.running).map(t => t.tab);
+  const targets = picked.size ? running.filter(n => picked.has(n)) : running;
+  if (!targets.length) { toast(picked.size ? 'None of the selected tabs is running' : 'No running tab to restart', true); return; }
+  const which = targets.length === running.length && !picked.size ? 'every tab' : `tab${targets.length === 1 ? '' : 's'} ${targets.join(', ')}`;
+  if (!confirm(`Restart Skua in ${which}? Running scripts stop.`)) return;
+  const btn = $('#restart-all');
+  btn.disabled = true;
+  try {
+    const results = await Promise.all(targets.map(n =>
+      api('POST', `/api/tabs/${n}/restart`).then(r => [n, r?.error], e => [n, e.message])));
+    const failed = results.filter(([, err]) => err);
+    if (failed.length) toast(`Restart: failed in ${failed.map(([n, err]) => `tab ${n} (${err})`).join(', ')}`, true);
+    else toast(`Restarting ${targets.length} tab(s)`);
+  } finally {
+    btn.disabled = false;
+    refresh();
+  }
+});
 
 $('#open-tab').addEventListener('click', async () => {
   await act('Tab opened', () => api('POST', '/api/tabs'));
@@ -480,12 +722,22 @@ $('#open-tab').addEventListener('click', async () => {
 $('#grid-toggle').addEventListener('click', async () => {
   state.grid = !state.grid;
   await act(state.grid ? 'Grid View on' : 'Grid View off', () => api('POST', `/api/grid?on=${state.grid ? 1 : 0}`));
+  refresh();
 });
 
-$('#load-all').addEventListener('click', () => openScriptDialog(state.tabs.filter(t => t.running).map(t => t.tab)));
+$('#load-all').addEventListener('click', () => {
+  const running = state.tabs.filter(t => t.running).map(t => t.tab);
+  if (!picked.size) { openScriptDialog(running); return; }
+  const targets = running.filter(n => picked.has(n));
+  if (!targets.length) { toast('None of the selected tabs is running', true); return; }
+  openScriptDialog(targets);
+});
 
 $('#jump-all').addEventListener('click', () => {
   const dlg = $('#dlg-jump');
+  const targets = picked.size ? pickedRunning() : null;
+  if (targets && !targets.length) { toast('None of the selected tabs is running', true); return; }
+  dlg.querySelector('h2').textContent = targets ? `Jump ${tabList(targets)}` : 'Jump every account';
   dlg.querySelector('form').reset();
   dlg.returnValue = '';   // Escape keeps the last one
   dlg.showModal();
@@ -511,7 +763,9 @@ function onOffRows(label, send) {
 }
 
 $('#options-all').addEventListener('click', () => {
-  $('#options-title').textContent = 'Skua options for every tab';
+  const targets = picked.size ? pickedRunning() : null;
+  if (targets && !targets.length) { toast('None of the selected tabs is running', true); return; }
+  $('#options-title').textContent = targets ? `Skua options for ${tabList(targets)}` : 'Skua options for every tab';
   $('#options-info').textContent = '';
   $('#options-list').replaceChildren(...onOffRows('', (name, on, label) => armyAll(label, `/api/army/option?name=${name}&value=${on}`)));
   $('#dlg-options').showModal();
@@ -527,6 +781,7 @@ async function openSkuaOptions(n) {
   skuaOptionsTab = n;
   $('#options-title').textContent = `Skua options, tab ${n}`;
   $('#options-info').textContent = 'Reading...';
+  $('#options-info').classList.add('loading');
   $('#options-list').replaceChildren();
   $('#dlg-options').showModal();
   let values = null;
@@ -536,6 +791,7 @@ async function openSkuaOptions(n) {
     if (e.status === 401) return;
   }
   if (skuaOptionsTab !== n) return;
+  $('#options-info').classList.remove('loading');
   if (!values || values.error || typeof values.LagKiller !== 'boolean') {
     $('#options-info').textContent = 'This VibeSkua cannot tell the current values (update its image); set each one on or off.';
     $('#options-list').replaceChildren(...onOffRows(`Tab ${n}: `, (name, on, label) => setTabOption(n, name, on, label)));
@@ -565,7 +821,8 @@ let searchTimer = null;
 function openScriptDialog(tabs) {
   if (!tabs.length) { toast('No running tab to load a script in', true); return; }
   scriptTargets = tabs;
-  $('#script-title').textContent = tabs.length === 1 ? `Load script in tab ${tabs[0]}` : `Load script in ${tabs.length} tabs`;
+  $('#script-title').textContent = tabs.length === 1 ? `Load script in tab ${tabs[0]}`
+    : tabs.length <= 6 ? `Load script in tabs ${tabs.join(', ')}` : `Load script in ${tabs.length} tabs`;
   $('#script-search').value = '';
   $('#script-category').value = 'All';
   $('#script-path').value = '';
@@ -582,24 +839,44 @@ function openScriptDialog(tabs) {
 
 let scriptMode = 'search', browseDir = '', browseSeq = 0;
 
+// The Search / Browse tabs only (data-smode): the CoreBots window's tabs share
+// the smode-tab look, and selecting them too made a click there set the mode
+// to undefined, so the next Load script showed neither view and dropped its
+// search results ("Searching..." for good).
 function setScriptMode(mode) {
-  scriptMode = mode;
-  for (const b of document.querySelectorAll('.smode-tab')) b.classList.toggle('active', b.dataset.smode === mode);
+  scriptMode = mode === 'browse' ? 'browse' : 'search';
+  mode = scriptMode;
+  for (const b of document.querySelectorAll('.smode-tab[data-smode]')) {
+    b.classList.toggle('active', b.dataset.smode === mode);
+    b.setAttribute('aria-selected', String(b.dataset.smode === mode));
+  }
   $('.search-row').hidden = mode !== 'search';
   $('#script-crumbs').hidden = mode !== 'browse';
   if (mode === 'browse') browseScripts(browseDir);
   else { searchScripts(); $('#script-search').focus(); }
 }
 
-for (const b of document.querySelectorAll('.smode-tab'))
+for (const b of document.querySelectorAll('.smode-tab[data-smode]'))
   b.addEventListener('click', () => setScriptMode(b.dataset.smode));
+
+// A list entry that works from the keyboard too: Tab reaches it, Enter or
+// Space does what a click does.
+function activatable(li, onActivate) {
+  li.tabIndex = 0;
+  li.setAttribute('role', 'button');
+  li.addEventListener('click', onActivate);
+  li.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onActivate(); }
+  });
+  return li;
+}
 
 function scriptItem(list, s, label, description) {
   const li = h('li', { title: s.path },
     h('div', { text: label }),
     h('small', { text: description || 'No description provided.' }),
     h('small', { class: 'path', text: s.path }));
-  li.addEventListener('click', () => {
+  activatable(li, () => {
     for (const x of list.children) x.classList.toggle('active', x === li);
     $('#script-path').value = s.path;
   });
@@ -622,7 +899,7 @@ async function browseScripts(dir) {
   const list = $('#script-list');
   const seq = ++browseSeq;
   renderCrumbs(dir);
-  list.replaceChildren(h('li', { class: 'none', text: 'Reading the folder...' }));
+  list.replaceChildren(h('li', { class: 'none loading', text: 'Reading the folder...' }));
   let reply;
   try {
     reply = await api('GET', `/api/tabs/${scriptTargets[0]}/api/scripts/browse?dir=${q(dir)}`);
@@ -645,15 +922,13 @@ async function browseScripts(dir) {
   if (reply.dir) {
     const parent = reply.dir.split('/').slice(0, -1).join('/');
     const up = h('li', { class: 'up', title: 'Up one folder' }, h('div', { text: '..' }), h('small', { text: 'Up one folder' }));
-    up.addEventListener('click', () => browseScripts(parent));
-    items.push(up);
+    items.push(activatable(up, () => browseScripts(parent)));
   }
   for (const f of reply.folders) {
     const li = h('li', { class: 'folder', title: f.path },
       h('div', { text: f.name }),
       h('small', { text: `${f.scripts} script${f.scripts === 1 ? '' : 's'}` }));
-    li.addEventListener('click', () => browseScripts(f.path));
-    items.push(li);
+    items.push(activatable(li, () => browseScripts(f.path)));
   }
   for (const s of reply.files)
     items.push(scriptItem(list, s, s.name || s.file.replace(/.cs$/i, ''), s.description));
@@ -680,6 +955,9 @@ async function searchScripts() {
   const category = $('#script-category').value;
   const list = $('#script-list');
   const seq = ++searchSeq;
+  // The old results stay, dimmed, while a new search runs; an empty list says so.
+  list.setAttribute('aria-busy', 'true');
+  if (!list.querySelector('li:not(.none)')) list.replaceChildren(h('li', { class: 'none loading', text: 'Searching...' }));
   try {
     const params = `limit=500${term ? `&q=${q(term)}` : ''}${category !== 'All' ? `&category=${q(category)}` : ''}`;
     const reply = await api('GET', `/api/tabs/${scriptTargets[0]}/api/scripts?${params}`);
@@ -698,6 +976,8 @@ async function searchScripts() {
     list.replaceChildren(...items);
   } catch (e) {
     if (e.status !== 401 && seq === searchSeq && scriptMode === 'search') list.replaceChildren(h('li', { class: 'none', text: e.message }));
+  } finally {
+    if (seq === searchSeq) list.removeAttribute('aria-busy');
   }
 }
 
@@ -715,6 +995,466 @@ $('#dlg-script').addEventListener('close', async () => {
   refresh();
 });
 
+// ---- CoreBots options dialog ----------------------------------------------------
+// Options > CoreBots for one account (GET/POST /cbo: VibeSkua 1.3.0+):
+// Loadout (a class, its mode and optionally its equipment, for solo, farm,
+// dodge and boss fights), Options and Other, as Skua's window has them. Saved
+// to the account's CBO_Storage file; scripts read it when they start.
+
+const CBO_ROLES = [['Solo', 1], ['Farm', 2], ['Dodge', 3], ['Boss', 4]];
+const CBO_SLOTS = [['Helm', 'helm'], ['Armor', 'armor'], ['Cape', 'cape'], ['Weapon', 'weapon'], ['Pet', 'pet'], ['GroundItem', 'groundItem']];
+let cboTab = null, cboData = null, cboControls = new Map(), cboPane = 'Loadout';
+
+// Auto-assign: for each role, the account's class that fits best, scored on
+// what the scripts already know: a skill setup for the role in Skua's
+// Advanced Skills (Farm for farming, Solo or Atk for solo...: 3 points, 2 for
+// the second-best mode), and the community's role lists (Tools/CheckArmyRoles.cs
+// in the Skua scripts: 3 points, 1 for support classes at bosses). Rank 10
+// breaks ties. Nothing is saved until Save.
+const CBO_DPS = ['Dragon of Time', 'Glacial Berserker', 'Guardian', 'Legion DoomKnight', 'Legion Revenant', 'LightCaster', 'Lycan', 'Psionic MindBreaker', 'Void HighLord'];
+const CBO_FARMERS = ['Abyssal Angel', 'ArchMage', 'Blaze Binder', 'Daimon', 'Dragon of Time', 'Eternal Inversionist', 'Firelord Summoner', 'Legion Revenant', 'Dark Master of Moglins', 'Master of Moglins', 'NCM', 'Scarlet Sorceress', 'ShadowScythe General', 'Shaman'];
+const CBO_SUPPORT = ['ArchFiend', 'ArchPaladin', 'Frostval Barbarian', 'Infinity Titan', 'Dark Legendary Hero', 'Legendary Hero', 'Legion Revenant', 'LightCaster', 'Lord of Order', 'NorthLands Monk', 'Quantum Chronomancer', 'Continuum Chronomancer', 'StoneCrusher'];
+const CBO_AUTO = {
+  Solo: { modes: ['Solo', 'Atk'], lists: [[CBO_DPS, 'a DPS class', 3]] },
+  Farm: { modes: ['Farm'], lists: [[CBO_FARMERS, 'a farming class', 3]] },
+  Dodge: { modes: ['Dodge', 'Def'], lists: [] },
+  Boss: { modes: ['Ultra', 'Solo', 'Atk'], lists: [[CBO_DPS, 'a DPS class', 3], [CBO_SUPPORT, 'a support class', 1]] },
+};
+const CBO_RANK10 = 302500;
+
+function cboAutoPick(role, d) {
+  const rule = CBO_AUTO[role];
+  const same = (a, b) => a.toLowerCase() === b.toLowerCase();
+  let best = null;
+  for (const cls of d.choices.classes) {
+    const modes = d.choices.modes[cls] || ['Base'];
+    const why = [];
+    let score = 0;
+    const at = rule.modes.findIndex(m => modes.includes(m));
+    const mode = at >= 0 ? rule.modes[at] : modes.includes('Base') ? 'Base' : modes[0];
+    if (at >= 0) { score += at === 0 ? 3 : 2; why.push(`${/^[AEIOU]/.test(mode) ? 'an' : 'a'} ${mode} skill setup`); }
+    for (const [list, text, points] of rule.lists)
+      if (list.some(c => same(c, cls))) { score += points; why.push(text); }
+    const rank10 = (d.choices.classPoints?.[cls] ?? 0) >= CBO_RANK10;
+    if (rank10) why.push('rank 10');
+    if (score > 0 && (!best || score > best.score || (score === best.score && rank10 && !best.rank10)))
+      best = { cls, mode, score, rank10, why };
+  }
+  return best;
+}
+
+async function openCoreBotsOptions(n) {
+  cboTab = n;
+  cboData = null;
+  cboControls = new Map();
+  $('#cbo-title').textContent = `CoreBots options, tab ${n}`;
+  $('#cbo-info').textContent = 'Reading...';
+  $('#cbo-info').classList.add('loading');
+  cboBank = null;
+  cboInv = null;
+  cboBankPane = h('div', { class: 'cbo-pane', 'data-pane': 'Bank' });
+  cboInvPane = h('div', { class: 'cbo-pane', 'data-pane': 'Inventory' });
+  $('#cbo-body').replaceChildren(cboInvPane, cboBankPane);
+  $('#cbo-error').textContent = '';
+  $('#cbo-save').disabled = true;
+  $('#dlg-cbo').showModal();
+  showCboPane(cboPane);
+  try {
+    const data = await api('GET', `/api/tabs/${n}/api/cbo`);
+    if (cboTab !== n) return;
+    if (data.error) { $('#cbo-info').textContent = ''; $('#cbo-error').textContent = data.error; return; }
+    cboData = data;
+    renderCoreBotsOptions();
+  } catch (e) {
+    if (e.status === 401 || cboTab !== n) return;
+    $('#cbo-info').textContent = '';
+    $('#cbo-error').textContent = e.status === 404 ? 'This VibeSkua cannot edit CoreBots options yet: update its image.' : e.message;
+  } finally {
+    if (cboTab === n) $('#cbo-info').classList.remove('loading');
+  }
+}
+
+function renderCoreBotsOptions() {
+  const d = cboData;
+  $('#cbo-info').textContent = `${streamer ? 'This account' : d.user}: ${d.exists ? 'saved' : 'not saved yet, defaults shown'}. Scripts read these when they start.`;
+  $('#cbo-save').disabled = false;
+  const value = (key, def = '') => d.values[key] ?? def;
+  // "Battle Oracle Hood (Wizard)": the item's enhancement beside its name
+  // (choices.enhancements: VibeSkua 1.3.0+). The value stays the name.
+  const withEnh = name => (d.choices.enhancements?.[name] ? `${name} (${d.choices.enhancements[name]})` : name);
+
+  // A select of the given [value, text] choices; a saved value the account no
+  // longer lists is kept, marked.
+  const select = (key, choices, saved, label) => {
+    const el = h('select', { id: `cbo-${key}`, 'aria-label': label });
+    const list = [...choices];
+    if (saved && !list.some(c => c[0] === saved)) list.push([saved, `${saved} (not in inventory)`]);
+    for (const [v, text] of list) el.append(h('option', { value: v, text }));
+    el.value = saved ?? '';
+    cboControls.set(key, () => el.value);
+    return el;
+  };
+  const check = (key, def, label) => {
+    const el = h('input', { type: 'checkbox', id: `cbo-${key}` });
+    el.checked = String(value(key, def)).toLowerCase() === 'true';
+    cboControls.set(key, () => (el.checked ? 'True' : 'False'));
+    return h('label', { class: 'check' }, el, ` ${label}`);
+  };
+
+  const roleUi = {};
+  const roles = CBO_ROLES.map(([role, n]) => {
+    const current = d.currentClass ? `Current class (${d.currentClass})` : 'Current class';
+    const classSel = select(`${role}ClassSelect`, [['', '(none)'], [d.currentClassOption, current], ...d.choices.classes.map(c => [c, withEnh(c)])],
+      value(`${role}ClassSelect`), `${role} class`);
+    // The modes Skua's Advanced Skills have for the chosen class (Base if none).
+    const modeSel = h('select', { id: `cbo-${role}ModeSelect`, 'aria-label': `${role} class mode` });
+    const fillModes = want => {
+      const cls = classSel.value === d.currentClassOption ? d.currentClass : classSel.value;
+      const modes = d.choices.modes[cls] || ['Base'];
+      const list = want && !modes.includes(want) ? [...modes, want] : modes;
+      modeSel.replaceChildren(...list.map(m => h('option', { value: m, text: m })));
+      modeSel.value = want && list.includes(want) ? want : modes[0];
+    };
+    fillModes(value(`${role}ModeSelect`, 'Base'));
+    const why = h('p', { class: 'muted small cbo-why', hidden: true });
+    classSel.addEventListener('change', () => { fillModes(null); why.hidden = true; });
+    cboControls.set(`${role}ModeSelect`, () => modeSel.value);
+    roleUi[role] = { classSel, fillModes, why };
+
+    const equip = h('div', { class: 'cbo-equip' }, CBO_SLOTS.map(([slot, list]) => h('label', { class: 'cbo-slot' },
+      h('span', { class: 'muted', text: slot === 'GroundItem' ? 'Ground' : slot }),
+      select(`${slot}${n}Select`, [['', '(none)'], ...d.choices[list].map(c => [c, withEnh(c)])], value(`${slot}${n}Select`), `${role} ${slot}`))));
+    const equipCheck = check(`${role}EquipCheck`, 'False', 'Specify equipment');
+    const box = equipCheck.querySelector('input');
+    equip.hidden = !box.checked;
+    box.addEventListener('change', () => { equip.hidden = !box.checked; });
+    return h('section', { class: 'cbo-role' },
+      h('h3', { text: `${role} class` }),
+      h('div', { class: 'cbo-pair' }, classSel, modeSel),
+      why,
+      equipCheck,
+      equip);
+  });
+  const autoNote = h('span', { class: 'muted small', text: "Fills each role's class and mode from your classes; check them, then Save." });
+  const autoBtn = h('button', { type: 'button', class: 'small', title: 'Picks by Skua skill setups for the role and the community role lists (rank 10 breaks ties)' }, 'Auto-assign');
+  autoBtn.addEventListener('click', () => {
+    const changed = [];
+    for (const [role] of CBO_ROLES) {
+      const pick = cboAutoPick(role, d);
+      const ui = roleUi[role];
+      if (!pick) {
+        ui.why.textContent = 'Auto: none of your classes fits; left as it was.';
+        ui.why.hidden = false;
+        continue;
+      }
+      ui.classSel.value = pick.cls;
+      ui.fillModes(pick.mode);
+      ui.why.textContent = `Auto: ${pick.why.join(', ')}.`;
+      ui.why.hidden = false;
+      changed.push(`${role} ${pick.cls}`);
+    }
+    autoNote.textContent = changed.length ? `${changed.join(', ')}. Not saved yet.` : 'None of your classes fits a role.';
+  });
+  const loadout = h('div', { class: 'cbo-pane', 'data-pane': 'Loadout' },
+    h('div', { class: 'cbo-auto' }, autoBtn, autoNote),
+    h('div', { class: 'cbo-roles' }, roles));
+
+  // Options and Other: Skua's own option list (label, key, type, default).
+  const optionPane = tab => {
+    const groups = new Map();
+    for (const o of d.options.filter(o => o.tab === tab)) {
+      if (!groups.has(o.group)) groups.set(o.group, []);
+      groups.get(o.group).push(o);
+    }
+    return h('div', { class: 'cbo-pane', 'data-pane': tab }, [...groups].map(([group, opts]) => h('section', { class: 'sopt-group' },
+      group !== tab ? h('h3', { text: group }) : null,
+      opts.map(o => {
+        const id = `cbo-${o.key}`;
+        const saved = value(o.key, o.default ?? '');
+        let control;
+        if (o.type === 'bool') {
+          control = h('input', { id, type: 'checkbox' });
+          control.checked = String(saved).toLowerCase() === 'true';
+          cboControls.set(o.key, () => (control.checked ? 'True' : 'False'));
+        } else {
+          control = h('input', { id, type: o.type === 'int' ? 'number' : 'text', value: saved, spellcheck: 'false', autocomplete: 'off' });
+          cboControls.set(o.key, () => control.value.trim());
+        }
+        return h('div', { class: 'sopt' },
+          h('div', { class: 'sopt-text' },
+            h('label', { for: id, text: o.label }),
+            o.description ? h('small', { class: 'muted', text: o.description }) : null),
+          control);
+      }))));
+  };
+
+  $('#cbo-body').replaceChildren(loadout, optionPane('Options'), optionPane('Other'), cboInvPane, cboBankPane);
+  showCboPane(cboPane);
+}
+
+function showCboPane(pane) {
+  cboPane = pane;
+  for (const b of document.querySelectorAll('.cbo-tab')) {
+    b.classList.toggle('active', b.dataset.cbo === pane);
+    b.setAttribute('aria-selected', String(b.dataset.cbo === pane));
+  }
+  for (const p of document.querySelectorAll('#cbo-body .cbo-pane')) p.hidden = p.dataset.pane !== pane;
+  // The Inventory and Bank tabs act at once; Save is for the other three.
+  $('#cbo-save').hidden = pane === 'Bank' || pane === 'Inventory';
+  if (pane === 'Bank' && !cboBank && cboTab !== null) loadBank(false);
+  if (pane === 'Inventory' && !cboInv && cboTab !== null) loadInventory();
+}
+
+// ---- Inventory tab (GET /inventory, POST /inventory/equip: VibeSkua after 1.3.0) ---
+// What the character wears, by slot, then the rest of the inventory; Equip and
+// Unequip as the game allows them (VibeSkua says why not: the class and the
+// weapon are only replaced, an unenhanced weapon or a member item cannot be
+// worn...). Refused in combat and while the tab's script runs.
+const INV_SLOTS = ['Class', 'Weapon', 'Armor', 'Helm', 'Cape', 'Pet', 'Necklace', 'Ground', 'Item'];
+let cboInv = null, cboInvPane = null, cboInvBusy = false;
+const invFilter = { text: '', category: '', wearable: true };
+
+async function loadInventory() {
+  const n = cboTab;
+  if (cboInvBusy || n === null) return;
+  cboInvBusy = true;
+  cboInvPane.replaceChildren(h('p', { class: 'muted loading', text: 'Reading the inventory...' }));
+  try {
+    const data = await api('GET', `/api/tabs/${n}/api/inventory`);
+    if (cboTab !== n) return;
+    if (data.error) { cboInvPane.replaceChildren(h('p', { class: 'error', text: data.error })); return; }
+    cboInv = data;
+    renderInventory();
+  } catch (e) {
+    if (e.status === 401 || cboTab !== n) return;
+    cboInvPane.replaceChildren(h('p', { class: 'error', text: e.status === 404 ? 'This VibeSkua cannot show the inventory yet: update its image.' : e.message }));
+  } finally {
+    cboInvBusy = false;
+  }
+}
+
+function renderInventory() {
+  const d = cboInv;
+  const categories = [...new Set(d.items.map(i => i.category).filter(Boolean))].sort();
+  if (invFilter.category && !categories.includes(invFilter.category)) invFilter.category = '';
+  const search = h('input', { type: 'search', placeholder: 'Search items', 'aria-label': 'Search items', value: invFilter.text, spellcheck: 'false', autocomplete: 'off' });
+  const category = h('select', { 'aria-label': 'Category' },
+    h('option', { value: '', text: 'All categories' }), categories.map(c => h('option', { value: c, text: c })));
+  category.value = invFilter.category;
+  const wearableBox = h('input', { type: 'checkbox' });
+  wearableBox.checked = invFilter.wearable;
+  const reload = h('button', { type: 'button', class: 'small', title: 'Read the inventory again' }, 'Reload');
+  reload.addEventListener('click', () => { cboInv = null; loadInventory(); });
+
+  const order = item => { const at = INV_SLOTS.indexOf(item.slot); return at < 0 ? INV_SLOTS.length : at; };
+  const shows = item => {
+    if (invFilter.text && !item.name.toLowerCase().includes(invFilter.text.toLowerCase())) return false;
+    if (invFilter.category && item.category !== invFilter.category) return false;
+    return !invFilter.wearable || item.slot !== null;
+  };
+  const row = item => {
+    const tags = [
+      item.slot ? h('span', { class: 'tag', text: item.slot }) : null,
+      item.category && item.category !== item.slot ? h('span', { class: 'tag', text: item.category }) : null,
+      item.ac ? h('span', { class: 'tag', text: 'AC' }) : null,
+      item.member ? h('span', { class: 'tag', text: 'Member' }) : null,
+      item.enhancement ? h('span', { class: 'tag', text: item.proc ? `${item.enhancement}, ${item.proc}` : item.enhancement }) : null,
+    ];
+    let button = null;
+    if (item.equipped || item.canEquip || item.why) {
+      const equip = !item.equipped;
+      const allowed = equip ? item.canEquip : item.canUnequip;
+      const blocked = !allowed ? (item.why || 'Not possible') : d.inCombat ? 'Not in combat' : '';
+      button = h('button', { type: 'button', class: 'small', disabled: Boolean(blocked), title: blocked || `${equip ? 'Equip' : 'Unequip'} ${item.name}` },
+        equip ? 'Equip' : 'Unequip');
+      button.addEventListener('click', () => equipInventoryItem(item, equip));
+    }
+    return h('li', { class: 'bank-item' },
+      h('div', { class: 'bank-text' },
+        h('span', { class: 'bank-name', text: item.maxStack > 1 ? `${item.name} x${item.quantity}` : item.name, title: item.name }),
+        h('span', { class: 'bank-tags' }, tags),
+        !item.equipped && !item.canEquip && item.why ? h('span', { class: 'muted small', text: item.why }) : null),
+      button);
+  };
+  const lists = () => {
+    const worn = d.items.filter(i => i.equipped).sort((a, b) => order(a) - order(b));
+    const rest = d.items.filter(i => !i.equipped && shows(i)).sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name));
+    return h('div', { class: 'bank-cols' },
+      h('section', { class: 'bank-col' },
+        h('h3', { text: 'Equipped' }),
+        worn.length ? h('ul', { class: 'bank-list' }, worn.map(row)) : h('p', { class: 'muted small', text: 'Nothing equipped.' })),
+      h('section', { class: 'bank-col' },
+        h('h3', {}, 'Other items ', h('span', { class: 'muted', text: `${d.used}/${d.slots} slots` })),
+        rest.length ? h('ul', { class: 'bank-list' }, rest.map(row)) : h('p', { class: 'muted small', text: 'Nothing matches the filters.' })));
+  };
+  const relist = () => cboInvPane.querySelector('.bank-cols').replaceWith(lists());
+  search.addEventListener('input', () => { invFilter.text = search.value.trim(); relist(); });
+  category.addEventListener('change', () => { invFilter.category = category.value; relist(); });
+  wearableBox.addEventListener('change', () => { invFilter.wearable = wearableBox.checked; relist(); });
+
+  cboInvPane.replaceChildren(
+    h('div', { class: 'bank-head' }, search, category, h('label', { class: 'check inv-wearable' }, wearableBox, ' Equippable only'), reload),
+    h('p', { class: 'muted small', text: `Level ${d.level}${d.member ? ', member' : ''}. Changes apply at once, through the logged-in tab; not in combat or while its script runs.${d.inCombat ? ' In combat now.' : ''}` }),
+    lists());
+}
+
+async function equipInventoryItem(item, equip) {
+  const n = cboTab;
+  if (n === null) return;
+  $('#cbo-error').textContent = '';
+  try {
+    const result = await api('POST', `/api/tabs/${n}/api/inventory/equip`, { id: item.id, equip });
+    if (cboTab !== n) return;
+    if (result.error) { $('#cbo-error').textContent = result.error; return; }
+    toast(`Tab ${n}: ${result.message}`, !result.done);
+    cboBank = null; // its equipped marks are stale now
+    if (result.state) { cboInv = result.state; renderInventory(); }
+  } catch (e) {
+    if (e.status !== 401 && cboTab === n) $('#cbo-error').textContent = e.message;
+  }
+}
+
+// ---- Bank tab (GET /bank, POST /bank/move: VibeSkua after 1.3.0) ------------------
+// The account's bank and inventory side by side, filtered by name, AC or not
+// and category; each item moves with one click. The bank is read when the tab
+// opens (VibeSkua loads it from the game the first time) and on Reload.
+// VibeSkua refuses a move while a script runs, for an equipped item, or into
+// a full side.
+let cboBank = null, cboBankPane = null, cboBankBusy = false;
+const bankFilter = { text: '', kind: 'all', category: '' };
+
+async function loadBank(reload) {
+  const n = cboTab;
+  if (cboBankBusy || n === null) return;
+  cboBankBusy = true;
+  cboBankPane.replaceChildren(h('p', { class: 'muted loading', text: reload ? 'Reloading the bank...' : 'Loading the bank from the game...' }));
+  try {
+    const data = await api('GET', `/api/tabs/${n}/api/bank`);
+    if (cboTab !== n) return;
+    if (data.error) { cboBankPane.replaceChildren(h('p', { class: 'error', text: data.error })); return; }
+    cboBank = data;
+    renderBank();
+  } catch (e) {
+    if (e.status === 401 || cboTab !== n) return;
+    cboBankPane.replaceChildren(h('p', { class: 'error', text: e.status === 404 ? 'This VibeSkua cannot show the bank yet: update its image.' : e.message }));
+  } finally {
+    cboBankBusy = false;
+  }
+}
+
+function renderBank() {
+  const d = cboBank;
+  const all = [...d.bank.items, ...d.inventory.items];
+  const categories = [...new Set(all.map(i => i.category).filter(Boolean))].sort();
+  if (bankFilter.category && !categories.includes(bankFilter.category)) bankFilter.category = '';
+
+  const search = h('input', { type: 'search', placeholder: 'Search items', 'aria-label': 'Search items', value: bankFilter.text, spellcheck: 'false', autocomplete: 'off' });
+  const kind = h('select', { 'aria-label': 'AC or not' },
+    [['all', 'AC and non-AC'], ['ac', 'AC only'], ['nonac', 'Non-AC only']].map(([v, text]) => h('option', { value: v, text })));
+  kind.value = bankFilter.kind;
+  const category = h('select', { 'aria-label': 'Category' },
+    h('option', { value: '', text: 'All categories' }), categories.map(c => h('option', { value: c, text: c })));
+  category.value = bankFilter.category;
+  const reload = h('button', { type: 'button', class: 'small', title: 'Read the bank from the game again' }, 'Reload');
+  reload.addEventListener('click', () => loadBank(true));
+
+  const shows = item => {
+    if (bankFilter.text && !item.name.toLowerCase().includes(bankFilter.text.toLowerCase())) return false;
+    if (bankFilter.kind === 'ac' && !item.ac) return false;
+    if (bankFilter.kind === 'nonac' && item.ac) return false;
+    return !bankFilter.category || item.category === bankFilter.category;
+  };
+  const bankFull = d.bank.used >= d.bank.slots;
+  const invFull = d.inventory.used >= d.inventory.slots;
+
+  const row = (item, to) => {
+    const tags = [
+      item.category ? h('span', { class: 'tag', text: item.category }) : null,
+      item.ac ? h('span', { class: 'tag', text: 'AC' }) : null,
+      item.member ? h('span', { class: 'tag', text: 'Member' }) : null,
+      item.enhancement ? h('span', { class: 'tag', text: item.proc ? `${item.enhancement}, ${item.proc}` : item.enhancement }) : null,
+      item.equipped ? h('span', { class: 'tag bank-worn', text: 'Equipped' }) : null,
+    ];
+    let button = null;
+    if (!item.equipped) {
+      const blocked = to === 'inventory' ? (invFull ? 'The inventory is full' : '') : (bankFull && !item.ac ? 'The bank is full (AC items still fit)' : '');
+      button = h('button', { type: 'button', class: 'small', disabled: Boolean(blocked), title: blocked || `Move ${item.name} to the ${to}` },
+        to === 'bank' ? 'To bank' : 'To inventory');
+      button.addEventListener('click', () => moveBankItem(item, to));
+    }
+    return h('li', { class: 'bank-item' },
+      h('div', { class: 'bank-text' },
+        h('span', { class: 'bank-name', text: item.maxStack > 1 ? `${item.name} x${item.quantity}` : item.name, title: item.name }),
+        h('span', { class: 'bank-tags' }, tags)),
+      button);
+  };
+  const column = (title, side, to, note) => {
+    const items = side.items.filter(shows).sort((a, b) => a.name.localeCompare(b.name));
+    return h('section', { class: 'bank-col' },
+      h('h3', {}, `${title} `, h('span', { class: 'muted', text: `${side.used}/${side.slots} slots${note}` })),
+      items.length
+        ? h('ul', { class: 'bank-list' }, items.map(i => row(i, to)))
+        : h('p', { class: 'muted small', text: side.items.length ? 'Nothing matches the filters.' : 'Empty.' }));
+  };
+
+  const lists = () => h('div', { class: 'bank-cols' },
+    column('Bank', d.bank, 'inventory', ', AC items take none'),
+    column('Inventory', d.inventory, 'bank', ''));
+  // A filter change redraws the two lists only, so the search box keeps focus.
+  const relist = () => cboBankPane.querySelector('.bank-cols').replaceWith(lists());
+  search.addEventListener('input', () => { bankFilter.text = search.value.trim(); relist(); });
+  kind.addEventListener('change', () => { bankFilter.kind = kind.value; relist(); });
+  category.addEventListener('change', () => { bankFilter.category = category.value; relist(); });
+
+  cboBankPane.replaceChildren(
+    h('div', { class: 'bank-head' }, search, kind, category, reload),
+    h('p', { class: 'muted small', text: 'Moves apply at once, through the logged-in tab. Stop its script first; equipped items stay where they are.' }),
+    lists());
+}
+
+async function moveBankItem(item, to) {
+  const n = cboTab;
+  if (n === null) return;
+  $('#cbo-error').textContent = '';
+  try {
+    const result = await api('POST', `/api/tabs/${n}/api/bank/move`, { id: item.id, to });
+    if (cboTab !== n) return;
+    if (result.error) { $('#cbo-error').textContent = result.error; return; }
+    toast(`Tab ${n}: ${result.message}`, !result.moved);
+    cboInv = null; // the inventory tab reads again when opened
+    if (result.state) { cboBank = result.state; renderBank(); }
+  } catch (e) {
+    if (e.status !== 401 && cboTab === n) $('#cbo-error').textContent = e.message;
+  }
+}
+
+for (const b of document.querySelectorAll('.cbo-tab')) b.addEventListener('click', () => showCboPane(b.dataset.cbo));
+
+$('#cbo-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!cboData || cboTab === null) return;
+  const values = Object.fromEntries([...cboControls].map(([key, get]) => [key, get()]));
+  // As Skua's window asks before saving public rooms.
+  if (values.PrivateRooms === 'False' && String(cboData.values.PrivateRooms ?? 'True').toLowerCase() !== 'false'
+    && !confirm('We highly recommend staying in private rooms while botting. Use public rooms at your own risk?')) return;
+  const tab = cboTab;
+  const button = $('#cbo-save');
+  button.disabled = true;
+  $('#cbo-error').textContent = '';
+  try {
+    const result = await api('POST', `/api/tabs/${tab}/api/cbo`, { values });
+    if (result.error) { $('#cbo-error').textContent = result.error; return; }
+    toast(`Tab ${tab}: CoreBots options saved (used from the next script start)`);
+    $('#dlg-cbo').close('saved');
+  } catch (err) {
+    if (err.status !== 401) $('#cbo-error').textContent = err.message;
+  } finally {
+    button.disabled = !cboData;
+  }
+});
+
+$('#dlg-cbo').addEventListener('close', () => { cboTab = null; });
+
 // ---- script options dialog ------------------------------------------------------
 // The loaded script's options, as the Script Loader's Options button shows
 // them: grouped (Options, then CoreBots' and other groups), each by its type.
@@ -729,6 +1469,7 @@ async function openScriptOptions(n) {
   $('#sopts-reveal').hidden = true;
   $('#sopts-title').textContent = `Script options, tab ${n}`;
   $('#sopts-info').textContent = 'Compiling the script to read its options...';
+  $('#sopts-info').classList.add('loading');
   $('#sopts-body').replaceChildren();
   $('#sopts-error').textContent = '';
   $('.sopts-skip').hidden = true;
@@ -743,6 +1484,8 @@ async function openScriptOptions(n) {
     renderScriptOptions(data);
   } catch (e) {
     if (e.status !== 401) { $('#sopts-info').textContent = ''; $('#sopts-error').textContent = e.message; }
+  } finally {
+    if (soptsTab === n) $('#sopts-info').classList.remove('loading');
   }
 }
 
@@ -896,15 +1639,19 @@ function openLog(n) {
   logSince = 0;
   $('#log-title').textContent = `Tab ${n} log`;
   $('#log-text').textContent = '';
+  $('#log-loading').hidden = false;
   $('#dlg-log').showModal();
   pollLog();
   logTimer = setInterval(pollLog, 2000);
 }
 
+// Every 2 s: only the first read of a log shows the loaders.
 async function pollLog() {
   if (logTab === null) return;
+  const first = !$('#log-loading').hidden;
   try {
-    const log = await api('GET', `/api/tabs/${logTab}/api/log?type=${$('#log-type').value}&since=${logSince}`);
+    const log = await api('GET', `/api/tabs/${logTab}/api/log?type=${$('#log-type').value}&since=${logSince}`, undefined, { quiet: !first });
+    $('#log-loading').hidden = true;
     const pre = $('#log-text');
     if (log.total < logSince) { pre.textContent = ''; logSince = 0; return; }   // cleared
     if (log.lines.length) {
@@ -915,7 +1662,7 @@ async function pollLog() {
   } catch { /* try again next time */ }
 }
 
-$('#log-type').addEventListener('change', () => { logSince = 0; $('#log-text').textContent = ''; pollLog(); });
+$('#log-type').addEventListener('change', () => { logSince = 0; $('#log-text').textContent = ''; $('#log-loading').hidden = false; pollLog(); });
 $('#log-close').addEventListener('click', () => $('#dlg-log').close());
 $('#dlg-log').addEventListener('close', () => { clearInterval(logTimer); logTab = null; });
 
@@ -941,10 +1688,19 @@ function renderAccounts() {
       class: `pill ${a.loggedIn ? 'ok' : a.open ? 'warn' : ''}`,
       text: a.loggedIn ? 'logged in' : a.open ? 'open, logged out' : 'no tab',
     })),
-    h('td', { class: 'actions-cell' }, a.editable ? [
-      h('button', { class: 'small', onclick: () => openAccountDialog(a) }, 'Edit'),
-      h('button', { class: 'small danger', onclick: () => deleteAccount(a) }, 'Remove'),
-    ] : h('span', { class: 'muted small', text: 'set in the environment' })))));
+    h('td', { class: 'actions-cell' },
+      // A closed tab opens again with its number, and logs its account in.
+      a.open ? null : h('button', { class: 'small primary', title: `Open tab ${a.tab}; it logs this account in`, onclick: () => openAccountTab(a) }, 'Open tab'),
+      ...(a.editable ? [
+        h('button', { class: 'small', onclick: () => openAccountDialog(a) }, 'Edit'),
+        h('button', { class: 'small danger', onclick: () => deleteAccount(a) }, 'Remove'),
+      ] : [h('span', { class: 'muted small', text: 'set in the environment' })])))));
+}
+
+async function openAccountTab(a) {
+  await act(`Tab ${a.tab} opened`, () => api('POST', `/api/tabs?tab=${a.tab}`));
+  state.accounts = null;
+  refresh();
 }
 
 let editing = null;
@@ -962,6 +1718,10 @@ function openAccountDialog(account) {
   f.server.value = account?.server || '';
   f.script.value = account?.script || '';
   f.autoStart.checked = !!account?.autoStart;
+  // Skua options for a new account only: turned on once, at its first login.
+  $('#account-options').hidden = !!account;
+  $('#account-options-list').replaceChildren(...(account ? [] : OPTIONS.map(([name, text]) =>
+    h('label', { class: 'check' }, h('input', { type: 'checkbox', 'data-option': name }), text))));
   f.pass.required = !account;
   $('#pass-hint').textContent = account ? 'Leave empty to keep the saved password.' : 'Stored on the VibeSkua server; never shown again.';
   $('#dlg-account').showModal();
@@ -993,6 +1753,7 @@ $('#account-form').addEventListener('submit', async e => {
   // A changed login restarts an open tab (see PUT /accounts in the tab host API).
   const loginChanged = editing && (f.pass.value || body.user !== editing.user || (body.server || null) !== (editing.server || null));
   if (loginChanged && editing.open && !confirm(`Saving restarts tab ${n} so it logs in again. Continue?`)) return;
+  const options = editing ? [] : [...document.querySelectorAll('#account-options-list input:checked')].map(b => b.dataset.option);
   const button = $('#account-save');
   button.disabled = true;
   try {
@@ -1000,10 +1761,18 @@ $('#account-form').addEventListener('submit', async e => {
     f.pass.value = '';
     $('#dlg-account').close('saved');
     toast(`Tab ${n}: ${result.applied}`);
+    // This page's server waits for the login, so closing the page is fine.
+    if (options.length) {
+      const names = options.map(o => OPTIONS.find(([k]) => k === o)?.[1] || o).join(', ');
+      act(`Tab ${n}: ${names} will be turned on once it logs in`,
+        () => api('POST', '/api/manager/initial-options', { tab: n, options }));
+    }
     state.accounts = null;
     refresh();
   } catch (err) {
+    // Shown next to Save and focused, so it is seen and read out.
     $('#account-error').textContent = err.message;
+    $('#account-error').focus();
   } finally {
     button.disabled = false;
   }
@@ -1033,7 +1802,10 @@ function renderResources() {
   const mem = r.memory || {};
   const statCard = (label, value, fraction) => h('div', { class: 'stat' },
     h('span', { text: label }), h('b', { text: value }),
-    fraction == null ? null : h('div', { class: 'meter' }, meterFill(fraction)));
+    fraction == null ? null : h('div', {
+      class: 'meter', role: 'progressbar', 'aria-label': label, 'aria-valuemin': '0', 'aria-valuemax': '100',
+      'aria-valuenow': String(Math.round(Math.min(1, fraction) * 100)), 'aria-valuetext': value,
+    }, meterFill(fraction)));
   const memLimit = mem.containerLimitMb ?? mem.hostTotalMb;
   $('#res-cards').replaceChildren(
     statCard(`CPU (${r.cpus} cores)`, fmtCpu(r.total?.cpu), (r.total?.cpu || 0) / (r.cpus * 100)),
@@ -1055,6 +1827,24 @@ function renderResources() {
 
 for (const btn of document.querySelectorAll('[data-close]')) {
   btn.addEventListener('click', () => btn.closest('dialog').close('cancel'));
+}
+
+// A click on the backdrop (outside the dialog's box) closes it, as Cancel
+// does. Only when the press began there too: selecting text in a field and
+// letting go outside the box must not close it. Not the dialogs with fields
+// to fill in (data-keep-open): a stray tap would lose what was typed.
+for (const dlg of document.querySelectorAll('dialog:not([data-keep-open])')) {
+  const outside = e => {
+    if (e.target !== dlg) return false;
+    const r = dlg.getBoundingClientRect();
+    return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+  };
+  let pressedOutside = false;
+  dlg.addEventListener('pointerdown', e => { pressedOutside = outside(e); });
+  dlg.addEventListener('click', e => {
+    if (pressedOutside && outside(e)) dlg.close('cancel');
+    pressedOutside = false;
+  });
 }
 
 // Enter in the search box searches now rather than submitting the dialog.

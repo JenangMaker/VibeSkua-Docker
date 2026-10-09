@@ -7,10 +7,18 @@
 # the repository. How to run it: manager/README.md.
 #
 # Same runner and registry setup as publish-image.yml.
+#
+# A push that changes manager/ builds and pushes the image tagged with its
+# branch (web-manager -> :web-manager); Run workflow takes a tag (latest).
 
 name: Publish manager image
 
 on:
+  push:
+    branches: ["**"]
+    paths:
+      - "manager/**"
+      - ".gitea/workflows/publish-manager.yml"
   workflow_dispatch:
     inputs:
       tag:
@@ -22,9 +30,17 @@ on:
         required: false
         default: "true"
 
+concurrency:
+  group: publish-manager-${{ github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   image:
     runs-on: ubuntu-latest
+    env:
+      # A push has no inputs: its branch is the tag, and it pushes.
+      TAG: ${{ inputs.tag || github.ref_name }}
+      PUSH: ${{ inputs.push || 'true' }}
 
     steps:
       - name: Checkout
@@ -41,16 +57,16 @@ jobs:
         run: |
           set -eu
           REGISTRY="${{ vars.PACKAGE_URL }}"
-          IMAGE="${REGISTRY:-gitea.jenangmaker.cloud}/jenangmaker/vibeskua-manager:${{ inputs.tag }}"
+          IMAGE="${REGISTRY:-gitea.jenangmaker.cloud}/jenangmaker/vibeskua-manager:${TAG}"
           echo "Building $IMAGE"
           docker build -t "$IMAGE" manager
           docker image inspect "$IMAGE" --format 'built {{.Id}} ({{.Size}} bytes)'
 
       - name: Push image
-        if: ${{ inputs.push == 'true' }}
+        if: ${{ env.PUSH == 'true' }}
         run: |
           set -eu
           REGISTRY="${{ vars.PACKAGE_URL }}"
-          IMAGE="${REGISTRY:-gitea.jenangmaker.cloud}/jenangmaker/vibeskua-manager:${{ inputs.tag }}"
+          IMAGE="${REGISTRY:-gitea.jenangmaker.cloud}/jenangmaker/vibeskua-manager:${TAG}"
           docker push "$IMAGE"
           echo "Pushed $IMAGE"
