@@ -1,7 +1,9 @@
 using System.ComponentModel;
 using System.Runtime;
 using System.Runtime.InteropServices;
+using CommunityToolkit.Mvvm.Messaging;
 using Skua.Core.Interfaces;
+using Skua.Core.Messaging;
 
 namespace Skua.Linux;
 
@@ -61,6 +63,7 @@ public sealed partial class HostApi
                     _ = Task.Run(UpdateThrottle);
             };
         UpdateThrottle();
+        WatchCutscenes();
         _ = Task.Run(RestoreHeadless);
     }
 
@@ -166,13 +169,12 @@ public sealed partial class HostApi
         }
         if (target > 0)
         {
-            ApplyFrameRate(target);
+            ApplyFrameRate(_cutscene is null ? target : FullFps());
             PauseDrawing(true, headless);
         }
         else if (restore)
         {
-            int own = Get<IScriptOption>().SetFPS;
-            ApplyFrameRate(own > 0 ? own : 30);
+            ApplyFrameRate(FullFps());
             PauseDrawing(false, headless);
         }
         if (headlessChanged)
@@ -190,14 +192,78 @@ public sealed partial class HostApi
 
     private async Task KeepThrottled(CancellationToken token)
     {
-        while (!token.IsCancellationRequested)
+        for (int tick = 0; !token.IsCancellationRequested; tick++)
         {
-            ApplyFrameRate(_throttleFps);
-            PauseDrawing(true, IsHeadless);
-            ClearDropToasts();
-            try { await Task.Delay(3000, token); }
+            // A missed cell event (a jump the game made itself) is caught here.
+            bool changed = SetCutscene(CutsceneCell());
+            if (changed || tick % 3 == 0)
+            {
+                ApplyFrameRate(_cutscene is null ? _throttleFps : FullFps());
+                PauseDrawing(true, IsHeadless);
+                ClearDropToasts();
+            }
+            try { await Task.Delay(1000, token); }
             catch (OperationCanceledException) { }
         }
+        _cutscene = null;
+    }
+
+    // Story quests that a cutscene completes: scripts jump into the map's
+    // cutscene cell (Cut1, Cut2, ...), whose timeline sends the completion a
+    // few frames in, and jump straight out again. At 30 fps those frames play
+    // in a fraction of a second; at 1-2 fps the player had left before they
+    // did (CruxShip's "Act 1 Complete" looped for hours on a Headless tab).
+    // While the player is in such a cell the game runs at full speed; drawing
+    // stays paused. The jump's own packet starts it, before the cell's first
+    // frame: polling noticed too late.
+    private string? _cutscene;
+
+    private void WatchCutscenes() =>
+        StrongReferenceMessenger.Default.Register<HostApi, CellChangedMessage, int>(this, (int)MessageChannels.GameEvents,
+            (host, message) =>
+            {
+                if (host._throttleLoop is null)
+                    return;
+                string? cell = IsCutscene(message.Cell) ? message.Cell : null;
+                // Raised on the bridge's thread: the game call must not wait on it.
+                if (host.SetCutscene(cell))
+                    _ = Task.Run(() => host.ApplyFrameRate(cell is null ? host._throttleFps : host.FullFps()));
+            });
+
+    private static bool IsCutscene(string? cell) => cell?.StartsWith("Cut", StringComparison.OrdinalIgnoreCase) == true;
+
+    /// <summary>Records the cutscene cell the player is in (null: none); true if that changed.</summary>
+    private bool SetCutscene(string? cell)
+    {
+        string? old = Interlocked.Exchange(ref _cutscene, cell);
+        if (old == cell)
+            return false;
+        Console.WriteLine(cell is null
+            ? $"[host] left cutscene cell {old}: back to {_throttleFps} fps"
+            : $"[host] in cutscene cell {cell}: running the game at {FullFps()} fps until it leaves");
+        return true;
+    }
+
+    private string? CutsceneCell()
+    {
+        if (!Get<Skua.Ruffle.RuffleBridge>().IsConnected)
+            return null;
+        try
+        {
+            var player = Get<IScriptInterface>().Player;
+            string cell = player.LoggedIn ? player.Cell : "";
+            return IsCutscene(cell) ? cell : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private int FullFps()
+    {
+        int own = Get<IScriptOption>().SetFPS;
+        return own > 0 ? own : 30;
     }
 
     // The game's item toasts ("added", quest rewards) go away after a number of
