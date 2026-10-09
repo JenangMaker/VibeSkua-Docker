@@ -271,6 +271,7 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `RENDER_SCALE` | `1` | Fraction of the window's resolution to draw at. |
 | `SHOW_DEBUG_PANEL` | `0` | `1` shows the render controls and log under the game (the log goes to the container log either way; `?debug=1` on the page URL shows them for that page). |
 | `SKUA_HIDDEN_FPS` | `2` | Game frame rate of tabs not on screen (1-60). |
+| `SKUA_HEADLESS` | unset | Headless Mode for a tab that has not been switched yet: `1` on, `0` off. Each tab remembers its last Headless Mode across restarts and redeploys (in `headless-tab<N>` next to `accounts.json`); this only sets the start. |
 | `SKUA_DASHBOARD` | auto | Bot dashboard (kills, drops, quests, deaths, relogins, time) beside the game: `1` always, `0` never; auto shows it when the window is wide enough. |
 | `MAX_RENDER_FPS` | unlimited with a GPU, `15` without | Frames drawn per second; `0` draws nothing. |
 | `ENABLE_MODULES`, `DISABLE_MODULES` | `""`, `QuestRequirementWiki,QuestItemRates` | Skua modules to switch on / off once the game loads. |
