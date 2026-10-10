@@ -455,6 +455,29 @@ public class Main extends MovieClip {
         return parts.join(",");
     }
 
+    /**
+     * Bag slots in use, as the game counts them. Since Game4000 the inventory
+     * has three pools: classes (no limit, not bankable), misc (Item, Note,
+     * Quest Item, Resource; iMiscSlots, default 100) and the bag (the rest,
+     * iBagSlots); only the bag counts against iBagSlots. Skua counted every
+     * item, so it saw a nearly full bag (6 free of 161 when 114 were) and
+     * CoreBots banked items or stopped scripts for no reason. "used/misc/max"
+     * (misc used and its limit); the whole list on an older client.
+     */
+    public static function bagSlots():String {
+        var avatar:* = instance.game.world ? instance.game.world.myAvatar : null;
+        if (avatar == null || avatar.items == null) {
+            return "";
+        }
+        var items:Array = avatar.items;
+        try {
+            var invCat:* = instance.gameDomain.getDefinition("InvCat");
+            return invCat.countBag(items) + "/" + invCat.countMisc(items) + "/" + invCat.MISC_SLOTS;
+        } catch (e:Error) {
+        }
+        return String(items.length);
+    }
+
     private static function _looseName(s:String):String {
         return s.replace(/\s+/g, '').toLowerCase();
     }

@@ -39,6 +39,7 @@ public class Externalizer {
         this.addCallback("findItems", Main.findItems);
         this.addCallback("clearDropToasts", Main.clearDropToasts);
         this.addCallback("questTreeStamp", Main.questTreeStamp);
+        this.addCallback("bagSlots", Main.bagSlots);
 
         // Server
         this.addCallback("connectToServer", Server.connectToServer);
