@@ -58,8 +58,24 @@ public partial class ScriptInventory : IScriptInventory
     [ObjectBinding("world.myAvatar.objData.iBagSlots")]
     private int _slots;
 
-    [ObjectBinding("world.myAvatar.items.length")]
-    private int _usedSlots;
+    // Bag slots in use as the game counts them (skua.swf bagSlots): since the
+    // Game4000 client, classes and misc items (resources, quest items) have
+    // their own pools and do not take bag slots. Counting the whole list made
+    // a bag look nearly full and CoreBots bank items or stop scripts.
+    public int UsedSlots
+    {
+        get
+        {
+            try
+            {
+                string? slots = Flash.Call("bagSlots")?.Trim('"');
+                if (slots is { Length: > 0 } && int.TryParse(slots.Split('/')[0], out int used))
+                    return used;
+            }
+            catch { }
+            return Flash.GetGameObject<int>("world.myAvatar.items.length");
+        }
+    }
 
     public void EquipItem(int id)
     {
