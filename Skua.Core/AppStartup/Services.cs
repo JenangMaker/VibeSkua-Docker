@@ -296,7 +296,11 @@ public static class Services
                         {
                             string name = Path.GetFileName(path);
                             bool framework = name.StartsWith("System.", StringComparison.OrdinalIgnoreCase)
-                                || name is "Microsoft.CSharp.dll" or "Microsoft.Win32.Primitives.dll" or "netstandard.dll" or "mscorlib.dll";
+                                || name is "Microsoft.CSharp.dll" or "Microsoft.Win32.Primitives.dll" or "netstandard.dll" or "mscorlib.dll"
+                                // Scripts written on Windows read the registry (Ultras' CoreEngine:
+                                // the machine GUID for a room number, in a try/catch); on Linux the
+                                // call throws and they fall back, but it has to compile first.
+                                or "Microsoft.Win32.Registry.dll";
                             if (framework && have.Add(name))
                                 refs.Add(MappedReference(path));
                         }
