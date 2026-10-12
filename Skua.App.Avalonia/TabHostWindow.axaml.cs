@@ -422,13 +422,21 @@ public partial class TabHostWindow : Window
             bool loggedIn = game.ValueKind == JsonValueKind.Object && game.GetProperty("loggedIn").GetBoolean();
             string? player = loggedIn ? game.GetProperty("player").GetString() : null;
             tab.LoggedIn = loggedIn;
-            // What it runs, for SKUA_RESUME_SCRIPTS.
-            if (loggedIn && doc.RootElement.TryGetProperty("script", out var sc) && sc.ValueKind == JsonValueKind.Object)
-                ScriptResume.Note(tab.Number + 1, AccountStore.UserFor(tab.Number + 1),
-                    sc.TryGetProperty("loaded", out var l) && l.ValueKind == JsonValueKind.String ? l.GetString() : null,
-                    sc.TryGetProperty("running", out var r) && r.ValueKind == JsonValueKind.True, tab.Started);
+            // What it runs, for SKUA_RESUME_SCRIPTS, the recent scripts and the queue.
+            string? loaded = null;
+            bool running = false;
+            bool hasScript = doc.RootElement.TryGetProperty("script", out var sc) && sc.ValueKind == JsonValueKind.Object;
+            if (hasScript)
+            {
+                loaded = sc.TryGetProperty("loaded", out var l) && l.ValueKind == JsonValueKind.String ? l.GetString() : null;
+                running = sc.TryGetProperty("running", out var r) && r.ValueKind == JsonValueKind.True;
+            }
+            if (loggedIn && hasScript)
+                ScriptResume.Note(tab.Number + 1, AccountStore.UserFor(tab.Number + 1), loaded, running, tab.Started);
             else
                 ScriptResume.NotPlaying(tab.Number + 1);
+            ScriptLibrary.NoteRunning(tab.Number + 1, loaded, running);
+            QueueTick(tab, loggedIn, loaded, running);
             // Streamer Mode (the game option) hides the name in the tab header too
             bool streamer = game.ValueKind == JsonValueKind.Object && game.TryGetProperty("streamer", out var s) && s.ValueKind == JsonValueKind.True;
             tab.Title = string.IsNullOrWhiteSpace(player) ? $"Skua {tab.Number + 1}"

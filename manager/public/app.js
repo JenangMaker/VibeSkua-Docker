@@ -280,6 +280,8 @@ async function refresh() {
       for (const t of tabs) if (t.running) fetchStatus(t.tab, opts);
     }
     if (view === 'accounts' || state.accounts === null) state.accounts = await api('GET', '/api/accounts', undefined, opts);
+    if (view === 'scripts') state.library = await api('GET', '/api/scripts/library', undefined, opts).catch(e => ({ error: e.message }));
+    if (queueTab !== null) pollQueue();
     loaded = true;
     render();
   } catch (e) {
@@ -312,6 +314,7 @@ function setConnected(ok, host, error) {
 function render() {
   renderSummary();
   if (view === 'bots') renderCards();
+  if (view === 'scripts') renderScripts();
   if (view === 'accounts') renderAccounts();
   if (view === 'resources') renderResources();
 }
@@ -449,6 +452,7 @@ function makeCard(n) {
     h('div', { class: 'actions' },
       r.startStop = h('button', { class: 'small primary', onclick: () => startStop(n) }),
       h('button', { class: 'small', onclick: () => openScriptDialog([n]) }, 'Load...'),
+      r.queueBtn = h('button', { class: 'small', title: 'Scripts this tab plays one after another', onclick: () => openQueue(n) }, 'Queue...'),
       r.optionsBtn = h('button', { class: 'small', title: "The loaded script's options", onclick: () => openScriptOptions(n) }, 'Script options...'),
       h('button', { class: 'small', title: "This tab's Skua options (Lag Killer, Hide Players, Headless Mode...)", onclick: () => openSkuaOptions(n) }, 'Skua options...'),
       r.cboBtn = h('button', { class: 'small', title: "This account's CoreBots options (Options > CoreBots in Skua): classes for solo, farm, dodge and boss, delays, rooms...", onclick: () => openCoreBotsOptions(n) }, 'CoreBots options...'),
@@ -504,6 +508,10 @@ function updateCard(card, tab, status) {
   r.bag.title = bag ? `${free > 0 ? free : 0} inventory slot${free === 1 ? '' : 's'} free` : '';
   r.script.textContent = script?.loaded ? `${scriptName(script.loaded)}${script.running ? ' (running)' : ' (loaded)'}` : 'none';
   r.script.title = script?.loaded || '';
+  // Its queue (VibeSkua with script queues): where it is, and whether it plays.
+  const qs = tab.queue;
+  r.queueBtn.textContent = !qs ? 'Queue...' : qs.finished ? `Queue (${qs.count}, finished)...`
+    : `Queue ${qs.position}/${qs.count}${qs.playing ? '' : ' (paused)'}...`;
 
   const pct = (a, b) => b ? Math.max(0, Math.min(100, a / b * 100)) : 0;
   setBar(r, 'hp', loggedIn ? pct(game.hp, game.maxHp) : 0, loggedIn ? `HP ${fmtNum(game.hp)} / ${fmtNum(game.maxHp)}` : 'HP');
@@ -818,11 +826,17 @@ $('#dlg-options').addEventListener('close', () => { skuaOptionsTab = null; });
 let scriptTargets = [];
 let searchTimer = null;
 
-function openScriptDialog(tabs) {
+// forQueue: picks a script for that tab's queue (Add to queue) rather than
+// loading it.
+function openScriptDialog(tabs, forQueue = false) {
   if (!tabs.length) { toast('No running tab to load a script in', true); return; }
   scriptTargets = tabs;
-  $('#script-title').textContent = tabs.length === 1 ? `Load script in tab ${tabs[0]}`
+  $('#script-title').textContent = forQueue ? `Add a script to tab ${tabs[0]}'s queue`
+    : tabs.length === 1 ? `Load script in tab ${tabs[0]}`
     : tabs.length <= 6 ? `Load script in tabs ${tabs.join(', ')}` : `Load script in ${tabs.length} tabs`;
+  $('#script-load').hidden = forQueue;
+  $('#script-start').hidden = forQueue;
+  $('#script-queue').hidden = !forQueue;
   $('#script-search').value = '';
   $('#script-category').value = 'All';
   $('#script-path').value = '';
@@ -984,6 +998,13 @@ async function searchScripts() {
 $('#dlg-script').addEventListener('close', async () => {
   const action = $('#dlg-script').returnValue;
   const path = $('#script-path').value.trim();
+  if (action === 'queue' && path) {
+    const n = scriptTargets[0];
+    const qv = await act(`Added ${scriptName(path)} to tab ${n}'s queue`, () => api('POST', `/api/tabs/${n}/queue/add?path=${q(path)}`));
+    if (qv && queueTab === n) renderQueue(qv);
+    refresh();
+    return;
+  }
   if (!(action === 'load' || action === 'start') || !path) return;
   const verb = action === 'start' ? 'start' : 'load';
   const label = `${action === 'start' ? 'Started' : 'Loaded'} ${scriptName(path)}`;
@@ -993,6 +1014,13 @@ $('#dlg-script').addEventListener('close', async () => {
   if (failed.length) toast(`${label}: failed in ${failed.map(([n, err]) => `tab ${n} (${err})`).join(', ')}`, true);
   else toast(`${label} in ${results.length} tab(s)`);
   refresh();
+});
+
+// Keeps the script in the path field among the Scripts page's favourites.
+$('#script-fav').addEventListener('click', () => {
+  const path = $('#script-path').value.trim();
+  if (!path) { toast('Pick a script first', true); return; }
+  setFavorite(path, true);
 });
 
 // ---- CoreBots options dialog ----------------------------------------------------
@@ -1665,6 +1693,220 @@ async function pollLog() {
 $('#log-type').addEventListener('change', () => { logSince = 0; $('#log-text').textContent = ''; $('#log-loading').hidden = false; pollLog(); });
 $('#log-close').addEventListener('click', () => $('#dlg-log').close());
 $('#dlg-log').addEventListener('close', () => { clearInterval(logTimer); logTab = null; });
+
+// ---- script queue dialog ----------------------------------------------------------
+// One tab's queue (GET/PUT /tabs/N/queue, POST .../add|play|pause|skip|clear:
+// TabHostWindow.Queue.cs). VibeSkua plays it, with this page closed too; the
+// dialog only edits it and shows where it is. Every change sends the whole
+// list (PUT), so two people editing at once see the last one's.
+
+let queueTab = null, queueData = null;
+
+async function openQueue(n) {
+  queueTab = n;
+  queueData = null;
+  $('#queue-title').textContent = `Tab ${n} queue`;
+  $('#queue-note').textContent = '';
+  $('#queue-list').replaceChildren(h('li', { class: 'none loading', text: 'Reading the queue...' }));
+  $('#dlg-queue').showModal();
+  try {
+    renderQueue(await api('GET', `/api/tabs/${n}/queue`));
+  } catch (e) {
+    if (e.status === 401 || queueTab !== n) return;
+    $('#queue-list').replaceChildren(h('li', { class: 'none', text: e.status === 404 && /no tab/i.test(e.message) ? e.message
+      : e.status === 404 ? 'This VibeSkua has no script queues yet: update its image.' : e.message }));
+  }
+}
+
+// With each poll while open: what VibeSkua did meanwhile (a script ended, the
+// next started). Not while a minutes field is being typed in.
+async function pollQueue() {
+  const n = queueTab;
+  if (n === null || $('#queue-list').contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
+  try {
+    const qv = await api('GET', `/api/tabs/${n}/queue`, undefined, { quiet: true });
+    if (queueTab === n) renderQueue(qv);
+  } catch { /* next poll */ }
+}
+
+function renderQueue(qv) {
+  if (!qv || qv.tab !== queueTab) return;
+  queueData = qv;
+  const items = qv.items || [];
+  const ago = qv.noteAt ? ` (${fmtAgo(qv.noteAt)})` : '';
+  $('#queue-note').textContent = qv.note ? `${qv.note}${ago}` : items.length ? '' : 'Empty: add the scripts this tab should play, in order.';
+  $('#queue-loop').checked = !!qv.loop;
+  $('#queue-play').disabled = !items.length || qv.playing;
+  $('#queue-pause').disabled = !qv.playing;
+  $('#queue-skip').disabled = !items.length;
+  $('#queue-clear').disabled = !items.length;
+  $('#queue-play').textContent = qv.playing ? 'Playing' : 'Play';
+  const list = $('#queue-list');
+  if (!items.length) { list.replaceChildren(); return; }
+  list.replaceChildren(...items.map((it, k) => {
+    const now = it.current && qv.startedAt != null;
+    const minutes = h('input', {
+      type: 'number', min: '0', step: '5', inputmode: 'numeric', value: String(it.minutes || 0),
+      'aria-label': `${it.name}: minutes to run (0: until it ends)`, title: 'Minutes to run it for; 0: until it ends by itself',
+    });
+    minutes.addEventListener('change', () => editQueue(list => { list[k].minutes = Math.max(0, parseInt(minutes.value, 10) || 0); }));
+    const move = (to, label, text) => h('button', {
+      type: 'button', class: 'small ghost', 'aria-label': `${label} ${it.name}`, title: label,
+      disabled: to < 0 || to >= items.length, onclick: () => editQueue(list => { list.splice(to, 0, list.splice(k, 1)[0]); }),
+    }, text);
+    return h('li', { class: `queue-item${it.current ? ' current' : ''}`, title: it.path },
+      h('div', { class: 'queue-main' },
+        h('b', { text: it.name }),
+        it.current ? h('span', { class: `pill ${now && qv.playing ? 'ok' : ''}`, text: now ? `now${qv.runningMinutes != null ? `, ${qv.runningMinutes} min` : ''}` : 'next' }) : null,
+        h('small', { class: 'path', text: it.path })),
+      h('label', { class: 'queue-min' }, minutes, h('span', { text: 'min' })),
+      h('div', { class: 'queue-actions' },
+        move(k - 1, 'Move up', 'Up'), move(k + 1, 'Move down', 'Down'),
+        h('button', { type: 'button', class: 'small', title: 'Play the queue from this script (a running one is stopped)', onclick: () => queueAction('play', `?index=${k}`, `Playing tab ${queueTab}'s queue from ${it.name}`) }, 'Play from here'),
+        h('button', { type: 'button', class: 'small ghost danger', 'aria-label': `Remove ${it.name}`, onclick: () => editQueue(list => { list.splice(k, 1); }) }, 'Remove')));
+  }));
+}
+
+// Changes a copy of the entries and sends them all.
+async function editQueue(change) {
+  const n = queueTab;
+  if (n === null || !queueData) return;
+  const list = queueData.items.map(i => ({ path: i.path, minutes: i.minutes }));
+  change(list);
+  try {
+    const qv = await api('PUT', `/api/tabs/${n}/queue`, { items: list, loop: $('#queue-loop').checked });
+    if (queueTab === n) renderQueue(qv);
+    refresh();
+  } catch (e) {
+    if (e.status !== 401) toast(`Tab ${n} queue: ${e.message}`, true);
+  }
+}
+
+async function queueAction(action, query, label) {
+  const n = queueTab;
+  if (n === null) return;
+  const qv = await act(label, () => api('POST', `/api/tabs/${n}/queue/${action}${query || ''}`));
+  if (qv && queueTab === n) renderQueue(qv);
+  refresh();
+}
+
+$('#queue-add').addEventListener('click', () => { if (queueTab !== null) openScriptDialog([queueTab], true); });
+$('#queue-loop').addEventListener('change', () => editQueue(() => {}));
+$('#queue-play').addEventListener('click', () => queueAction('play', '', `Tab ${queueTab}: queue playing`));
+$('#queue-pause').addEventListener('click', () => queueAction('pause', '', `Tab ${queueTab}: queue paused (the running script goes on)`));
+$('#queue-skip').addEventListener('click', () => {
+  if (queueData?.playing && !confirm(`Tab ${queueTab}: stop the running script and start the next one?`)) return;
+  queueAction('skip', '', `Tab ${queueTab}: skipped`);
+});
+$('#queue-clear').addEventListener('click', () => {
+  if (!confirm(`Empty tab ${queueTab}'s queue? A running script goes on.`)) return;
+  queueAction('clear', '', `Tab ${queueTab}: queue cleared`);
+});
+$('#dlg-queue').addEventListener('close', () => { queueTab = null; queueData = null; refresh(); });
+
+function fmtAgo(at) {
+  const s = Math.max(0, (Date.now() - new Date(at).getTime()) / 1000);
+  return s < 60 ? 'just now' : s < 3600 ? `${Math.floor(s / 60)} min ago` : s < 86400 ? `${Math.floor(s / 3600)} h ago` : `${Math.floor(s / 86400)} d ago`;
+}
+
+// ---- scripts page ------------------------------------------------------------------
+// Every tab's queue, the favourite scripts and the ones tabs ran lately
+// (GET /scripts/library, POST /scripts/favorite), and the script repositories'
+// update (through a running tab's Skua: they share one Scripts folder).
+
+async function setFavorite(path, on) {
+  const lib = await act(on ? `${scriptName(path)} added to favourites` : `${scriptName(path)} removed from favourites`,
+    () => api('POST', `/api/scripts/favorite?path=${q(path)}&on=${on ? 1 : 0}`));
+  if (lib) { state.library = lib; if (view === 'scripts') renderScripts(); }
+}
+
+const runningTabs = () => state.tabs.filter(t => t.running).map(t => t.tab);
+
+function renderScripts() {
+  const running = runningTabs();
+  // The tab the library's Start and Queue buttons go to; kept while it runs.
+  const sel = $('#lib-tab');
+  const keep = sel.value;
+  sel.replaceChildren(...running.map(n => h('option', { value: String(n), text: `Tab ${n}${tabLabel(n)}` })));
+  if (running.includes(+keep)) sel.value = keep;
+  sel.disabled = !running.length;
+
+  $('#queues-body').replaceChildren(...(running.length ? running.map(n => {
+    const t = state.tabs.find(x => x.tab === n);
+    const qs = t.queue;
+    return h('tr', {},
+      h('td', { text: String(n) }),
+      h('td', { class: 'hide-phone', text: tabLabel(n).replace(/^: /, '') || '-' }),
+      h('td', { text: !qs ? 'empty' : qs.finished ? `${qs.count} script${qs.count === 1 ? '' : 's'}` : `${qs.position} of ${qs.count}` }),
+      h('td', { class: 'hide-phone', text: qs && !qs.finished ? qs.current || '-' : '-' }),
+      h('td', {}, !qs ? h('span', { class: 'muted', text: '-' })
+        : h('span', { class: `pill ${qs.finished ? '' : qs.playing ? 'ok' : 'warn'}`, text: qs.finished ? 'finished' : qs.playing ? 'playing' : 'paused' })),
+      h('td', { class: 'actions-cell' }, h('button', { class: 'small', onclick: () => openQueue(n) }, qs ? 'Edit...' : 'Make a queue...')));
+  }) : [h('tr', {}, h('td', { colspan: '6', class: 'muted', text: 'No tab is running.' }))]));
+
+  const lib = state.library;
+  const status = $('#lib-status');
+  if (!lib || lib.error) {
+    status.textContent = !lib ? 'Reading the script library...'
+      : /not found|404/i.test(lib.error) ? 'This VibeSkua has no script library yet: update its image.' : lib.error;
+    $('#fav-list').replaceChildren();
+    $('#recent-list').replaceChildren();
+    return;
+  }
+  status.textContent = `${lib.favorites.length} favourite${lib.favorites.length === 1 ? '' : 's'}; scripts start in the tab picked here.`;
+  const favs = new Set(lib.favorites.map(f => f.path));
+  const row = (s, detail) => h('li', { class: 'lib-item', title: s.path },
+    h('div', { class: 'lib-main' }, h('b', { text: s.name }), detail ? h('small', { class: 'muted', text: detail }) : null, h('small', { class: 'path', text: s.path })),
+    h('div', { class: 'lib-actions' },
+      h('button', { class: 'small primary', disabled: !running.length || s.exists === false, title: 'Load and start it in the picked tab', onclick: () => libStart(s) }, 'Start'),
+      h('button', { class: 'small', disabled: !running.length || s.exists === false, title: "Add it to the end of the picked tab's queue", onclick: () => libQueue(s) }, 'Add to queue'),
+      h('button', { class: 'small ghost', 'aria-pressed': String(favs.has(s.path)), onclick: () => setFavorite(s.path, !favs.has(s.path)) }, favs.has(s.path) ? 'Unfavourite' : 'Favourite')));
+  $('#fav-list').replaceChildren(...(lib.favorites.length
+    ? lib.favorites.map(f => row(f, f.exists === false ? 'Not in the Scripts folder any more' : ''))
+    : [h('li', { class: 'none', text: 'No favourites yet: use Favourite below, or Add to favourites in the Load script window.' })]));
+  $('#recent-list').replaceChildren(...(lib.recent.length
+    ? lib.recent.map(r => row(r, `Tab ${r.tab}, ${fmtAgo(r.at)}`))
+    : [h('li', { class: 'none', text: 'Scripts the tabs run show here.' })]));
+}
+
+// ": name" for a tab, as its card shows it (hidden on stream).
+function tabLabel(n) {
+  if (streamer) return '';
+  const t = state.tabs.find(x => x.tab === n);
+  const name = state.statuses[n]?.game?.player || t?.account;
+  return name ? `: ${name}` : '';
+}
+
+const libTab = () => +$('#lib-tab').value || null;
+
+async function libStart(s) {
+  const n = libTab();
+  if (!n) return;
+  await act(`Tab ${n}: started ${s.name}`, () => api('POST', `/api/tabs/${n}/api/script/start?path=${q(s.path)}`));
+  refresh();
+}
+
+async function libQueue(s) {
+  const n = libTab();
+  if (!n) return;
+  await act(`Added ${s.name} to tab ${n}'s queue`, () => api('POST', `/api/tabs/${n}/queue/add?path=${q(s.path)}`));
+  refresh();
+}
+
+// Updating replaces the scripts that changed in the repositories, local
+// changes to them included (a patched CoreBots.cs, say); resetting downloads
+// every one again.
+async function libSync(reset) {
+  const n = runningTabs()[0];
+  if (!n) { toast('No running tab to update the scripts from', true); return; }
+  if (!confirm(reset
+    ? 'Download every script again? Every local change to a repository script is lost, and running scripts may fail until they restart.'
+    : 'Download the scripts that changed in the script repositories? A script you changed yourself (a patched CoreBots.cs, say) is replaced if the repository changed it too.')) return;
+  await act(reset ? 'Scripts downloaded again' : 'Scripts updated', () => api('POST', `/api/tabs/${n}/api/scripts/${reset ? 'reset' : 'update'}`));
+}
+
+$('#lib-update').addEventListener('click', () => libSync(false));
+$('#lib-reset').addEventListener('click', () => libSync(true));
 
 // ---- accounts -------------------------------------------------------------------
 

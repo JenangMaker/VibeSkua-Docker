@@ -175,6 +175,7 @@ in it:
 | `/config/.config/Skua/plugins/`, `themes/` | plugins and themes |
 | `/config/.config/vibeskua-web/` | the game pages' saved data (one partition per tab) |
 | `/config/.config/vibeskua/accounts.json` | accounts added through the tab host API (holds their passwords) |
+| `/config/.config/vibeskua/queue.json`, `scripts.json` | each tab's script queue; the web manager's favourite and recent scripts |
 
 The folder on the host must belong to `PUID`:`PGID`. If it does not, Skua
 cannot write there; see [Troubleshooting](#troubleshooting).
@@ -274,6 +275,7 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `SKUA_HOST_API_PREFIX` | `http://127.0.0.1:8789/` | Where the tab host API listens (see below). |
 | `SKUA_API_TOKEN` | unset | When set, every control API (the tabs' and the tab host's) requires it: `Authorization: Bearer <token>`. |
 | `VIBESKUA_ACCOUNTS_FILE` | `/config/.config/vibeskua/accounts.json` | Accounts added through the tab host API. |
+| `VIBESKUA_QUEUE_FILE`, `VIBESKUA_SCRIPTS_FILE` | `queue.json`, `scripts.json` next to the accounts file | The script queues; the favourite and recent scripts. |
 | `REMOTE_DEBUG_PORT` | off | Chrome DevTools port (see below). 1.x (Electron) only. |
 
 ## Web manager
