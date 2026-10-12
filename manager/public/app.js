@@ -301,7 +301,7 @@ async function fetchStatus(n, opts) {
   } finally {
     statusInFlight.delete(n);
   }
-  if (view === 'bots' && state.tabs.some(t => t.running && t.tab === n)) render();
+  if (view === 'bots' && state.tabs.some(t => t.running && t.tab === n)) { render(); checkDialogs(); }
 }
 
 function setConnected(ok, host, error) {
@@ -435,7 +435,8 @@ function makeCard(n) {
     // button puts a tab there): under the name, which keeps the whole row.
     h('div', { class: 'card-tags' },
       r.pill = h('span', { class: 'pill' }),
-      r.shown = h('span', { class: 'shown-badge', text: 'Shown', title: 'This tab is the one shown on the VibeSkua desktop', hidden: true })),
+      r.shown = h('span', { class: 'shown-badge', text: 'Shown', title: 'This tab is the one shown on the VibeSkua desktop', hidden: true }),
+      r.dialogBadge = h('button', { type: 'button', class: 'dialog-badge', hidden: true, onclick: () => openMsgbox(n) }, 'Waiting for you')),
     h('dl', { class: 'kv' }, field('map', 'Map'), field('room', 'Room'), field('level', 'Level'), field('gold', 'Gold'), field('bag', 'Inventory'), field('script', 'Script')),
     h('div', { class: 'bars' }, bar('hp', 'HP'), bar('mp', 'MP')),
     r.fight = h('div', { class: 'fight' },
@@ -492,6 +493,11 @@ function updateCard(card, tab, status) {
   if (status?.throttle?.headless) pill[0] += ' (headless)';
   r.pill.textContent = pill[0];
   r.pill.className = `pill ${pill[1]}`;
+  // A message box open in the tab (a script's report or question): the badge opens it here.
+  const dialogs = status?.dialogs || [];
+  r.dialogBadge.hidden = !dialogs.length;
+  r.dialogBadge.textContent = dialogs.length > 1 ? `Waiting for you (${dialogs.length})` : 'Waiting for you';
+  r.dialogBadge.title = dialogs.length ? `A message box is open in this tab: ${dialogs[0].title}` : '';
 
   const loggedIn = !!game?.loggedIn;
   r.map.textContent = loggedIn ? `${anonMap(game.map) || '-'}${game.cell ? ` (${game.cell})` : ''}` : '-';
@@ -1693,6 +1699,96 @@ async function pollLog() {
 $('#log-type').addEventListener('change', () => { logSince = 0; $('#log-text').textContent = ''; $('#log-loading').hidden = false; pollLog(); });
 $('#log-close').addEventListener('click', () => $('#dlg-log').close());
 $('#dlg-log').addEventListener('close', () => { clearInterval(logTimer); logTab = null; });
+
+// ---- message boxes ------------------------------------------------------------------
+// A message box open in a tab (a script's Bot.ShowMessageBox, or Skua's own),
+// from its /status (dialogs: VibeSkua with answerable message boxes). A new
+// one opens here by itself when nothing else is open; Later closes it here and
+// leaves it open in VibeSkua (the card's badge opens it again). Answering it
+// here or on the desktop, whichever is first, closes it in both.
+
+const seenDialogs = new Set();   // "tab:id" of the ones already shown or noticed
+let msgbox = null;               // the one shown: { tab, id, title, message, buttons }
+
+function pendingDialogs() {
+  return Object.entries(state.statuses)
+    .flatMap(([n, s]) => (s?.dialogs || []).map(d => ({ ...d, tab: +n })))
+    .filter(d => state.tabs.some(t => t.running && t.tab === d.tab))
+    .sort((a, b) => new Date(a.at) - new Date(b.at));
+}
+
+function checkDialogs() {
+  const all = pendingDialogs();
+  if (msgbox && !all.some(d => d.tab === msgbox.tab && d.id === msgbox.id)) {
+    const was = msgbox;
+    $('#dlg-msgbox').close('gone');
+    toast(`Tab ${was.tab}: "${was.title}" was answered in VibeSkua`);
+  }
+  const fresh = all.filter(d => !seenDialogs.has(`${d.tab}:${d.id}`));
+  for (const d of fresh) seenDialogs.add(`${d.tab}:${d.id}`);
+  if (fresh.length && !document.querySelector('dialog[open]') && document.visibilityState === 'visible') showMsgbox(fresh[0]);
+}
+
+function openMsgbox(n) {
+  const d = pendingDialogs().find(x => x.tab === n);
+  if (d) showMsgbox(d);
+  else toast(`Tab ${n}: no message box is open any more`);
+}
+
+function showMsgbox(d) {
+  msgbox = d;
+  seenDialogs.add(`${d.tab}:${d.id}`);
+  $('#msgbox-title').textContent = d.title || 'Message';
+  $('#msgbox-from').textContent = `Tab ${d.tab}${tabLabel(d.tab)}, ${fmtAgo(d.at)}. It waits for an answer.`;
+  $('#msgbox-text').textContent = anonText(d.message || '');
+  $('#msgbox-note').textContent = '';
+  $('#msgbox-buttons').replaceChildren(...d.buttons.map((b, i) =>
+    h('button', { type: 'button', class: i === 0 ? 'primary' : '', onclick: () => answerMsgbox(i) }, b)));
+  if (!$('#dlg-msgbox').open) $('#dlg-msgbox').showModal();
+  $('#msgbox-buttons button')?.focus();
+}
+
+async function answerMsgbox(i) {
+  const d = msgbox;
+  if (!d) return;
+  const button = d.buttons[i];
+  try {
+    const r = await api('POST', `/api/tabs/${d.tab}/api/dialog/answer?id=${d.id}&button=${i}`);
+    if (r?.error) { $('#msgbox-note').textContent = r.error; return; }
+  } catch (e) {
+    if (e.status !== 401) $('#msgbox-note').textContent = e.message;
+    return;
+  }
+  toast(`Tab ${d.tab}: answered "${button}"`);
+  // Gone from the tab's last status too, so the next one (if any) is not this one again.
+  const s = state.statuses[d.tab];
+  if (s?.dialogs) s.dialogs = s.dialogs.filter(x => x.id !== d.id);
+  $('#dlg-msgbox').close('answered');
+  const next = pendingDialogs()[0];
+  if (next) showMsgbox(next);
+  fetchStatus(d.tab);
+}
+
+$('#msgbox-later').addEventListener('click', () => $('#dlg-msgbox').close('later'));
+$('#dlg-msgbox').addEventListener('close', () => { msgbox = null; });
+$('#msgbox-copy').addEventListener('click', async () => {
+  const text = $('#msgbox-text').textContent;
+  try {
+    // The clipboard API needs https or localhost; on the LAN over http, select and copy.
+    if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text);
+    else {
+      const range = document.createRange();
+      range.selectNodeContents($('#msgbox-text'));
+      const sel = getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      if (!document.execCommand('copy')) throw new Error('copy refused');
+    }
+    toast('Copied');
+  } catch {
+    toast('Could not copy: the text is selected, press Ctrl+C', true);
+  }
+});
 
 // ---- script queue dialog ----------------------------------------------------------
 // One tab's queue (GET/PUT /tabs/N/queue, POST .../add|play|pause|skip|clear:

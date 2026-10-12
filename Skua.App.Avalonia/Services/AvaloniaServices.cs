@@ -4,10 +4,12 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Skua.Core.Interfaces;
 using Skua.Core.Models;
 using Skua.Core.ViewModels;
+using Skua.Linux;
 
 namespace Skua.App.Avalonia.Services;
 
@@ -67,13 +69,14 @@ public sealed class AvaloniaClipboardService : IClipboardService
 
 public sealed class AvaloniaDialogService : IDialogService
 {
-    private static bool? Show(object viewModel, string? title = null, Action<HostDialog>? closed = null) => UiThread.Run(async () =>
+    private static bool? Show(object viewModel, string? title = null, Action<HostDialog>? closed = null, Action<HostDialog>? created = null) => UiThread.Run(async () =>
     {
         HostDialog dialog = new() { DataContext = viewModel };
         if (title is not null)
             dialog.Title = title;
         if (closed is not null)
             dialog.Closed += (_, _) => closed(dialog);
+        created?.Invoke(dialog);
         Window? owner = AvaloniaServiceCollection.CurrentWindow();
         if (owner is null || !owner.IsVisible)
         {
@@ -98,15 +101,46 @@ public sealed class AvaloniaDialogService : IDialogService
             catch { }
         });
 
-    public void ShowMessageBox(string message, string caption) => Show(new MessageBoxDialogViewModel(message, caption));
+    // Message boxes are also listed for the control API (Skua.Linux
+    // PendingDialogs: GET /status, POST /dialog/answer) while they are open, so
+    // the web manager can show and answer them; the first answer, there or
+    // here, closes it. While a script runs their text also goes to its log,
+    // where a report shown in one (EvaluateAccount) is kept.
+    private static bool? ShowMessage(object viewModel, string caption, string message, string[] buttons, Action<HostDialog, int> press)
+    {
+        try
+        {
+            if (Ioc.Default.GetService<IScriptManager>() is { ScriptRunning: true }
+                && Ioc.Default.GetService<ILogService>() is { } log)
+                log.ScriptLog($"[{caption}]\n{message}");
+        }
+        catch { }
+        int id = 0;
+        return Show(viewModel, caption,
+            closed: _ => PendingDialogs.Remove(id),
+            created: dialog => id = PendingDialogs.Add(caption, message, buttons,
+                i => UiThread.Invoke(() => { if (dialog.IsVisible) press(dialog, i); })));
+    }
 
-    public bool? ShowMessageBox(string message, string caption, bool yesAndNo) =>
-        Show(new MessageBoxDialogViewModel(message, caption, yesAndNo));
+    // OK closes with false, as WPF's (IsCancel) did.
+    public void ShowMessageBox(string message, string caption) =>
+        ShowMessage(new MessageBoxDialogViewModel(message, caption), caption, message, ["OK"],
+            (dialog, _) => dialog.CloseWith(false));
+
+    public bool? ShowMessageBox(string message, string caption, bool yesAndNo) => yesAndNo
+        ? ShowMessage(new MessageBoxDialogViewModel(message, caption, true), caption, message, ["Yes", "No"],
+            (dialog, i) => dialog.CloseWith(i == 0))
+        : ShowMessage(new MessageBoxDialogViewModel(message, caption, false), caption, message, ["OK"],
+            (dialog, _) => dialog.CloseWith(false));
 
     public DialogResult ShowMessageBox(string message, string caption, params string[] buttons)
     {
         CustomDialogViewModel viewModel = new(message, caption, buttons);
-        Show(viewModel);
+        ShowMessage(viewModel, caption, message, buttons, (dialog, i) =>
+        {
+            viewModel.Result = new(buttons[i], i);
+            dialog.CloseWith(true);
+        });
         return viewModel.Result ?? DialogResult.Cancelled;
     }
 }

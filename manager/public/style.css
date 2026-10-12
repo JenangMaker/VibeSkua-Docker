@@ -424,6 +424,11 @@ dialog:has(.wide) { width: min(820px, calc(100vw - 32px)); }
 .queue-note { min-height: 1.4em; margin: 6px 0 0; }
 .queue-tools { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
 
+/* ---- script message boxes ---- */
+.dialog-badge { font-size: 12px; font-weight: 600; color: var(--panel); background: var(--warn); border: 0; border-radius: 6px; padding: 2px 7px; white-space: nowrap; cursor: pointer; }
+.msgbox-text { margin: 10px 0 0; padding: 10px 12px; max-height: min(55vh, 520px); overflow: auto; overscroll-behavior: contain; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 4; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; }
+.msgbox-buttons { display: contents; }
+
 /* ---- toasts ---- */
 .toasts { position: fixed; right: 16px; bottom: 16px; display: grid; gap: 8px; z-index: 10; max-width: min(420px, calc(100vw - 32px)); }
 .toast { background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--ok); border-radius: 10px; padding: 10px 14px; box-shadow: 0 4px 16px rgba(0, 0, 0, .15); }

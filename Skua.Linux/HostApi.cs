@@ -69,6 +69,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 ("POST", "/cbo") => await SaveCoreBotsOptions(ctx.Request),
                 ("GET", "/bank") => Bank(),
                 ("POST", "/bank/move") => await BankMove(ctx.Request),
+                ("POST", "/dialog/answer") => AnswerDialog(ctx.Request),
                 ("GET", "/inventory") => Inventory(),
                 ("POST", "/inventory/equip") => await InventoryEquip(ctx.Request),
                 ("POST", _) when path.StartsWith("/army/") => await Army(path["/army/".Length..], ctx.Request),
@@ -87,6 +88,18 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
         ctx.Response.ContentType = "application/json";
         await ctx.Response.OutputStream.WriteAsync(body);
         ctx.Response.Close();
+    }
+
+    // POST /dialog/answer?id=N&button=K: presses button K (its index, or its
+    // text) of open message box N, as a click on the desktop would.
+    private static object AnswerDialog(HttpListenerRequest request)
+    {
+        if (!int.TryParse(request.QueryString["id"], out int id))
+            return new { error = "id is required" };
+        string? button = request.QueryString["button"];
+        if (string.IsNullOrEmpty(button))
+            return new { error = "button is required (its index or its text)" };
+        return PendingDialogs.Answer(id, button) is { } error ? new { error } : new { answered = id };
     }
 
     private static object NotFound(out int status)
@@ -148,6 +161,8 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
             equipment = read.Equipment,
             throttle = detail ? new { hidden = IsShrunk, headless = IsHeadless } : null,
             script = new { running = manager.ScriptRunning, loaded = manager.LoadedScript },
+            // Message boxes open in this tab, waiting for an answer (POST /dialog/answer).
+            dialogs = PendingDialogs.List().Select(d => new { id = d.Id, title = d.Title, message = d.Message, buttons = d.Buttons, at = d.At }),
             scripts = new
             {
                 directory = ClientFileSources.SkuaScriptsDIR,
