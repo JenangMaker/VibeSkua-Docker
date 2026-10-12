@@ -18,6 +18,13 @@ public partial class HostDialog : Window
 
     public bool? Result { get; private set; }
 
+    /// <summary>Closes it with a result, as its own buttons do (a message box answered through the control API).</summary>
+    public void CloseWith(bool? result)
+    {
+        Result = result;
+        Close();
+    }
+
     /// <summary>Closes the dialog containing <paramref name="control"/> with a result.</summary>
     public static void Close(Control control, bool? result)
     {

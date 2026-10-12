@@ -146,6 +146,18 @@ The container's CPU, memory and load; CPU and memory by kind of process
 (Skua, game pages, GPU process, the rest of Electron, the desktop); and the
 busiest processes. CPU is in percent of one core.
 
+### Message boxes
+
+When a script (or Skua) opens a message box in a tab, such as a report from
+`Tools/EvaluateAccount` or a Yes/No question, its card shows **Waiting for
+you** and the page opens it, with the same buttons: answering here presses
+that button in VibeSkua, and the script goes on. **Later** closes it here only
+(the badge opens it again); **Copy text** copies the message. Answered on the
+VibeSkua desktop first, it closes here too. While a script runs, the message
+also goes to its script log. Needs a VibeSkua with answerable message boxes
+(the tab API's `/status` lists `dialogs`; `POST /dialog/answer?id=&button=`
+answers one, by the button's index or text).
+
 ### Streamer mode
 
 The **Streamer mode** switch in the top bar is for showing the page on a

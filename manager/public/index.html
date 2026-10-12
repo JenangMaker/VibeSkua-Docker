@@ -263,6 +263,20 @@
     </form>
   </dialog>
 
+  <dialog id="dlg-msgbox" data-keep-open>
+    <form method="dialog" class="dlg wide">
+      <h2 id="msgbox-title">Message</h2>
+      <p id="msgbox-from" class="muted small"></p>
+      <pre id="msgbox-text" class="msgbox-text" tabindex="0"></pre>
+      <p id="msgbox-note" class="queue-note" role="status"></p>
+      <div class="dlg-actions">
+        <button type="button" id="msgbox-copy" class="ghost">Copy text</button>
+        <button type="button" id="msgbox-later" class="ghost" title="Close this window; the message stays open in VibeSkua">Later</button>
+        <span id="msgbox-buttons" class="msgbox-buttons"></span>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="dlg-log" class="log-dialog">
     <div class="dlg wide">
       <div class="log-head">
