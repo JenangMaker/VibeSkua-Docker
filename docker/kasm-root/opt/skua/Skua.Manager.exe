@@ -1,0 +1,6 @@
+#!/bin/sh
+# Skua's Windows account manager, which CoreArmyLite starts when an army script
+# finds no accounts. VibeSkua keeps accounts elsewhere; say where instead of
+# failing to start a program that is not here.
+echo "[host] a script asked for Skua.Manager (the Windows account manager); in VibeSkua, accounts are AQW_USER_N/AQW_PASS_N in the stack or the Manager page's Add account" >&2
+exit 0

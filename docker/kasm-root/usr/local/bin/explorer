@@ -1,0 +1,12 @@
+#!/bin/sh
+# Windows' "explorer <link or file>": CoreBots starts it after a message box
+# ("open the Discord?", the readme, a crash report). Without it the click threw
+# "file not found" and stopped the script. Opens the target with the desktop's
+# opener if there is one, else says so in the log; either way the script goes on.
+for target in "$@"; do
+  if command -v xdg-open >/dev/null 2>&1 && xdg-open "$target" >/dev/null 2>&1; then
+    continue
+  fi
+  echo "[host] a script asked to open $target; nothing here opens it, so open it yourself" >&2
+done
+exit 0

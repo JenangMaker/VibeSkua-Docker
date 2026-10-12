@@ -72,10 +72,12 @@ COPY Skua.AS3/skua/bin/skua.swf /opt/skua/skua.swf
 COPY --from=ruffle /out/ruffle_desktop /opt/ruffle/ruffle_desktop
 
 # The desktop session's autostart, as in the Electron image, with this
-# launcher in place of the Electron one.
+# launcher in place of the Electron one; and stand-ins for the Windows programs
+# scripts start (explorer to open a link, Skua.Manager.exe).
 COPY docker/kasm-root/ /
 COPY docker/native-launch.sh /app/launch.sh
 RUN chmod +x /defaults/autostart /app/launch.sh /opt/ruffle/ruffle_desktop \
+      /usr/local/bin/explorer /opt/skua/Skua.Manager.exe \
  && chmod 755 /custom-cont-init.d/10-vibeskua-autostart \
  && chown root:root /custom-cont-init.d/10-vibeskua-autostart
 
