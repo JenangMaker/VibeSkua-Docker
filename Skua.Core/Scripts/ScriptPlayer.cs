@@ -166,7 +166,25 @@ public partial class ScriptPlayer : IScriptPlayer
     [ObjectBinding("world.myAvatar.dataLeaf.sta")]
     private PlayerStats? _stats;
 
-    public InventoryItem? CurrentClass => Playing ? Inventory.Items?.Find(i => i is { Equipped: true, Category: ItemCategory.Class }) : null;
+    public InventoryItem? CurrentClass => Playing ? EquippedClass() : null;
+
+    // Only the equipped class from the game (skua.swf equippedItems), not the
+    // whole inventory: Ultras' CoreEngine reads CurrentClass every 50 ms, and
+    // each read was the full item list as JSON (~75 KB), 1500 a minute: a CPU
+    // core and constant full garbage collections. An older skua.swf without
+    // equippedItems: the whole list, as before.
+    private InventoryItem? EquippedClass()
+    {
+        try
+        {
+            string? json = Flash.Call("equippedItems", "world.myAvatar.items", "Class");
+            if (json is { Length: > 0 } && json.TrimStart().StartsWith('['))
+                return Newtonsoft.Json.JsonConvert.DeserializeObject<List<InventoryItem>>(json)?
+                    .Find(i => i is { Equipped: true, Category: ItemCategory.Class });
+        }
+        catch { }
+        return Inventory.Items?.Find(i => i is { Equipped: true, Category: ItemCategory.Class });
+    }
 
     public void Rest(bool full = false)
     {

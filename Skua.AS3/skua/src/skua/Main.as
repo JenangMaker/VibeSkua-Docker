@@ -411,6 +411,28 @@ public class Main extends MovieClip {
     }
 
     /**
+     * The equipped items of the array at path whose sType is type (any type
+     * when empty), as JSON. Skua's Player.CurrentClass looked for the
+     * equipped class in the whole inventory, and Ultras' CoreEngine asks for it
+     * every 50 ms in its skill loop: 1500 inventory reads a minute (~75 KB of
+     * JSON each), a CPU core and constant full garbage collections in Skua.
+     */
+    public static function equippedItems(path:String, type:String):String {
+        var obj:* = _getObjectS(instance.game, path);
+        var found:Array = [];
+        if (!(obj is Array)) {
+            return JSON.stringify(found);
+        }
+        var want:String = type ? type.toLowerCase() : null;
+        for each (var item:* in obj) {
+            if (item != null && item.bEquip && (!want || (item.sType != null && String(item.sType).toLowerCase() == want))) {
+                found.push(item);
+            }
+        }
+        return JSON.stringify(found);
+    }
+
+    /**
      * Removes the item notification toasts (DFrameMC: "added", quest
      * rewards, temporary items) from the drop stack; returns how many. They
      * remove themselves after a number of frames, so at the 1-2 frames a

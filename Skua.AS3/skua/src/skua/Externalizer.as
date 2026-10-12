@@ -37,6 +37,7 @@ public class Externalizer {
         this.addCallback("callGameFunction0", Main.callGameFunction0);
         this.addCallback("selectArrayObjects", Main.selectArrayObjects);
         this.addCallback("findItems", Main.findItems);
+        this.addCallback("equippedItems", Main.equippedItems);
         this.addCallback("clearDropToasts", Main.clearDropToasts);
         this.addCallback("questTreeStamp", Main.questTreeStamp);
         this.addCallback("bagSlots", Main.bagSlots);
