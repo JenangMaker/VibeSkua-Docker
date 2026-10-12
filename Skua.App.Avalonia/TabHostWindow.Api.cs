@@ -31,6 +31,9 @@ namespace Skua.App.Avalonia;
 ///   PUT    /accounts/N                 {user, pass, server, script, autoStart}: add or change tab N's
 ///                                      account (pass left out keeps it) and apply it
 ///   DELETE /accounts/N                 remove it and close its tab
+///   GET/PUT /tabs/N/queue, POST /tabs/N/queue/{add,play,pause,skip,clear}: the tab's script queue
+///   GET    /scripts/library, POST /scripts/favorite: favourite and recent scripts
+///                                      (both in TabHostWindow.Queue.cs)
 ///
 /// Accounts from the environment (AQW_USER_N) are listed but cannot be
 /// changed here.
@@ -117,6 +120,10 @@ public partial class TabHostWindow
                 ("POST", ["tabs", var t, "select"]) => await OnUi(() => WithTab(t, tab => { Select(tab); return Task.FromResult<object>(new { selected = tab.Number + 1 }); })),
                 ("POST", ["grid"]) => await OnUi(() => { SetGrid(Q("on") is "1" or "true"); return new { grid = _grid }; }),
                 ("POST", ["army", .. var action]) => await ArmyAll(string.Join('/', action), request),
+                (var m, ["tabs", var t, "queue"]) => await QueueApi(m, t, null, request, Q),
+                (var m, ["tabs", var t, "queue", var action]) => await QueueApi(m, t, action, request, Q),
+                ("GET", ["scripts", "library"]) => ScriptLibrary.Snapshot(),
+                ("POST", ["scripts", "favorite"]) => Favorite(Q),
                 ("GET", ["resources"]) => ResourceUsage(),
                 ("GET", ["accounts"]) => await OnUi(AccountList),
                 ("PUT" or "POST", ["accounts", var t]) => await PutAccount(t, request),
@@ -197,6 +204,7 @@ public partial class TabHostWindow
                 running = skuaPid is not null,
                 started = t.Started,
                 restarts = t.Restarts,
+                queue = ScriptQueue.Summary(number),
                 skua = Usage(skuaPid),
                 page = Usage(_pagePids.TryGetValue(t.Number, out int page) ? page : null),
             };
