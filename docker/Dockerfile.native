@@ -78,6 +78,7 @@ COPY docker/kasm-root/ /
 COPY docker/native-launch.sh /app/launch.sh
 RUN chmod +x /defaults/autostart /app/launch.sh /opt/ruffle/ruffle_desktop \
       /usr/local/bin/explorer /opt/skua/Skua.Manager.exe \
+ && ln -sf explorer /usr/local/bin/explorer.exe \
  && chmod 755 /custom-cont-init.d/10-vibeskua-autostart \
  && chown root:root /custom-cont-init.d/10-vibeskua-autostart
 
