@@ -76,6 +76,8 @@ COPY --from=ruffle /out/ruffle_desktop /opt/ruffle/ruffle_desktop
 # scripts start (explorer to open a link, Skua.Manager.exe).
 COPY docker/kasm-root/ /
 COPY docker/native-launch.sh /app/launch.sh
+# Not under docker/kasm-root/usr/local/bin: .dockerignore drops every bin/.
+COPY docker/shims/explorer /usr/local/bin/explorer
 RUN chmod +x /defaults/autostart /app/launch.sh /opt/ruffle/ruffle_desktop \
       /usr/local/bin/explorer /opt/skua/Skua.Manager.exe \
  && ln -sf explorer /usr/local/bin/explorer.exe \
