@@ -121,7 +121,8 @@ input.masked { -webkit-text-security: disc; }
   flex-wrap: wrap;
 }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: inherit; margin: 0; }
-.conn { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.conn { display: flex; align-items: center; gap: 6px; color: var(--muted); min-width: 0; }
+#conn-text { overflow-wrap: anywhere; }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); display: inline-block; }
 .dot.ok { background: var(--ok); }
 .dot.bad { background: var(--bad); }
@@ -285,7 +286,7 @@ dialog::backdrop { background: rgba(10, 12, 20, .45); }
 .dlg { padding: 22px; }
 dialog:has(.wide) { width: min(820px, calc(100vw - 32px)); }
 .dlg h2 { margin: 0 0 6px; font-size: 17px; }
-.dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.dlg-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 
 .script-list { list-style: none; margin: 10px 0 0; padding: 0; max-height: 300px; overflow: auto; overscroll-behavior: contain; border: 1px solid var(--border); border-radius: 8px; }
 .script-list li:focus-visible { outline-offset: -2px; }
@@ -398,6 +399,31 @@ dialog:has(.wide) { width: min(820px, calc(100vw - 32px)); }
   .dot.wait { animation: none; }
 }
 
+/* ---- scripts page and queue ---- */
+.head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.lib-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.lib-target { display: flex; align-items: center; gap: 8px; color: var(--muted); white-space: nowrap; }
+.lib-target select { min-width: 9em; }
+.lib-list, .queue-list { list-style: none; margin: 0; padding: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+.lib-item, .queue-item, .lib-list li.none, .queue-list li.none { padding: 9px 12px; border-bottom: 1px solid var(--border); }
+.lib-list > li:last-child, .queue-list > li:last-child { border-bottom: 0; }
+.lib-list li.none, .queue-list li.none { color: var(--muted); }
+.lib-item, .queue-item { display: flex; align-items: center; gap: 12px; }
+.lib-main, .queue-main { flex: 1; min-width: 0; }
+.lib-main small, .queue-main small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.lib-main small.path, .queue-main small.path { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; }
+.lib-actions, .queue-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.queue-list { max-height: 340px; overflow: auto; overscroll-behavior: contain; margin-top: 10px; counter-reset: queue; }
+.queue-item { counter-increment: queue; }
+.queue-item::before { content: counter(queue); min-width: 1.6em; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.queue-item.current { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.queue-item.current::before { color: var(--accent); font-weight: 700; }
+.queue-main .pill { margin-left: 8px; }
+.queue-min { display: flex; align-items: center; gap: 4px; color: var(--muted); }
+.queue-min input { width: 4.5em; text-align: right; }
+.queue-note { min-height: 1.4em; margin: 6px 0 0; }
+.queue-tools { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
+
 /* ---- toasts ---- */
 .toasts { position: fixed; right: 16px; bottom: 16px; display: grid; gap: 8px; z-index: 10; max-width: min(420px, calc(100vw - 32px)); }
 .toast { background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--ok); border-radius: 10px; padding: 10px 14px; box-shadow: 0 4px 16px rgba(0, 0, 0, .15); }
@@ -435,4 +461,8 @@ dialog:has(.wide) { width: min(820px, calc(100vw - 32px)); }
   .smode-row { flex-wrap: wrap; overflow-x: visible; }
   .smode-tab { padding: 6px 8px; }
   .sopt select, .sopt input[type=text], .sopt input[type=number] { width: 100%; }
+  .lib-item, .queue-item { flex-wrap: wrap; }
+  .lib-main, .queue-main { flex-basis: calc(100% - 2.6em); }
+  .lib-actions, .queue-actions { flex-basis: 100%; justify-content: flex-start; }
+  .hide-phone { display: none; }
 }

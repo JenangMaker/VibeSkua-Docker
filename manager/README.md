@@ -9,6 +9,9 @@ VibeSkua or on another host.
   what each tab's Skua and game cost in CPU and memory. Per tab: start/stop the
   script, load a script (search, or browse the Scripts folder), the live script or debug log, show it on
   the VibeSkua desktop, restart it, reload its game, close it.
+- **Scripts:** a queue per tab (scripts played one after another, each until
+  it ends or for a set time), favourite and recently run scripts, and
+  updating the scripts from their repositories.
 - **Army:** start/stop all, load a script everywhere (or in the tabs you
   select), log in/out all, jump everyone to a map or player, Skua options for
   every tab, Grid View, open a tab.
@@ -61,6 +64,7 @@ Its buttons:
 | :--- | :--- |
 | **Start / Stop** | The loaded script. |
 | **Load...** | Pick a script: **Search** by name, path, description or tag, in a category, as the Search Scripts window does; or **Browse** the Scripts folder folder by folder (your own and extra repositories, such as `UltrasLW`, included). Click one to fill Path, double-click to load it; **Load & start** starts it too. |
+| **Queue...** | The tab's script queue (see [Scripts](#scripts)); the button shows where it is, such as **Queue 2/5** or **(paused)**. |
 | **Script options...** | The loaded script's options, as its Options window shows them, grouped (the script's, then CoreBots' and the rest). Change them and **Save**; **Defaults** fills in each option's default. Not while the script runs. **Don't open the options window when this script starts** makes it run with the saved options, without asking (see `SKUA_SKIP_SCRIPT_OPTIONS` in [DOCKER.md](../DOCKER.md)). Options that hold a player or account name are hidden like passwords; **Reveal values** shows them. |
 | **Skua options...** | This tab's Skua options (Lag Killer, Hide Players, Disable FX, Skip Cutscenes, Infinite Range, Magnetise, Headless Mode, Function-based Skills, Streamer Mode) as checkboxes with their current values. Each change applies right away. |
 | **CoreBots options...** | This account's Options > CoreBots, as Skua's window has it. **Loadout:** the Solo, Farm, Dodge and Boss class, each class's mode (from its skills) and, with **Specify equipment**, its equipment. **Options** and **Other:** rooms, delays, auto-enhance, best gear, boosters, Nation farms and the rest. **Save** writes the account's options file; scripts use it from their next start. Needs VibeSkua 1.3.0 or newer and a logged-in tab. **Inventory:** what the character wears, by slot, then the rest of the inventory (equippable items only, or everything), searchable and by category; **Equip** / **Unequip** as the game allows them, and why not when it does not (the class and the weapon are only replaced, an unenhanced weapon, helm or cape cannot be worn, member items need membership; elixirs and tonics are used, not equipped). Not in combat or while the tab's script runs. **Bank:** the account's bank and inventory side by side, with their slots (AC items take no bank slot), searchable and filtered by AC or not and by category; **To bank** / **To inventory** moves an item at once. Equipped items stay where they are, and moves are refused while the tab's script runs. The Inventory and Bank tabs need a VibeSkua newer than 1.3.0. |
@@ -83,6 +87,38 @@ only (the ones running): **Start**, **Log out**, **Jump...** and so on, without
 "all". The Jump and Skua options dialogs and the Log out question name the
 tabs. With no box ticked the buttons act on every tab. The selection stays while
 the page is open.
+
+### Scripts
+
+**Queues:** every running tab's queue: where it is, the script it plays and
+whether it plays. **Edit...** (or **Queue...** on the tab's card) opens it:
+
+- **Add script...** picks one as **Load...** does; each entry has its
+  **min**utes: `0` runs it until it ends by itself, more stops it after that
+  long. **Up**, **Down** and **Remove** change the order.
+- **Play** starts the current entry (or waits for a script already running to
+  end); the next one starts when it has stopped by itself for 45 seconds while
+  logged in (a relogin or a recycle in between does not count), or when its
+  minutes are up. **Play from here** stops the running script and plays from
+  that entry. **Skip** stops the running entry and goes on; **Pause** stops
+  going on (the running script keeps running). **Loop** starts over after the
+  last one.
+- A script started by hand in a tab whose queue plays pauses the queue.
+
+Queues are played by VibeSkua itself, with this page closed too, and are kept
+in `queue.json` next to `accounts.json`, so a queue goes on after a restart or
+a redeploy (the entry that was playing starts again).
+
+**Favourites** and **Recently run** (the scripts tabs started lately): **Start**
+loads and starts one in the tab picked in **Start in**, **Add to queue** adds it
+to the end of that tab's queue. **Add to favourites** in the Load script window
+adds the script in its Path. They are kept in `scripts.json` next to
+`accounts.json`, shared by everyone using the page.
+
+**Update scripts** downloads the scripts that changed in the script
+repositories; a script you changed yourself (a patched `CoreBots.cs`, say) is
+replaced if the repository changed it too. **Reset scripts...** downloads
+every one again. The tabs share one Scripts folder, so either does it for all.
 
 ### Accounts
 

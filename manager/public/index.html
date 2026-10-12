@@ -43,6 +43,7 @@
 
     <nav class="tabsbar" role="tablist">
       <button class="view-tab active" data-view="bots" role="tab" id="tab-bots" aria-controls="view-bots" aria-selected="true">Bots</button>
+      <button class="view-tab" data-view="scripts" role="tab" id="tab-scripts" aria-controls="view-scripts" aria-selected="false">Scripts</button>
       <button class="view-tab" data-view="accounts" role="tab" id="tab-accounts" aria-controls="view-accounts" aria-selected="false">Accounts</button>
       <button class="view-tab" data-view="resources" role="tab" id="tab-resources" aria-controls="view-resources" aria-selected="false">Resources</button>
     </nav>
@@ -72,6 +73,29 @@
         <div id="cards" class="cards"></div>
         <p id="cards-loading" class="loading-note loading" role="status">Loading the tabs...</p>
         <p id="no-tabs" class="empty" hidden>No tabs.</p>
+      </section>
+
+      <!-- Scripts -->
+      <section id="view-scripts" class="view" role="tabpanel" aria-labelledby="tab-scripts" hidden>
+        <div class="section-head">
+          <p class="muted" id="lib-status" role="status">Reading the script library...</p>
+          <span class="head-actions">
+            <button id="lib-update" title="Download the scripts that changed in the script repositories">Update scripts</button>
+            <button id="lib-reset" class="ghost" title="Download every script again (local changes are lost)">Reset scripts...</button>
+          </span>
+        </div>
+        <h2>Queues</h2>
+        <p class="muted small">Each tab can play a list of scripts: the next one starts when the one before ends by itself, or after its minutes. Queues run in VibeSkua, with this page closed too, and go on after a restart.</p>
+        <div class="table-wrap">
+          <table class="table"><thead><tr><th>Tab</th><th class="hide-phone">Account</th><th>Queue</th><th class="hide-phone">Now</th><th>State</th><th></th></tr></thead><tbody id="queues-body"></tbody></table>
+        </div>
+        <div class="lib-head">
+          <h2>Favourites</h2>
+          <label class="lib-target">Start in <select id="lib-tab" aria-label="The tab Start and Add to queue go to"></select></label>
+        </div>
+        <ul id="fav-list" class="lib-list"></ul>
+        <h2>Recently run</h2>
+        <ul id="recent-list" class="lib-list"></ul>
       </section>
 
       <!-- Accounts -->
@@ -149,8 +173,30 @@
       <label>Path <input id="script-path" placeholder="e.g. Farm/GoldFarm or a path from the list"></label>
       <div class="dlg-actions">
         <button type="button" data-close class="ghost">Cancel</button>
+        <button type="button" id="script-fav" class="ghost" title="Keep this script in the Scripts page's favourites">Add to favourites</button>
         <button id="script-load" value="load">Load</button>
         <button id="script-start" value="start" class="primary">Load &amp; start</button>
+        <button id="script-queue" value="queue" class="primary" hidden>Add to queue</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-queue" data-keep-open>
+    <form method="dialog" class="dlg wide">
+      <h2 id="queue-title">Queue</h2>
+      <p class="muted small">The next script starts when the one before has ended by itself (stopped for a while, logged in), or after its minutes (0: until it ends). A script started by hand in this tab pauses the queue.</p>
+      <p id="queue-note" class="queue-note" role="status"></p>
+      <ol id="queue-list" class="queue-list"></ol>
+      <div class="queue-tools">
+        <button type="button" id="queue-add">Add script...</button>
+        <label class="check"><input type="checkbox" id="queue-loop"> Loop (start over after the last)</label>
+      </div>
+      <div class="dlg-actions">
+        <button type="button" id="queue-clear" class="ghost danger">Clear</button>
+        <button type="button" data-close class="ghost">Close</button>
+        <button type="button" id="queue-skip" title="Stop the running entry and start the next">Skip</button>
+        <button type="button" id="queue-pause">Pause</button>
+        <button type="button" id="queue-play" class="primary">Play</button>
       </div>
     </form>
   </dialog>
