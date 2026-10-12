@@ -458,7 +458,8 @@ public class Main extends MovieClip {
     /**
      * Bag slots in use, as the game counts them. Since Game4000 the inventory
      * has three pools: classes (no limit, not bankable), misc (Item, Note,
-     * Quest Item, Resource; iMiscSlots, default 100) and the bag (the rest,
+     * Quest Item, Resource; limit 100 in Game4000, iBagSlots from Game4000r2)
+     * and the bag (the rest,
      * iBagSlots); only the bag counts against iBagSlots. Skua counted every
      * item, so it saw a nearly full bag (6 free of 161 when 114 were) and
      * CoreBots banked items or stopped scripts for no reason. "used/misc/max"
@@ -472,7 +473,9 @@ public class Main extends MovieClip {
         var items:Array = avatar.items;
         try {
             var invCat:* = instance.gameDomain.getDefinition("InvCat");
-            return invCat.countBag(items) + "/" + invCat.countMisc(items) + "/" + invCat.MISC_SLOTS;
+            // Game4000r2 dropped MISC_SLOTS: misc is now limited to iBagSlots too.
+            var miscMax:int = "MISC_SLOTS" in invCat ? int(invCat.MISC_SLOTS) : int(avatar.objData.iBagSlots);
+            return invCat.countBag(items) + "/" + invCat.countMisc(items) + "/" + miscMax;
         } catch (e:Error) {
         }
         return String(items.length);
