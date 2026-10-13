@@ -514,7 +514,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
 
                 case "include":
                     string includePath = parts[1];
-                    string includeLocal = ScriptPaths.FixCase(Path.Combine(ClientFileSources.SkuaScriptsDIR, includePath.Replace("Scripts/", "")));
+                    string includeLocal = ScriptPaths.Include(ClientFileSources.SkuaScriptsDIR, includePath);
                     string currentDirInclude = string.IsNullOrEmpty(currentFile) ? "" : ScriptPaths.FixCase(Path.Combine(Path.GetDirectoryName(currentFile) ?? "", includePath));
                     
                     if (!string.IsNullOrEmpty(currentDirInclude) && File.Exists(currentDirInclude))
@@ -691,7 +691,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
 
                         case "include":
                             string includePath = parts[1];
-                            string includeLocal = ScriptPaths.FixCase(Path.Combine(ClientFileSources.SkuaScriptsDIR, includePath.Replace("Scripts/", "")));
+                            string includeLocal = ScriptPaths.Include(ClientFileSources.SkuaScriptsDIR, includePath);
                             string currentDirInclude = string.IsNullOrEmpty(currentFile) ? "" : ScriptPaths.FixCase(Path.Combine(Path.GetDirectoryName(currentFile) ?? "", includePath));
                             
                             if (!string.IsNullOrEmpty(currentDirInclude) && File.Exists(currentDirInclude))
@@ -1311,7 +1311,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
                 if (parts.Length >= 2)
                 {
                     string includePath = parts[1];
-                    string localPath = ScriptPaths.FixCase(Path.Combine(ClientFileSources.SkuaScriptsDIR, includePath.Replace("Scripts/", "")));
+                    string localPath = ScriptPaths.Include(ClientFileSources.SkuaScriptsDIR, includePath);
                     string currentDirInclude = string.IsNullOrEmpty(currentFile) ? "" : ScriptPaths.FixCase(Path.Combine(Path.GetDirectoryName(currentFile) ?? "", includePath));
                     
                     if (!string.IsNullOrEmpty(currentDirInclude) && File.Exists(currentDirInclude))

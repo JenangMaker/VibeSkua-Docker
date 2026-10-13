@@ -121,6 +121,20 @@ are listed in a pop-up.
   folder included; files no longer in the repository are left alone. The Script
   Loader's search (and the web manager's) finds them. `SKUA_SCRIPT_SYNC: "off"`
   skips them too.
+- **Patched library scripts (overrides):** `SKUA_SCRIPTS_OVERRIDE` names one
+  repository (`URL[#branch]`) of patched copies, kept in the same paths as in
+  the main repository (`CoreBots.cs`, `Ultrasv3/...`). It is synced into
+  `Scripts/Overrides`, and a `//cs_include Scripts/X.cs` then uses
+  `Scripts/Overrides/X.cs` when it is there (the log says so once: "X.cs: using
+  the override"). The synced scripts stay as the main repository has them, so
+  "Update all" no longer undoes a fix. Files deleted from that repository are
+  removed from `Scripts/Overrides` at the next sync, which drops their override.
+  An override does not follow upstream changes to its file: refresh it when the
+  original changes.
+
+  ```yaml
+  SKUA_SCRIPTS_OVERRIDE: "https://gitea.example.com/owner/skua-overrides"
+  ```
 - **Your own scripts folder:** mount it at `/config/.config/Skua/Scripts`.
   Skua then always asks before syncing, since "Update all" replaces outdated
   scripts, local edits included.
@@ -249,6 +263,7 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `SKUA_SKIP_SCRIPT_OPTIONS` | `0` | `1`: a starting script's options window never opens; it runs with its saved options (per script: the window's checkbox, see [Scripts](#scripts)). |
 | `SKUA_SCRIPT_SYNC` | `auto` | `auto` (follow Skua's options), `ask`, or `off`. |
 | `SKUA_SCRIPTS_REPO`, `SKUA_SCRIPTS_BRANCH` | `https://github.com/auqw/Scripts`, `Skua` | Where scripts sync from (GitHub or Gitea). |
+| `SKUA_SCRIPTS_OVERRIDE` | none | A repository of patched library scripts, synced into Scripts/Overrides; includes use them first (see [Scripts](#scripts)). |
 | `SKUA_SCRIPTS_EXTRA`, `SKUA_SCRIPTS_EXTRA_<N>` | none | More repositories to sync, each `folder=URL[#branch]` into Scripts/folder; `;` between several (see [Scripts](#scripts)). |
 | `SKUA_HOST` | `1` | `0`: the game only, without Skua. |
 | `SKUA_UI` | `1` | `0`: Skua without windows, driven through its control API only. |
