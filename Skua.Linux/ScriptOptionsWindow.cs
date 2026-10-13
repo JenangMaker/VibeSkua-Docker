@@ -46,7 +46,14 @@ public static class ScriptOptionsWindow
             return Load().Contains(storage);
     }
 
-    public static bool IsSkipped(string storage) => SkipAll || IsListed(storage);
+    public static bool IsSkipped(string storage) => SkipAll || IsListed(storage) || storage == QueueStorage;
+
+    /// <summary>
+    /// The script a queue entry with its own options started (its storage):
+    /// those options were written for it, so its window does not open, also
+    /// when it restarts after a relogin. Cleared by the next start through the API.
+    /// </summary>
+    public static string? QueueStorage { get; set; }
 
     public static void Set(string storage, bool skip)
     {
@@ -74,6 +81,31 @@ public static class ScriptOptionsWindow
 public sealed class SkippableScriptOptionContainer(IDialogService dialogs, IServiceProvider services)
     : ScriptOptionContainer(dialogs), IScriptOptionContainer, IOptionContainer
 {
+    // Where Save writes now; null: where Load reads (AccountOptions).
+    private string? _writing;
+
+    public override string OptionsFile => _writing ?? AccountOptions.ReadFile(Storage, AccountOptions.Account(services));
+
+    /// <summary>The logged-in account's own file and the shared one (AccountOptions).</summary>
+    public override void Save()
+    {
+        Directory.CreateDirectory(ClientFileSources.SkuaOptionsDIR);
+        try
+        {
+            if (AccountOptions.Account(services) is { } account)
+            {
+                _writing = AccountOptions.AccountFile(Storage, account);
+                base.Save();
+            }
+            _writing = AccountOptions.SharedFile(Storage);
+            base.Save();
+        }
+        finally
+        {
+            _writing = null;
+        }
+    }
+
     void IOptionContainer.Configure()
     {
         // Only a running script's (its own call, or ScriptManager's before
@@ -89,6 +121,6 @@ public sealed class SkippableScriptOptionContainer(IDialogService dialogs, IServ
         // What Configure does, without the window: the saved values.
         SetDefaults();
         Load();
-        Console.WriteLine($"[host] options window for {Storage} skipped ({(ScriptOptionsWindow.SkipAll ? "SKUA_SKIP_SCRIPT_OPTIONS" : "skip list")}); using the saved options");
+        Console.WriteLine($"[host] options window for {Storage} skipped ({(ScriptOptionsWindow.SkipAll ? "SKUA_SKIP_SCRIPT_OPTIONS" : Storage == ScriptOptionsWindow.QueueStorage ? "the queue entry's own options" : "skip list")}); using the saved options");
     }
 }

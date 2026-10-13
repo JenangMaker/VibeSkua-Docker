@@ -1508,7 +1508,9 @@ async function openScriptOptions(n) {
   $('#sopts-error').textContent = '';
   $('.sopts-skip').hidden = true;
   $('#sopts-skip-note').textContent = '';
-  $('#sopts-save').disabled = $('#sopts-defaults').disabled = true;
+  $('.sopts-all').hidden = $('#sopts-all-note').hidden = true;
+  $('#sopts-all').checked = false;
+  $('#sopts-save').disabled = $('#sopts-defaults').disabled = $('#sopts-queue').disabled = true;
   $('#dlg-sopts').showModal();
   try {
     const data = await api('GET', `/api/tabs/${n}/api/script/options`);
@@ -1525,8 +1527,17 @@ async function openScriptOptions(n) {
 
 function renderScriptOptions(data) {
   const file = data.file.split(/[\\/]/).pop();
-  $('#sopts-info').textContent = `${scriptName(data.script)}: saved in options/${file}` +
+  // Options per account (VibeSkua's AccountOptions): an account reads its own
+  // when it saved some, else the shared ones (the ones saved last).
+  const who = data.account ? (streamer ? 'this account' : data.account) : null;
+  const where = data.account === undefined ? `saved in options/${file}`
+    : !data.account ? 'the shared options (no account is logged in)'
+    : data.own ? `${who}'s own options` : `the shared options (${who} has none of its own yet)`;
+  $('#sopts-info').textContent = `${scriptName(data.script)}: ${where}` +
     (data.editable ? '' : '. The script is running: stop it to change its options.');
+  $('.sopts-all').hidden = $('#sopts-all-note').hidden = data.account === undefined || !data.editable;
+  // Older VibeSkua versions: no per-account options, so no queue options either.
+  $('#sopts-queue').disabled = data.account === undefined || !data.storage || !data.options.length;
   // Older VibeSkua versions do not report it: no checkbox then.
   if (data.skipWindow !== undefined) {
     $('.sopts-skip').hidden = false;
@@ -1627,17 +1638,41 @@ $('#sopts-defaults').addEventListener('click', () => {
   }
 });
 
+const soptsValues = () => soptsControls.map(c => ({ category: c.option.category, name: c.option.name, value: controlValue(c) }));
+
+// The loaded script into this tab's queue, with the options shown (also a
+// running script's, read-only): VibeSkua writes them for the account just
+// before the entry starts, so one queue can run a script twice, set differently.
+$('#sopts-queue').addEventListener('click', async () => {
+  const n = soptsTab, data = soptsData;
+  if (n === null || !data) return;
+  const button = $('#sopts-queue');
+  button.disabled = true;
+  $('#sopts-error').textContent = '';
+  try {
+    const qv = await api('POST', `/api/tabs/${n}/queue/add?path=${encodeURIComponent(data.script)}`,
+      { options: { storage: data.storage, values: soptsValues() } });
+    toast(`Added ${scriptName(data.script)} to tab ${n}'s queue, with these options`);
+    if (queueTab === n) renderQueue(qv);
+  } catch (err) {
+    if (err.status !== 401) $('#sopts-error').textContent = err.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
 $('#sopts-form').addEventListener('submit', async e => {
   e.preventDefault();
   if (!soptsData?.editable || soptsTab === null) return;
-  const values = soptsControls.map(c => ({ category: c.option.category, name: c.option.name, value: controlValue(c) }));
+  const values = soptsValues();
+  const all = !$('.sopts-all').hidden && $('#sopts-all').checked;
   const button = $('#sopts-save');
   button.disabled = true;
   $('#sopts-error').textContent = '';
   try {
-    const result = await api('POST', `/api/tabs/${soptsTab}/api/script/options`, { values });
+    const result = await api('POST', `/api/tabs/${soptsTab}/api/script/options`, all ? { values, allAccounts: true } : { values });
     if (result.error) { $('#sopts-error').textContent = result.error; return; }
-    toast(`Tab ${soptsTab}: script options saved`);
+    toast(all ? `Tab ${soptsTab}: script options saved for all accounts` : `Tab ${soptsTab}: script options saved`);
     $('#dlg-sopts').close('saved');
   } catch (err) {
     if (err.status !== 401) $('#sopts-error').textContent = err.message;
@@ -1858,10 +1893,12 @@ function renderQueue(qv) {
       h('div', { class: 'queue-main' },
         h('b', { text: it.name }),
         it.current ? h('span', { class: `pill ${now && qv.playing ? 'ok' : ''}`, text: now ? `now${qv.runningMinutes != null ? `, ${qv.runningMinutes} min` : ''}` : 'next' }) : null,
+        it.options ? h('span', { class: 'pill', title: `Its own options (${it.options.values.length}), written for this tab's account before it starts`, text: 'own options' }) : null,
         h('small', { class: 'path', text: it.path })),
       h('label', { class: 'queue-min' }, minutes, h('span', { text: 'min' })),
       h('div', { class: 'queue-actions' },
         move(k - 1, 'Move up', 'Up'), move(k + 1, 'Move down', 'Down'),
+        it.options ? h('button', { type: 'button', class: 'small ghost', title: 'Forget its own options: it runs with the saved ones', 'aria-label': `Forget the options of ${it.name}`, onclick: () => editQueue(list => { list[k].options = null; }) }, 'Use saved options') : null,
         h('button', { type: 'button', class: 'small', title: 'Play the queue from this script (a running one is stopped)', onclick: () => queueAction('play', `?index=${k}`, `Playing tab ${queueTab}'s queue from ${it.name}`) }, 'Play from here'),
         h('button', { type: 'button', class: 'small ghost danger', 'aria-label': `Remove ${it.name}`, onclick: () => editQueue(list => { list.splice(k, 1); }) }, 'Remove')));
   }));
@@ -1871,7 +1908,7 @@ function renderQueue(qv) {
 async function editQueue(change) {
   const n = queueTab;
   if (n === null || !queueData) return;
-  const list = queueData.items.map(i => ({ path: i.path, minutes: i.minutes }));
+  const list = queueData.items.map(i => ({ path: i.path, minutes: i.minutes, options: i.options || null }));
   change(list);
   try {
     const qv = await api('PUT', `/api/tabs/${n}/queue`, { items: list, loop: $('#queue-loop').checked });

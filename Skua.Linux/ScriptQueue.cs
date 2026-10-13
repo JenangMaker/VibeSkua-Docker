@@ -10,12 +10,15 @@ namespace Skua.Linux;
 /// count) or has run its entry's minutes. Kept in queue.json next to
 /// accounts.json, so a queue goes on after a redeploy:
 ///
-///   { "tabs": { "1": { "items": [ { "path": "/config/.../Farm.cs", "minutes": 60 } ],
+///   { "tabs": { "1": { "items": [ { "path": "/config/.../Farm.cs", "minutes": 60, "options": {...} } ],
 ///                      "index": 0, "playing": true, "loop": false, "startedAt": "..." } } }
 ///
 /// The tab host feeds it each tab's status (<see cref="Tick"/>) and does
 /// what it asks for: start the current entry, or stop the script. A script
-/// someone else starts in a queued tab pauses its queue.
+/// someone else starts in a queued tab pauses its queue. An entry with its
+/// own options (taken in the Manager's Script options dialog) has them
+/// written for the tab's account before it starts, so the same script can be
+/// queued twice with different options.
 /// </summary>
 public static class ScriptQueue
 {
@@ -24,6 +27,22 @@ public static class ScriptQueue
         public string Path { get; set; } = "";
         /// <summary>Stop it after this many minutes and go on; 0 = until it ends.</summary>
         public int Minutes { get; set; }
+        /// <summary>Its own options, written for the account before it starts; null: the saved ones.</summary>
+        public ItemOptions? Options { get; set; }
+    }
+
+    /// <summary>A script's options as the Manager read them (GET /script/options): its storage and each value.</summary>
+    public sealed class ItemOptions
+    {
+        public string Storage { get; set; } = "";
+        public List<OptionValue> Values { get; set; } = new();
+    }
+
+    public sealed class OptionValue
+    {
+        public string? Category { get; set; }
+        public string? Name { get; set; }
+        public string? Value { get; set; }
     }
 
     public sealed class Queue
@@ -173,9 +192,9 @@ public static class ScriptQueue
 
     /// <summary>
     /// The tab's status, every poll; what to do now: start the current entry
-    /// (its path), stop the running script, or nothing.
+    /// (the entry, with its options), stop the running script, or nothing.
     /// </summary>
-    public static (Step Step, string? Path) Tick(int tab, bool loggedIn, string? loaded, bool running)
+    public static (Step Step, Item? Item) Tick(int tab, bool loggedIn, string? loaded, bool running)
     {
         lock (Lock)
         {
@@ -250,7 +269,7 @@ public static class ScriptQueue
                 q.StartedAt = now;
                 Note(tab, q, $"starting {Name(item.Path)}");
                 Save();
-                return (Step.Start, item.Path);
+                return (Step.Start, JsonSerializer.Deserialize<Item>(JsonSerializer.Serialize(item, Json), Json));
             }
             if (!StoppedSince.TryGetValue(tab, out var since))
                 StoppedSince[tab] = since = now;
@@ -299,8 +318,12 @@ public static class ScriptQueue
             var q = Of(tab);
             string? current = Current(q)?.Path;
             items = items.Where(i => !string.IsNullOrWhiteSpace(i.Path))
-                .Select(i => new Item { Path = Full(i.Path), Minutes = Math.Max(0, i.Minutes) }).ToList();
-            int at = current is null ? -1 : items.FindIndex(i => Same(i.Path, current));
+                .Select(i => new Item { Path = Full(i.Path), Minutes = Math.Max(0, i.Minutes), Options = Valid(i.Options) }).ToList();
+            // The same script may be queued twice (with other options): the
+            // entry at the same place first.
+            int at = current is null ? -1
+                : q.Index >= 0 && q.Index < items.Count && Same(items[q.Index].Path, current) ? q.Index
+                : items.FindIndex(i => Same(i.Path, current));
             if (at >= 0)
                 q.Index = at;
             else if (q.StartedAt is not null && q.Playing)
@@ -320,16 +343,23 @@ public static class ScriptQueue
         }
     }
 
-    public static Queue Add(int tab, string path, int minutes)
+    public static Queue Add(int tab, string path, int minutes, ItemOptions? options = null)
     {
         lock (Lock)
         {
             var q = Of(tab);
-            q.Items.Add(new Item { Path = Full(path), Minutes = Math.Max(0, minutes) });
+            q.Items.Add(new Item { Path = Full(path), Minutes = Math.Max(0, minutes), Options = Valid(options) });
             Save();
             return Copy(q);
         }
     }
+
+    // Options worth keeping: a storage name usable as a file name, and values.
+    private static ItemOptions? Valid(ItemOptions? o) =>
+        o is not null && !string.IsNullOrWhiteSpace(o.Storage) && o.Storage.IndexOfAny(Path.GetInvalidFileNameChars()) < 0
+            && o.Values.Any(v => !string.IsNullOrEmpty(v.Name))
+            ? new ItemOptions { Storage = o.Storage.Trim(), Values = o.Values.Where(v => !string.IsNullOrEmpty(v.Name)).ToList() }
+            : null;
 
     /// <summary>Plays from the current entry, or from index (true: stop the running script first).</summary>
     public static (Queue Queue, bool StopFirst) Play(int tab, int? index, bool running)
