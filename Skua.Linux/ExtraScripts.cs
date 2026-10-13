@@ -25,10 +25,18 @@ namespace Skua.Linux;
 /// file list (with git's hash of each file) is compared with the files on
 /// disk, and the .cs files that are missing or differ are downloaded. Files
 /// that are no longer in the repository are left alone.
+///
+///   SKUA_SCRIPTS_OVERRIDE   one repository of patched copies, synced into
+///                           Scripts/Overrides: a //cs_include of Scripts/X.cs
+///                           takes Scripts/Overrides/X.cs when it is there
+///                           (Skua.Core ScriptPaths.Include), so the synced
+///                           scripts stay as the main repository has them.
+///                           Files gone from it are removed here too, so
+///                           deleting one there drops the override.
 /// </summary>
 public static class ExtraScripts
 {
-    public sealed record Source(string Folder, string Url, string? Branch, bool IsGitHub, string Site, string Owner, string Repo)
+    public sealed record Source(string Folder, string Url, string? Branch, bool IsGitHub, string Site, string Owner, string Repo, bool Override = false)
     {
         public string Name => $"{Owner}/{Repo}";
         public string Dir => Path.Combine(ClientFileSources.SkuaScriptsDIR, Folder);
@@ -58,6 +66,13 @@ public static class ExtraScripts
                 entries.Add(one);
 
         var sources = new List<Source>();
+        if (SkuaRuntime.EnvRaw("SKUA_SCRIPTS_OVERRIDE") is { } over)
+        {
+            if (TryParse(over, out var source, out string? why))
+                sources.Add(source! with { Folder = Skua.Core.Scripts.ScriptPaths.OverridesFolder, Override = true });
+            else
+                Console.Error.WriteLine($"[scripts] SKUA_SCRIPTS_OVERRIDE: ignoring \"{over}\": {why}");
+        }
         foreach (string entry in entries)
         {
             if (TryParse(entry, out var source, out string? why))
@@ -232,6 +247,24 @@ public static class ExtraScripts
                     slots.Release();
                 }
             }));
+            if (s.Override && Directory.Exists(s.Dir))
+            {
+                // An override deleted from the repository goes here too.
+                var keep = files.Select(f => Path.GetFullPath(Path.Combine(s.Dir, f.Path))).ToHashSet();
+                foreach (string file in Directory.EnumerateFiles(s.Dir, "*.cs", SearchOption.AllDirectories))
+                    if (!keep.Contains(Path.GetFullPath(file)))
+                    {
+                        try
+                        {
+                            File.Delete(file);
+                            Console.WriteLine($"[scripts] {s.Name}: removed the override {Path.GetRelativePath(s.Dir, file)}");
+                        }
+                        catch (Exception e)
+                        {
+                            Console.Error.WriteLine($"[scripts] {s.Name}: could not remove {file}: {e.Message}");
+                        }
+                    }
+            }
             return new Result(s, files.Count, stale.Count - failed, failed, null);
         }
         catch (Exception e)
@@ -246,7 +279,8 @@ public static class ExtraScripts
     /// </summary>
     public static IEnumerable<ScriptInfo> Local()
     {
-        foreach (var s in Sources)
+        // Overrides are patched copies of library scripts, not scripts to search for.
+        foreach (var s in Sources.Where(s => !s.Override))
         {
             if (!Directory.Exists(s.Dir))
                 continue;
