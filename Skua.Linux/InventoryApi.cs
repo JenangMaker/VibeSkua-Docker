@@ -97,10 +97,16 @@ public sealed partial class HostApi
         });
 
         string verb = equip ? "equipped" : "unequipped";
+        // The server ignores, without a message, a class whose own requirement
+        // is unmet (Void Highlord needs its badge, from quest 7651); the game's
+        // inventory sends the same request and fails the same way.
+        string hint = equip && item.ItemGroup?.ToLowerInvariant() == "ar"
+            ? "; the server refuses some classes until their requirement is met, such as a badge: see the class's description"
+            : "";
         return new
         {
             done,
-            message = done ? $"{item.Name} {verb}" : $"{item.Name} was not {verb} (the game did not confirm it)",
+            message = done ? $"{item.Name} {verb}" : $"{item.Name} was not {verb} (the game did not confirm it{hint})",
             state = InventoryState(bot),
         };
     }
