@@ -98,6 +98,8 @@ public sealed class SkuaRuntime
     public void Start(string? script = null)
     {
         var provider = Services;
+        // First thing: the other tabs wait for this tab's startup sync (if it syncs).
+        ScriptSync.MarkStartup();
         Step("settings");
         provider.GetRequiredService<ISettingsService>().SetApplicationVersion();
         Step("logs");
@@ -184,9 +186,10 @@ public sealed class SkuaRuntime
                 while (!(Bridge.IsConnected && bot.Player.LoggedIn))
                     await Task.Delay(2000);
                 // Not while a sync (this tab's, or the first tab's for the
-                // others) is rewriting the scripts it compiles from.
+                // others) may still change the scripts it compiles from: its
+                // question unanswered, or its download running.
                 if (!await ScriptSync.WaitUntilQuietAsync(TimeSpan.FromMinutes(15),
-                        () => Console.WriteLine($"[host] logged in; waiting for the script sync to finish before starting {toLoad}")))
+                        reason => Console.WriteLine($"[host] logged in; waiting for {reason} before starting {toLoad}")))
                     Console.Error.WriteLine("[host] the script sync is still running after 15 minutes; starting anyway");
                 RoomNumber.Apply(bot.Player.Username);   // before CoreBots reads its options
                 Console.WriteLine($"[host] logged in; starting {toLoad}");

@@ -66,6 +66,49 @@ public sealed class ScriptSync(IServiceProvider services)
     /// </summary>
     public static string BusyMarker { get; } = Path.Combine(ClientFileSources.SkuaDIR, ".scripts-syncing");
 
+    /// <summary>
+    /// Present (holding the syncing process's id) for the whole startup sync of
+    /// the tab that syncs, its "Script Updates" question included: until it is
+    /// answered and done, no tab starts a script by itself (a resumed or
+    /// auto-started one, or a queue's), so none runs from scripts about to change.
+    /// </summary>
+    public static string StartupMarker { get; } = Path.Combine(ClientFileSources.SkuaDIR, ".scripts-startup");
+
+    // Whether a marker is held by a process that is still running.
+    private static bool Held(string marker)
+    {
+        string? owner = null;
+        try { owner = File.ReadAllText(marker).Trim(); }
+        catch { }
+        return owner is not null && int.TryParse(owner.Split(' ')[0], out int pid) && ProcessStamp(pid) == owner;
+    }
+
+    /// <summary>
+    /// Takes the startup marker if this tab syncs (SKUA_SCRIPT_SYNC is not off),
+    /// as early as it starts; true if this process holds it.
+    /// </summary>
+    public static bool MarkStartup()
+    {
+        string mode = (SkuaRuntime.EnvRaw("SKUA_SCRIPT_SYNC") ?? "auto").ToLowerInvariant();
+        if (mode is "off" or "0" or "false" or "no")
+            return false;
+        string stamp = ProcessStamp(Environment.ProcessId);
+        try
+        {
+            if (!File.Exists(StartupMarker) || File.ReadAllText(StartupMarker).Trim() != stamp)
+                File.WriteAllText(StartupMarker, stamp);
+            return true;
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine($"[scripts] startup marker: {e.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>No startup sync pending and no sync writing the Scripts folder.</summary>
+    public static bool IsQuiet => !Held(StartupMarker) && !Held(BusyMarker);
+
     private int _busy;
 
     private void Busy(bool on)
@@ -107,25 +150,29 @@ public sealed class ScriptSync(IServiceProvider services)
     /// files. A marker left by a process that is gone does not count. True if
     /// the folder is quiet, false on timeout.
     /// </summary>
-    public static async Task<bool> WaitUntilQuietAsync(TimeSpan max, Action? waiting = null)
+    /// The startup sync (StartupMarker) is waited for without a limit: its
+    /// question waits for someone to answer it.
+    public static async Task<bool> WaitUntilQuietAsync(TimeSpan max, Action<string>? waiting = null)
     {
         DateTime giveUp = DateTime.UtcNow + max;
-        bool told = false;
-        while (DateTime.UtcNow < giveUp)
+        string? told = null;
+        while (true)
         {
-            string? owner = null;
-            try { owner = File.ReadAllText(BusyMarker).Trim(); }
-            catch { }
-            if (owner is null || !int.TryParse(owner.Split(' ')[0], out int pid) || ProcessStamp(pid) != owner)
+            string? reason = Held(StartupMarker) ? "the script updates (answer the Script Updates question in tab 1)"
+                : Held(BusyMarker) ? "the script sync" : null;
+            if (reason is null)
                 return true;
-            if (!told)
+            if (reason != told)
             {
-                waiting?.Invoke();
-                told = true;
+                waiting?.Invoke(reason);
+                told = reason;
             }
+            if (Held(BusyMarker) && !Held(StartupMarker) && DateTime.UtcNow >= giveUp)
+                return false;
+            if (Held(StartupMarker))
+                giveUp = DateTime.UtcNow + max;   // the download after the answer gets its own time
             await Task.Delay(2000);
         }
-        return false;
     }
     public string LastResult { get; private set; } = "not run";
 
@@ -185,10 +232,12 @@ public sealed class ScriptSync(IServiceProvider services)
 
     public async Task StartupAsync()
     {
+        string mode = (SkuaRuntime.EnvRaw("SKUA_SCRIPT_SYNC") ?? "auto").ToLowerInvariant();
+        bool off = mode is "off" or "0" or "false" or "no";
+        // The tab that syncs holds the other tabs' scripts until it is done.
+        bool holding = MarkStartup();
         try
         {
-            string mode = (SkuaRuntime.EnvRaw("SKUA_SCRIPT_SYNC") ?? "auto").ToLowerInvariant();
-            bool off = mode is "off" or "0" or "false" or "no";
             if (!Settings.Get<bool>("CheckBotScriptsUpdates"))
                 LastResult = "script updates off (CheckBotScriptsUpdates)";
             else if (off)
@@ -242,6 +291,11 @@ public sealed class ScriptSync(IServiceProvider services)
         finally
         {
             Step(null);
+            if (holding)
+            {
+                try { File.Delete(StartupMarker); }
+                catch { }
+            }
             _firstSync.TrySetResult();
         }
     }
