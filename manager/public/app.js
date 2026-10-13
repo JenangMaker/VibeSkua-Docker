@@ -1763,14 +1763,18 @@ async function answerMsgbox(i) {
   // Gone from the tab's last status too, so the next one (if any) is not this one again.
   const s = state.statuses[d.tab];
   if (s?.dialogs) s.dialogs = s.dialogs.filter(x => x.id !== d.id);
-  $('#dlg-msgbox').close('answered');
+  // The next one (another tab's, or this tab's) takes its place in the open
+  // window; closing and reopening it would let the close event, which comes
+  // later, forget the one now shown (its buttons then did nothing).
   const next = pendingDialogs()[0];
   if (next) showMsgbox(next);
+  else $('#dlg-msgbox').close('answered');
   fetchStatus(d.tab);
 }
 
 $('#msgbox-later').addEventListener('click', () => $('#dlg-msgbox').close('later'));
-$('#dlg-msgbox').addEventListener('close', () => { msgbox = null; });
+// The close event comes after close() returns: by then another one may be shown.
+$('#dlg-msgbox').addEventListener('close', () => { if (!$('#dlg-msgbox').open) msgbox = null; });
 $('#msgbox-copy').addEventListener('click', async () => {
   const text = $('#msgbox-text').textContent;
   try {
