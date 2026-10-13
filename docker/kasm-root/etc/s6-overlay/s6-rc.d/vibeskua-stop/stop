@@ -14,7 +14,8 @@
 procs() {
   local d c
   for d in /proc/[0-9]*; do
-    c=$(tr '\0' ' ' < "$d/cmdline" 2>/dev/null) || continue
+    # Processes that exit during the scan: no error message.
+    c=$(tr '\0' ' ' 2>/dev/null < "$d/cmdline") || continue
     [[ $c =~ $1 ]] && [[ -z $2 || ! $c =~ $2 ]] && echo "${d#/proc/}"
   done
 }
