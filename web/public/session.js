@@ -102,15 +102,29 @@
       const saved = JSON.parse(sessionStorage.getItem(RETURN_KEY) || 'null');
       sessionStorage.removeItem(RETURN_KEY);
       if (!saved || !saved.map) return false;
+      // The room ("map-9721") as well as the map: joining the bare map name
+      // puts the player in a public room, and CoreBots' Join stays there as
+      // the map name matches. The room first, a few times; the bare map only
+      // if it never lands.
+      const area = saved.area && saved.area !== saved.map ? saved.area : null;
+      const there = () => area ? this.get('world.strAreaName') === area : this.get('world.strMapName') === saved.map;
+      const loading = () => this.get('world.mapLoadInProgress') === true;
+      // The first map after the login (battleon) loads first: a transfer sent
+      // while it loads goes nowhere.
+      for (let i = 0; i < 30 && loading(); i++) await sleep(1000);
       await sleep(3000);
-      if (this.get('world.strMapName') !== saved.map) {
-        this.join(saved.map, saved.cell, saved.pad);
-        for (let i = 0; i < 30 && this.get('world.strMapName') !== saved.map; i++) await sleep(1000);
+      for (const target of area ? [area, area, area, saved.map] : [saved.map, saved.map]) {
+        if (there()) break;
+        this.join(target, saved.cell, saved.pad);
+        for (let i = 0; i < 15 && !there(); i++) await sleep(1000);
+        for (let i = 0; i < 15 && loading(); i++) await sleep(1000);
       }
       // The trip back is not a map change the next recycle should count.
       this.lastPlace = null;
       this.mapChanges = 0;
-      this.say(`recycle: back to ${saved.map} (${saved.cell})`, 'ok');
+      const now = this.get('world.strAreaName') || this.get('world.strMapName');
+      if (there()) this.say(`recycle: back to ${now} (${saved.cell})`, 'ok');
+      else this.say(`recycle: could not get back to ${area || saved.map}; in ${now}`, 'err');
       return true;
     },
 
@@ -199,6 +213,7 @@
       for (let i = 0; i < 600 && this.get('world.myAvatar.dataLeaf.intState') === 2; i++) await sleep(1000);
       sessionStorage.setItem(RETURN_KEY, JSON.stringify({
         map: this.get('world.strMapName'),
+        area: this.get('world.strAreaName'),
         cell: this.get('world.strFrame') || 'Enter',
         pad: this.get('world.strPad') || 'Spawn',
       }));
