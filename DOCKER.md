@@ -183,6 +183,13 @@ are listed in a pop-up.
   button still opens the window, so the tick can be taken off there. The list
   is kept in `/config/.config/Skua/options/skip-options-window.txt`;
   `SKUA_SKIP_SCRIPT_OPTIONS: "1"` skips the window for every script.
+- **Script options are kept per account.** Skua keeps one options file per
+  script, shared by every tab, so a script that restarted (after a relogin, or
+  from a queue) took whatever another account saved last. Here an account
+  reads `options/<script>(<account>).cfg` when it has one, else the shared
+  `options/<script>.cfg`; saving writes both, so accounts that never saved
+  their own start with the options saved last. The web manager's **Save for
+  all accounts** removes the accounts' own files.
 - **Private room for CoreBots scripts:** `SKUA_ROOM_NUMBER: "9721"` puts
   every account in room 9721 (`SKUA_ROOM_NUMBER_2` for one tab). It is written
   into each account's CoreBots Options (Private Rooms on, that room number)
@@ -197,7 +204,7 @@ in it:
 | Path in the container | What |
 | :--- | :--- |
 | `/config/.config/Skua/Skua.settings.json` | Skua's options, hotkeys, theme |
-| `/config/.config/Skua/options/` | CoreBots options, one `CBO_Storage(<character>).txt` each |
+| `/config/.config/Skua/options/` | CoreBots options, one `CBO_Storage(<character>).txt` each; script options, `<script>.cfg` and `<script>(<account>).cfg` |
 | `/config/.config/Skua/Scripts/` | the scripts |
 | `/config/.config/Skua/plugins/`, `themes/` | plugins and themes |
 | `/config/.config/vibeskua-web/` | the game pages' saved data (one partition per tab) |

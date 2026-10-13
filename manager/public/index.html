@@ -211,9 +211,12 @@
       <div id="sopts-body" class="sopts"></div>
       <label class="check sopts-skip" hidden><input id="sopts-skip" type="checkbox"> Don't open the options window when this script starts</label>
       <p id="sopts-skip-note" class="muted small"></p>
+      <label class="check sopts-all" hidden><input id="sopts-all" type="checkbox"> Save for all accounts</label>
+      <p id="sopts-all-note" class="muted small" hidden>Every account then uses these options, also the ones that saved their own.</p>
       <p class="error" id="sopts-error" role="alert"></p>
       <div class="dlg-actions">
         <button type="button" data-close class="ghost">Close</button>
+        <button type="button" id="sopts-queue" title="Add this script to this tab's queue with the options shown here; they are written for the account just before it starts">Add to queue</button>
         <button type="button" id="sopts-defaults" title="Fill in each option's default (saved when you press Save)">Defaults</button>
         <button id="sopts-save" value="save" class="primary">Save</button>
       </div>

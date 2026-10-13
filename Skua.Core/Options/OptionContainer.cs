@@ -124,7 +124,7 @@ public class OptionContainer : ObservableObject, IOptionContainer
         OnPropertyChanged(nameof(Options));
     }
 
-    public void Save()
+    public virtual void Save()
     {
         List<string> linesToSave = new();
         linesToSave.AddRange(Options.Where(o => !o.Transient).Select(o => $"Options:{o.Name}={OptionValues[o]}"));
