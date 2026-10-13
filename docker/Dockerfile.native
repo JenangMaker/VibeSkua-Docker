@@ -79,6 +79,7 @@ COPY docker/native-launch.sh /app/launch.sh
 # Not under docker/kasm-root/usr/local/bin: .dockerignore drops every bin/.
 COPY docker/shims/explorer /usr/local/bin/explorer
 RUN chmod +x /defaults/autostart /app/launch.sh /opt/ruffle/ruffle_desktop \
+      /etc/s6-overlay/s6-rc.d/vibeskua-stop/stop \
       /usr/local/bin/explorer /opt/skua/Skua.Manager.exe \
  && ln -sf explorer /usr/local/bin/explorer.exe \
  && chmod 755 /custom-cont-init.d/10-vibeskua-autostart \
