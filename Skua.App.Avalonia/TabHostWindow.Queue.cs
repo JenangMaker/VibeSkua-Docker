@@ -25,6 +25,9 @@ public partial class TabHostWindow
     // (a start waits for the script to compile).
     private void QueueTick(SkuaTab tab, bool loggedIn, string? loaded, bool running)
     {
+        // Nothing starts while the startup sync waits for its answer or downloads.
+        if (!ScriptSync.IsQuiet)
+            return;
         int n = tab.Number + 1;
         var (step, path) = ScriptQueue.Tick(n, loggedIn, loaded, running);
         if (step == ScriptQueue.Step.Start && path is not null)

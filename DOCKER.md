@@ -138,6 +138,12 @@ are listed in a pop-up.
 - **Your own scripts folder:** mount it at `/config/.config/Skua/Scripts`.
   Skua then always asks before syncing, since "Update all" replaces outdated
   scripts, local edits included.
+- **Starting waits for the script sync:** only the first tab syncs (the tabs
+  share the Scripts folder). Until its sync is done, its "Script Updates"
+  question included, no tab starts a script by itself (a resumed one,
+  `SKUA_SCRIPT_AUTO_START`, a queue): they log in and wait, however long the
+  question stays open, so none runs from scripts about to change. Answer it
+  on the desktop or in the web manager. Starting a script by hand still works.
 - **Load a script at start:** `SKUA_SCRIPT: "Farm/GoldFarm"` (a path in the
   scripts repository, or an absolute path). It shows in the Script Loader,
   ready to start; `SKUA_SCRIPT_AUTO_START: "1"` also starts it once logged
