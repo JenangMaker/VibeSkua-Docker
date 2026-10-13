@@ -14,9 +14,12 @@ namespace Skua.Linux;
 ///
 ///   GET  /script/options      the options and their values; while a script
 ///                             runs, the running one's, read-only
-///   POST /script/options      body {"values":[{"category","name","value"}], "skipWindow": bool};
-///                             saved to the script's options file (not while
-///                             it runs, as the Options button refuses too)
+///   POST /script/options      body {"values":[{"category","name","value"}], "skipWindow": bool,
+///                             "allAccounts": bool}; saved for the logged-in account
+///                             and as the shared options (AccountOptions), or with
+///                             allAccounts for every account (not while it runs,
+///                             as the Options button refuses too)
+///   POST /script/options/apply  a queue entry's own options (ApplyScriptOptions)
 ///
 /// Each option: category ("Options", or the group's field name), group (the
 /// heading shown), name, displayName, description, type (bool, enum, int,
@@ -97,17 +100,58 @@ public sealed partial class HostApi
             saved++;
         }
         // One write for all of them; transient options live in memory only,
-        // as with the Options window.
+        // as with the Options window. Written for this account and as the
+        // shared options (AccountOptions); for all accounts, every account's
+        // own file goes, so each reads the shared one.
+        int forgotten = 0;
         if (saved > 0)
+        {
             config.Save();
-        Console.WriteLine($"[host] script options: {saved} saved to {config.OptionsFile}" + (problems.Count > 0 ? $", {problems.Count} refused" : ""));
+            if (input.AllAccounts == true)
+                forgotten = AccountOptions.ForgetAccounts(config.Storage);
+        }
+        string? account = AccountOptions.Account(services);
+        Console.WriteLine($"[host] script options: {saved} saved to {config.OptionsFile}"
+            + (input.AllAccounts == true ? $" for all accounts ({forgotten} account file(s) removed)" : "")
+            + (problems.Count > 0 ? $", {problems.Count} refused" : ""));
         return problems.Count == 0
-            ? new { saved, file = config.OptionsFile }
-            : new { saved, file = config.OptionsFile, error = string.Join("; ", problems) };
+            ? new { saved, file = config.OptionsFile, account, allAccounts = input.AllAccounts == true }
+            : new { saved, file = config.OptionsFile, account, allAccounts = input.AllAccounts == true, error = string.Join("; ", problems) };
     }
 
-    private sealed record OptionValuesInput(List<OptionValueInput>? Values, bool? SkipWindow);
+    /// <summary>
+    /// POST /script/options/apply, body {"storage", "values":[{"category","name","value"}]}:
+    /// writes the logged-in account's own options file for a script, and keeps
+    /// its options window from opening; a queue entry with its own options,
+    /// just before it starts (TabHostWindow.Queue.cs).
+    /// </summary>
+    private async Task<object> ApplyScriptOptions(HttpListenerRequest request)
+    {
+        ApplyInput? input;
+        using (var reader = new StreamReader(request.InputStream, request.ContentEncoding ?? Encoding.UTF8))
+        {
+            try { input = JsonSerializer.Deserialize<ApplyInput>(await reader.ReadToEndAsync(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch (JsonException e) { return new { error = $"bad JSON: {e.Message}" }; }
+        }
+        if (string.IsNullOrWhiteSpace(input?.Storage) || input.Values is not { Count: > 0 } values)
+            return new { error = "give {\"storage\", \"values\":[{\"category\",\"name\",\"value\"}]}" };
+        if (input.Storage.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            return new { error = "bad storage name" };
+        if (AccountOptions.Account(services) is not { } account)
+            return new { error = "log in first: the options are written for the logged-in account" };
+        if (services.GetRequiredService<IScriptManager>().ScriptRunning)
+            return new { error = "the script is running: stop it first" };
+        var lines = values.Where(v => !string.IsNullOrEmpty(v.Name))
+            .Select(v => $"{(string.IsNullOrEmpty(v.Category) ? "Options" : v.Category)}:{v.Name}={v.Value?.Replace('\n', ' ').Replace('\r', ' ')}");
+        string file = AccountOptions.Write(input.Storage, account, lines);
+        ScriptOptionsWindow.QueueStorage = input.Storage;
+        Console.WriteLine($"[host] script options: {values.Count} written to {file} for the queue");
+        return new { saved = values.Count, file };
+    }
+
+    private sealed record OptionValuesInput(List<OptionValueInput>? Values, bool? SkipWindow, bool? AllAccounts);
     private sealed record OptionValueInput(string? Category, string? Name, string? Value);
+    private sealed record ApplyInput(string? Storage, List<OptionValueInput>? Values);
 
     // Compiles the loaded script and reads its options into manager.Config,
     // as the Options button does; null, or why it could not.
@@ -133,7 +177,7 @@ public sealed partial class HostApi
         }
     }
 
-    private static object Describe(string script, IScriptOptionContainer config, bool editable)
+    private object Describe(string script, IScriptOptionContainer config, bool editable)
     {
         object Item(string category, IOption o) => new
         {
@@ -148,6 +192,7 @@ public sealed partial class HostApi
             @default = Shown(o, o.DefaultValue?.ToString() ?? ""),
             transient = o.Transient,
         };
+        string? account = AccountOptions.Account(services);
         var options = config.Options.Select(o => Item("Options", o))
             .Concat(config.MultipleOptions.SelectMany(g => g.Value.Select(o => Item(g.Key, o))))
             .ToList();
@@ -156,6 +201,9 @@ public sealed partial class HostApi
             script,
             storage = config.Storage,
             file = config.OptionsFile,
+            // The logged-in account, and whether it has options of its own (AccountOptions).
+            account,
+            own = account is not null && File.Exists(AccountOptions.AccountFile(config.Storage, account)),
             editable,
             // The window at start: skipped for this script, or for all (SKUA_SKIP_SCRIPT_OPTIONS).
             skipWindow = ScriptOptionsWindow.IsListed(config.Storage),

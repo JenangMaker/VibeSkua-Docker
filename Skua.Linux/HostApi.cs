@@ -58,6 +58,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 ("POST", "/script/stop") => await Stop(),
                 ("GET", "/script/options") => await ScriptOptions(),
                 ("POST", "/script/options") => await SaveScriptOptions(ctx.Request),
+                ("POST", "/script/options/apply") => await ApplyScriptOptions(ctx.Request),
                 ("GET", "/log") => Log(ctx.Request),
                 ("GET", "/scripts") => await Scripts(ctx.Request),
                 ("GET", "/scripts/categories") => ScriptSync.Categories,
@@ -407,6 +408,10 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
     // or picked in the Script Loader).
     private async Task<object> StartFromRequest(HttpListenerRequest request)
     {
+        // ?queue=1: a queue entry with its own options, written just before
+        // (ApplyScriptOptions); any other start opens the options window again.
+        if (request.QueryString["queue"] is not "1")
+            ScriptOptionsWindow.QueueStorage = null;
         string? error = await ScriptFromRequest(request) is { } file
             ? await StartScriptFile(file)
             : await StartLoadedAsync();
