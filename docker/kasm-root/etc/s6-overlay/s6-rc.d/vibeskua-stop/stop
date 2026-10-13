@@ -1,0 +1,39 @@
+#!/bin/bash
+# Stops Skua before the desktop and the X server go down. On a container stop,
+# s6 stops its services in reverse order (the desktop, then Xvnc or Xorg), but
+# Skua is not one of them: it was still running when X went away, and a tab's
+# Skua segfaulted in libX11's exit and left a core file in /config. This
+# oneshot depends on svc-de, so its down script runs first, while X is still
+# up: each Skua then stops as on a normal stop signal (the tab host stops its
+# tabs, each hands its game window back).
+#
+# Docker allows 10 s for a stop by default, so give Skua 6 s, then kill what
+# is left (a kill leaves no core file).
+
+# Command lines matching $1 (arguments joined by spaces), as pids.
+procs() {
+  local d c
+  for d in /proc/[0-9]*; do
+    c=$(tr '\0' ' ' < "$d/cmdline" 2>/dev/null) || continue
+    [[ $c =~ $1 ]] && [[ -z $2 || ! $c =~ $2 ]] && echo "${d#/proc/}"
+  done
+}
+
+skua='^/opt/skua/Skua\.App\.Avalonia( |$)'
+[ -z "$(procs "$skua")" ] && exit 0
+echo "[vibeskua] stopping Skua before the desktop"
+
+# Whatever would start Skua again first: the native image's restart loop
+# (launch.sh), and Electron, which quits on TERM and stops its Skua as it goes.
+kill -TERM $(procs '^/bin/bash /app/launch\.sh') 2>/dev/null
+kill -TERM $(procs '^/app/node_modules/electron/dist/electron ') 2>/dev/null
+# The tab host (or a single Skua); the tab host stops its tabs.
+kill -TERM $(procs "$skua" '--tab-child') 2>/dev/null
+
+for _ in $(seq 60); do
+  [ -z "$(procs "$skua")" ] && { echo "[vibeskua] Skua stopped"; exit 0; }
+  sleep 0.1
+done
+echo "[vibeskua] Skua still running after 6 s; killing it"
+kill -KILL $(procs "$skua") 2>/dev/null
+exit 0

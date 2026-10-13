@@ -42,6 +42,8 @@ if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")))
     return;
 }
 
+XConnectionLoss.Install();
+
 // Tabs, as Skua.App.WPF's TabbedHostWindow: this process draws the tab strip
 // and starts one Skua per tab (--tab-child), each with its own game. On by
 // default; SKUA_TABS=0 runs a single Skua, SKUA_TABS=N opens N tabs.
