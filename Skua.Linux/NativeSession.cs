@@ -377,23 +377,42 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
     // then the script that was running.
     private async Task ReturnTo(Place back)
     {
-        await Task.Delay(3000);
         var bot = services.GetRequiredService<IScriptInterface>();
+        // The first map after the login (battleon) loads first: a transfer
+        // sent while it loads goes nowhere. It used to wait 3 s, send one, give
+        // it 20 s and then join the bare map name, which puts the player in a
+        // public room (seen on every recycle: back after 24 s, in room 1 or 2,
+        // and CoreBots' Join stays there as the map name matches).
+        for (int i = 0; i < 30 && !(bot.Player.Loaded && bot.Map.Loaded); i++)
+            await Task.Delay(1000);
+        await Task.Delay(3000);
         string user = Flash.GetGameObject("world.myAvatar.objData.strUsername")?.Trim('"') ?? bot.Player.Username;
-        foreach (string target in back.Area.Length > 0 && back.Area != back.Map ? new[] { back.Area, back.Map } : new[] { back.Map })
+        bool areaKnown = back.Area.Length > 0 && back.Area != back.Map;
+        bool There() => areaKnown ? bot.Map.FullName == back.Area : bot.Map.Name == back.Map;
+        // The room first, a few times; the bare map (any room) only if it never lands.
+        var targets = areaKnown ? new[] { back.Area, back.Area, back.Area, back.Map } : new[] { back.Map, back.Map };
+        foreach (string target in targets)
         {
-            if (bot.Map.FullName == back.Area || (target == back.Map && bot.Map.Name == back.Map))
+            if (There())
                 break;
             string room = Flash.GetGameObject("world.curRoom") ?? "1";
             Flash.CallGameFunction("sfc.sendString", $"%xt%zm%cmd%{room}%tfer%{user}%{target}%{back.Cell}%{back.Pad}%");
-            for (int i = 0; i < 20 && bot.Map.Name != back.Map; i++)
+            for (int i = 0; i < 15 && !There(); i++)
+                await Task.Delay(1000);
+            if (!There())
+                Console.WriteLine($"[session] recycle: joining {target} did not land (in {bot.Map.FullName})");
+            // Let the map finish loading before the next try or the cell move.
+            for (int i = 0; i < 15 && !bot.Map.Loaded; i++)
                 await Task.Delay(1000);
         }
         if (bot.Map.Name == back.Map && bot.Player.Cell != back.Cell)
             Flash.CallGameFunction("world.moveToCell", back.Cell, back.Pad);
         _mapChanges = 0;
         _lastPlace = null;
-        Console.WriteLine($"[session] recycle: back in {(bot.Map.Name == back.Map ? back.Area : bot.Map.Name)} {back.Cell}");
+        string now = bot.Map.FullName;
+        Console.WriteLine(now == back.Area || (!areaKnown && bot.Map.Name == back.Map)
+            ? $"[session] recycle: back in {now} {back.Cell}"
+            : $"[session] recycle: could not get back to {back.Area}; in {now}");
         ReleaseRelogin();
         if (!back.Script)
             return;
