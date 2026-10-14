@@ -22,9 +22,17 @@ public static class AccountOptions
     public static string AccountFile(string storage, string account) =>
         Path.Combine(ClientFileSources.SkuaOptionsDIR, $"{storage}({Safe(account)}).cfg");
 
+    /// <summary>
+    /// The account whose options a Skua with no game reads (ScriptOptionsProbe:
+    /// another tab's account); null: the logged-in one.
+    /// </summary>
+    public static string? AccountOverride { get; set; }
+
     /// <summary>The logged-in account's name, lower case; null when none is.</summary>
     public static string? Account(IServiceProvider services)
     {
+        if (AccountOverride is { Length: > 0 } other)
+            return other.Trim().ToLowerInvariant();
         try
         {
             var player = services.GetRequiredService<IScriptPlayer>();

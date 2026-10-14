@@ -109,6 +109,12 @@ whether it plays. **Edit...** (or **Queue...** on the tab's card) opens it:
   the account's options just before the entry starts, and its options window
   stays closed, so one queue can run a script twice, set differently.
   **Use saved options** drops them again.
+- **Options...** on an entry gives any queued script options of its own, or
+  changes them: the same options as **Script options...**, for the tab's
+  account (its own options if it has some, else the shared ones), and
+  **Save for this entry** keeps them in the queue. VibeSkua reads them in a
+  short-lived Skua process of its own, so the tab can be running another
+  script meanwhile (a few seconds the first time, while it compiles).
 
 Queues are played by VibeSkua itself, with this page closed too, and are kept
 in `queue.json` next to `accounts.json`, so a queue goes on after a restart or
