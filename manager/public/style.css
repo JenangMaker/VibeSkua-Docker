@@ -416,6 +416,9 @@ dialog:has(.wide) { width: min(820px, calc(100vw - 32px)); }
 .lib-actions, .queue-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .queue-list { max-height: 340px; overflow: auto; overscroll-behavior: contain; margin-top: 10px; counter-reset: queue; }
 .queue-item { counter-increment: queue; }
+/* Two rows: the script and its minutes, then its buttons (there are up to six). */
+.queue-item { flex-wrap: wrap; row-gap: 6px; }
+.queue-item .queue-actions { flex-basis: 100%; justify-content: flex-start; padding-left: calc(1.6em + 12px); }
 .queue-item::before { content: counter(queue); min-width: 1.6em; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
 .queue-item.current { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .queue-item.current::before { color: var(--accent); font-weight: 700; }

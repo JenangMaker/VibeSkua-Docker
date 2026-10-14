@@ -1494,9 +1494,13 @@ $('#dlg-cbo').addEventListener('close', () => { cboTab = null; });
 // them: grouped (Options, then CoreBots' and other groups), each by its type.
 
 let soptsTab = null, soptsData = null, soptsControls = [];
+// A queue entry whose options the dialog edits ({tab, index, path, name});
+// null: the tab's loaded script.
+let soptsEntry = null;
 
 async function openScriptOptions(n) {
   soptsTab = n;
+  soptsEntry = null;
   soptsData = null;
   soptsControls = [];
   soptsRevealed = false;
@@ -1571,6 +1575,64 @@ function renderScriptOptions(data) {
   $('#sopts-body').replaceChildren(...sections);
   $('#sopts-save').disabled = $('#sopts-defaults').disabled = !data.editable;
   updateReveal();
+}
+
+// ---- a queue entry's options: the same dialog, saved into the entry --------------
+// VibeSkua reads the script's options in a process of its own (GET
+// /tabs/N/queue/options), so the tab may be running another script meanwhile.
+// The values shown are the entry's own options when it has some, else the
+// tab account's saved ones; Save makes them the entry's own, written for the
+// account just before the entry starts.
+
+async function openEntryOptions(k) {
+  const n = queueTab, it = queueData?.items[k];
+  if (n === null || !it) return;
+  soptsTab = n;
+  soptsEntry = { tab: n, index: k, path: it.path, name: it.name };
+  soptsData = null;
+  soptsControls = [];
+  soptsRevealed = false;
+  $('#sopts-reveal').hidden = true;
+  $('#sopts-title').textContent = `${it.name}: options in tab ${n}'s queue`;
+  $('#sopts-info').textContent = 'Compiling the script to read its options (a few seconds)...';
+  $('#sopts-info').classList.add('loading');
+  $('#sopts-body').replaceChildren();
+  $('#sopts-error').textContent = '';
+  $('.sopts-skip').hidden = true;
+  $('#sopts-skip-note').textContent = '';
+  $('.sopts-all').hidden = $('#sopts-all-note').hidden = true;
+  $('#sopts-queue').hidden = true;
+  $('#sopts-save').disabled = $('#sopts-defaults').disabled = true;
+  $('#sopts-save').textContent = 'Save for this entry';
+  $('#dlg-sopts').showModal();
+  try {
+    const data = await api('GET', `/api/tabs/${n}/queue/options?index=${k}`);
+    if (soptsEntry?.index !== k || soptsTab !== n) return;
+    if (data.error) { $('#sopts-info').textContent = ''; $('#sopts-error').textContent = data.error; return; }
+    // Its own values over the saved ones.
+    const own = it.options?.storage === data.storage ? it.options.values : null;
+    if (own) for (const o of data.options) {
+      const v = own.find(x => (x.category || 'Options') === o.category && x.name === o.name);
+      if (v) o.value = v.value;
+    }
+    soptsData = data;
+    renderScriptOptions(data);
+    $('.sopts-skip').hidden = true;
+    $('#sopts-skip-note').textContent = '';
+    $('.sopts-all').hidden = $('#sopts-all-note').hidden = true;
+    const who = data.account ? (streamer ? 'the account' : data.account) : 'the shared options';
+    $('#sopts-info').textContent = own
+      ? `Entry ${k + 1}: its own options, written for tab ${n}'s account just before it starts.`
+      : `Entry ${k + 1}: showing ${data.account ? `${who}'s ${data.own ? 'own' : 'shared'} saved options` : who}. Save makes them this entry's own, written for tab ${n}'s account just before it starts.`;
+    if (!data.options.length) $('#sopts-save').disabled = true;
+  } catch (e) {
+    if (e.status === 401 || soptsEntry?.index !== k) return;
+    $('#sopts-info').textContent = '';
+    $('#sopts-error').textContent = e.status === 404 && !/not in the Scripts/i.test(e.message)
+      ? 'This VibeSkua cannot read the options of a queued script yet: update its image.' : e.message;
+  } finally {
+    if (soptsEntry?.index === k) $('#sopts-info').classList.remove('loading');
+  }
 }
 
 let soptId = 0;
@@ -1664,6 +1726,14 @@ $('#sopts-queue').addEventListener('click', async () => {
 $('#sopts-form').addEventListener('submit', async e => {
   e.preventDefault();
   if (!soptsData?.editable || soptsTab === null) return;
+  if (soptsEntry) {
+    const { index, path, name } = soptsEntry, options = { storage: soptsData.storage, values: soptsValues() };
+    if (queueData?.items[index]?.path !== path) { $('#sopts-error').textContent = 'The queue changed meanwhile: open the options again.'; return; }
+    await editQueue(list => { list[index].options = options; });
+    toast(`${name}: options saved for this queue entry`);
+    $('#dlg-sopts').close('saved');
+    return;
+  }
   const values = soptsValues();
   const all = !$('.sopts-all').hidden && $('#sopts-all').checked;
   const button = $('#sopts-save');
@@ -1697,7 +1767,12 @@ $('#sopts-skip').addEventListener('change', async e => {
   }
 });
 
-$('#dlg-sopts').addEventListener('close', () => { soptsTab = null; });
+$('#dlg-sopts').addEventListener('close', () => {
+  soptsTab = null;
+  soptsEntry = null;
+  $('#sopts-queue').hidden = false;
+  $('#sopts-save').textContent = 'Save';
+});
 
 // ---- log dialog -----------------------------------------------------------------
 
@@ -1898,6 +1973,7 @@ function renderQueue(qv) {
       h('label', { class: 'queue-min' }, minutes, h('span', { text: 'min' })),
       h('div', { class: 'queue-actions' },
         move(k - 1, 'Move up', 'Up'), move(k + 1, 'Move down', 'Down'),
+        h('button', { type: 'button', class: 'small', title: it.options ? 'Change its own options' : "Give it options of its own (written for this tab's account just before it starts)", 'aria-label': `Options of ${it.name}`, onclick: () => openEntryOptions(k) }, 'Options...'),
         it.options ? h('button', { type: 'button', class: 'small ghost', title: 'Forget its own options: it runs with the saved ones', 'aria-label': `Forget the options of ${it.name}`, onclick: () => editQueue(list => { list[k].options = null; }) }, 'Use saved options') : null,
         h('button', { type: 'button', class: 'small', title: 'Play the queue from this script (a running one is stopped)', onclick: () => queueAction('play', `?index=${k}`, `Playing tab ${queueTab}'s queue from ${it.name}`) }, 'Play from here'),
         h('button', { type: 'button', class: 'small ghost danger', 'aria-label': `Remove ${it.name}`, onclick: () => editQueue(list => { list.splice(k, 1); }) }, 'Remove')));
