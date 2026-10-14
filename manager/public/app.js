@@ -437,7 +437,7 @@ function makeCard(n) {
       r.pill = h('span', { class: 'pill' }),
       r.shown = h('span', { class: 'shown-badge', text: 'Shown', title: 'This tab is the one shown on the VibeSkua desktop', hidden: true }),
       r.dialogBadge = h('button', { type: 'button', class: 'dialog-badge', hidden: true, onclick: () => openMsgbox(n) }, 'Waiting for you')),
-    h('dl', { class: 'kv' }, field('map', 'Map'), field('room', 'Room'), field('level', 'Level'), field('gold', 'Gold'), field('bag', 'Inventory'), field('script', 'Script')),
+    h('dl', { class: 'kv' }, field('map', 'Map'), field('room', 'Room'), field('level', 'Level'), field('gold', 'Gold'), field('coins', 'AC'), field('bag', 'Inventory'), field('script', 'Script')),
     h('div', { class: 'bars' }, bar('hp', 'HP'), bar('mp', 'MP')),
     r.fight = h('div', { class: 'fight' },
       h('div', { class: 'fight-head' }, h('span', { class: 'muted', text: 'Target' }), r.targetName = h('b'), r.targetPct = h('span', { class: 'muted' })),
@@ -448,6 +448,10 @@ function makeCard(n) {
     r.equip = h('details', { class: 'equip', hidden: true },
       r.equipSummary = h('summary'),
       r.equipList = h('ul', { class: 'equip-list' })),
+    // Stats and reputation (GET /character): read when opened, not polled.
+    r.char = h('details', { class: 'equip char', hidden: true },
+      r.charSummary = h('summary', {}, h('span', { text: 'Character' }), r.charPeek = h('span', { class: 'muted equip-peek' })),
+      r.charBody = h('div', { class: 'char-body' })),
     h('div', { class: 'stats' }, stat('kills', 'Kills'), stat('drops', 'Drops'), stat('quests', 'Quests'), stat('deaths', 'Deaths'), stat('relogins', 'Relogins')),
     r.usage = h('div', { class: 'usage' }),
     h('div', { class: 'actions' },
@@ -463,6 +467,7 @@ function makeCard(n) {
       h('button', { class: 'small', title: "Restart this tab's Skua (a running script stops; the game logs back in if it was restarted too)", onclick: () => restartTab(n, false) }, 'Restart'),
       h('button', { class: 'small', title: 'Restart Skua and reload the game page (logs in again)', onclick: () => restartTab(n, true) }, 'Reload game'),
       h('button', { class: 'small danger', onclick: () => closeTab(n) }, 'Close')));
+  r.char.addEventListener('toggle', () => { if (r.char.open) loadCharacter(n, r, true); });
   r.pick.addEventListener('change', () => {
     if (r.pick.checked) picked.add(n); else picked.delete(n);
     el.classList.toggle('picked', r.pick.checked);
@@ -505,6 +510,8 @@ function updateCard(card, tab, status) {
   r.room.textContent = !loggedIn || !game.room ? '-' : streamer ? 'hidden' : game.room;
   r.level.textContent = loggedIn ? `${game.level ?? '-'}${game.className ? ` - ${game.className}` : ''}` : '-';
   r.gold.textContent = loggedIn ? fmtNum(game.gold) : '-';
+  // AC (game.coins: VibeSkua 2.2.0+).
+  r.coins.textContent = loggedIn && game.coins != null ? fmtNum(game.coins) : '-';
   // Inventory space (game.bag: VibeSkua after 1.3.0): marked when 5 or fewer
   // slots are left (drops and quest items need room) and when it is full.
   const bag = loggedIn && game.bag?.slots ? game.bag : null;
@@ -526,6 +533,9 @@ function updateCard(card, tab, status) {
   updateFight(r, loggedIn ? status?.combat : null);
   updateQuests(r, loggedIn ? status?.quests : null);
   updateEquipment(r, loggedIn ? status?.equipment : null);
+  r.char.hidden = !loggedIn;
+  if (!loggedIn) { r.char.open = false; r.charData = null; }
+  else if (r.char.open) loadCharacter(tab.tab, r, false);
 
   r.kills.textContent = fmtNum(stats?.kills ?? 0);
   r.drops.textContent = fmtNum(stats?.drops ?? 0);
@@ -628,12 +638,70 @@ function updateEquipment(r, items) {
   const weapon = items.find(i => i.slot === 'Weapon');
   r.equipSummary.replaceChildren(
     h('span', { text: 'Equipment' }),
-    weapon ? h('span', { class: 'muted equip-peek', text: weapon.name }) : null);
+    weapon ? h('span', { class: 'muted equip-peek', text: weapon.name }) : '');
   r.equipList.replaceChildren(...items.map(i => h('li', {},
     h('span', { class: 'equip-slot muted', text: i.slot }),
     h('span', { class: 'equip-name', text: i.name, title: i.name }),
     i.enhancement ? h('span', { class: 'tag', text: i.enhancement, title: 'Enhancement' }) : null,
     i.proc ? h('span', { class: 'tag ok', text: i.proc, title: 'Special enhancement' }) : null)));
+}
+
+// The Character section (GET /character: VibeSkua 2.2.0+): the stats with
+// gear and every faction's rank. Read when opened, then every 30 s while it
+// stays open.
+const CHAR_MS = 30000;
+async function loadCharacter(n, r, opened) {
+  // Opening it again reads it again unless that was just now.
+  if (r.charLoading || (r.charAt && Date.now() - r.charAt < (opened ? 5000 : CHAR_MS))) return;
+  r.charLoading = true;
+  if (!r.charData) r.charBody.replaceChildren(h('div', { class: 'muted small', text: 'Loading...' }));
+  try {
+    const d = await api('GET', `/api/tabs/${n}/api/character`);
+    if (d?.error) throw new Error(d.error);
+    r.charData = d;
+    renderCharacter(r, d);
+  } catch (e) {
+    r.charData = null;
+    const old = e.status === 404;
+    r.charBody.replaceChildren(h('div', { class: 'muted small', text: old ? 'Needs a newer VibeSkua image (2.2.0+).' : `Could not read: ${e.message}` }));
+  } finally {
+    r.charAt = Date.now();
+    r.charLoading = false;
+  }
+}
+
+function renderCharacter(r, d) {
+  const pct = v => v == null ? '-' : `${(v * 100).toFixed(1).replace(/\.0$/, '')}%`;
+  const s = d.stats;
+  r.charPeek.textContent = d.className ? `${d.className}${d.classRank ? ` (rank ${d.classRank})` : ''}` : '';
+  const cell = (label, value, title) => h('div', { title: title || label }, h('span', { class: 'muted', text: label }), h('b', { text: value }));
+  const stats = s ? h('div', { class: 'char-stats' },
+    cell('STR', fmtNum(s.strength), 'Strength'), cell('INT', fmtNum(s.intellect), 'Intellect'), cell('DEX', fmtNum(s.dexterity), 'Dexterity'),
+    cell('END', fmtNum(s.endurance), 'Endurance'), cell('WIS', fmtNum(s.wisdom), 'Wisdom'), cell('LCK', fmtNum(s.luck), 'Luck'),
+    cell('AP', fmtNum(s.attackPower), 'Attack power'), cell('SP', fmtNum(s.spellPower), 'Spell power'), cell('Haste', pct(s.haste)),
+    cell('Crit', pct(s.critChance), 'Critical chance'), cell('Crit dmg', pct(s.critMultiplier), 'Critical damage multiplier'), cell('Evasion', pct(s.evasion)))
+    : h('div', { class: 'muted small', text: 'Stats not loaded yet' });
+  const money = h('div', { class: 'char-money' },
+    h('span', {}, h('span', { class: 'muted', text: 'Gold ' }), h('b', { text: fmtNum(d.gold) })),
+    h('span', {}, h('span', { class: 'muted', text: 'AC ' }), h('b', { text: fmtNum(d.coins) })),
+    h('span', {}, h('span', { class: 'muted', text: 'Level ' }), h('b', { text: String(d.level ?? '-') })));
+  const factions = d.factions || [];
+  const maxed = factions.filter(f => f.rank >= 10).length;
+  const rep = factions.length ? h('ul', { class: 'rep-list' }, ...factions.map(f => {
+    const max = f.rank >= 10 || !f.repToRank;
+    const p = max ? 100 : Math.max(0, Math.min(100, f.rep / f.repToRank * 100));
+    // Set through the style object: the page's CSP refuses style attributes.
+    const fill = h('i');
+    fill.style.width = `${p}%`;
+    return h('li', { title: `${f.name}: rank ${f.rank}, ${fmtNum(f.totalRep)} reputation in all${max ? '' : `, ${fmtNum(f.repToRank - f.rep)} to rank ${f.rank + 1}`}` },
+      h('span', { class: 'rep-name', text: f.name }),
+      h('span', { class: `rep-rank${max ? ' max' : ''}`, text: `${f.rank}` }),
+      h('span', { class: 'rep-bar' }, fill),
+      h('span', { class: 'muted rep-num', text: max ? 'max' : `${fmtNum(f.rep)}/${fmtNum(f.repToRank)}` }));
+  })) : h('div', { class: 'muted small', text: 'No factions yet' });
+  r.charBody.replaceChildren(money, stats,
+    h('div', { class: 'char-head muted', text: `Reputation: ${factions.length} faction${factions.length === 1 ? '' : 's'}, ${maxed} at rank 10` }),
+    rep);
 }
 
 async function startStop(n) {

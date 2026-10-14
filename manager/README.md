@@ -42,7 +42,7 @@ One card per tab:
   in), with "(headless)" when its Headless Mode is on, and **Shown** on the tab
   the VibeSkua desktop shows now (**In grid** on every tab while its Grid View
   is on).
-- **Map, room, level and class, gold, script** (the room needs VibeSkua 1.3.0 or
+- **Map, room, level and class, gold, AC, script** (the room needs VibeSkua 1.3.0 or
   newer; it reads "hidden" with Streamer mode on), and HP / MP bars.
 - **Inventory:** slots used and free ("144/161 (17 free)"), amber with 5 or
   fewer free (drops and quest items need room) and red when full. Needs a
@@ -55,6 +55,11 @@ One card per tab:
   weapon, armor, helm, cape, pet, necklace and ground item, each with its
   enhancement and special enhancement (Valiance, Awe Blast...). Needs a
   VibeSkua 1.3.0 or newer.
+- **Character** (click to open; it shows the class and its rank while closed):
+  gold, AC and level; the stats with gear (STR, INT, DEX, END, WIS, LCK,
+  attack and spell power, haste, critical chance and damage, evasion); and
+  each faction's rank with the reputation to the next one. Read when opened
+  and every 30 s while open. AC and Character need VibeSkua 2.2.0 or newer.
 - **Kills, drops, quests, deaths, relogins** since the session started, and
   what the tab's Skua and game cost in CPU and memory.
 
