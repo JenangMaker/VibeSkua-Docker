@@ -56,8 +56,9 @@ One card per tab:
   enhancement and special enhancement (Valiance, Awe Blast...). Needs a
   VibeSkua 1.3.0 or newer.
 - **Character** (click to open; it shows the class and its rank while closed):
-  the boosts running (XP, gold, reputation, class points) with their time left,
-  and the stats as the game's Stats panel shows them: core (STR... LCK),
+  the boosts of what is worn (damage to all or to a monster race, gold,
+  reputation, XP, class points; each with its item), the boost items running
+  (XP, gold, reputation, class points) with their time left, and the stats as the game's Stats panel shows them: core (STR... LCK),
   combat (attack and spell power, hit chance, cooldown reduction, critical
   chance and multiplier, evasion, max health) and modifiers (damage, physical,
   magical, healing and DoT resistance and boost, mana consumption). Hover a

@@ -679,6 +679,24 @@ async function loadCharacter(n, r, opened) {
 // Combat, Modifier), and the boosts with their time left. The modifiers are
 // multipliers (1 is none): a resistance is 1 - incoming, a boost outgoing - 1;
 // healing intake and mana consumption are shown as they are (100% is normal).
+// The boosts of what is worn (GET /character gear: each equipped item's
+// sMeta): damage to all, to a monster race, gold, reputation, XP, class
+// points; one line each, with the item it comes from.
+const GEAR_BOOSTS = { dmgAll: 'Damage (all)', gold: 'Gold', rep: 'Reputation', xp: 'XP', cp: 'Class points' };
+function gearBoosts(gear, pct, group) {
+  if (!Array.isArray(gear)) return [];
+  // Damage to all, then to races (by name), then gold, reputation, XP, class points.
+  const keys = Object.keys(GEAR_BOOSTS);
+  const order = b => b.boost === 'dmgAll' ? 0 : keys.includes(b.boost) ? 1 + keys.indexOf(b.boost) : 0.5;
+  const rows = [...gear].sort((a, b) => order(a) - order(b) || a.boost.localeCompare(b.boost))
+    .flatMap(b => {
+      const label = GEAR_BOOSTS[b.boost] || `${b.boost} damage`;
+      return [h('span', { class: 'muted', text: label }), h('b', { text: `+${pct(b.value - 1)}`, title: `${label}: x${b.value}` }),
+        h('span', { class: 'muted gear-item', text: b.item, title: b.item })];
+    });
+  return group('Equipment Boosts', rows.length ? h('div', { class: 'gear-boosts' }, ...rows) : h('div', { class: 'muted small', text: 'None from what is worn' }));
+}
+
 function renderCharacter(r, d) {
   const s = d.stats;
   r.charPeek.textContent = d.className ? `${d.className}${d.classRank ? ` (rank ${d.classRank})` : ''}` : '';
@@ -692,7 +710,7 @@ function renderCharacter(r, d) {
   const boost = (label, m) => h('span', { class: `boost${m > 0 ? ' on' : ''}`, title: m > 0 ? `${label} boost: ${mins(m)} left` : `No ${label.toLowerCase()} boost` },
     `${label} ${m > 0 ? mins(m) : 'off'}`);
   const boosts = h('div', { class: 'boosts' }, boost('XP', b.xp || 0), boost('Gold', b.gold || 0), boost('Rep', b.rep || 0), boost('Class', b.classPoints || 0));
-  if (!s) { r.charBody.replaceChildren(boosts, h('div', { class: 'muted small', text: 'Stats not loaded yet' })); }
+  if (!s) { r.charBody.replaceChildren(...gearBoosts(d.gear, pct, group), ...group('Boost Items', boosts), h('div', { class: 'muted small', text: 'Stats not loaded yet' })); }
   else {
     const core = h('div', { class: 'char-stats' },
       cell('STR', num(s.STR), 'Strength'), cell('INT', num(s.INT), 'Intellect'), cell('DEX', num(s.DEX), 'Dexterity'),
@@ -715,7 +733,7 @@ function renderCharacter(r, d) {
       ...mod('Magical', 'cmi', 'cmo', 'Resistance'), ...mod('Healing (intake)', 'chi', 'cho', 'Intake', true),
       ...mod('DoT', 'cdi', 'cdo', 'Resistance'),
       h('span', { class: 'muted', text: 'Mana Consumption' }), h('b', { text: pct(s.cmc), title: `Mana Consumption (game value ${s.cmc ?? '-'})` }), h('span'));
-    r.charBody.replaceChildren(boosts, ...group('Core Stats', core), ...group('Combat Stats', combat), ...group('Modifier Stats', mods));
+    r.charBody.replaceChildren(...gearBoosts(d.gear, pct, group), ...group('Boost Items', boosts), ...group('Core Stats', core), ...group('Combat Stats', combat), ...group('Modifier Stats', mods));
   }
   const factions = d.factions || [];
   const maxed = factions.filter(f => f.rank >= 10).length;
