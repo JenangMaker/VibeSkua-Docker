@@ -24,6 +24,7 @@ namespace Skua.Linux;
 ///   SKUA_SCRIPTS_REPO    repository scripts sync from, GitHub or Gitea
 ///                        (https://github.com/auqw/Scripts)
 ///   SKUA_SCRIPTS_BRANCH  its branch (Skua)
+///   NOTIFY_*             notifications on script progress: Notifier.cs
 /// </summary>
 public sealed class SkuaRuntime
 {
@@ -131,6 +132,7 @@ public sealed class SkuaRuntime
         new ScriptKeeper(provider, Bridge).Start();
         new OptionKeeper(provider, Bridge).Start();
         new MemoryTrim(provider).Start();
+        Notifier.For(Instance + 1).Watch(provider);
         string apiPrefix = Env("SKUA_API_PREFIX", "http://127.0.0.1:8791/");
         try
         {

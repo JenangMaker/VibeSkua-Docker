@@ -60,6 +60,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 ("POST", "/script/options") => await SaveScriptOptions(ctx.Request),
                 ("POST", "/script/options/apply") => await ApplyScriptOptions(ctx.Request),
                 ("GET", "/log") => Log(ctx.Request),
+                ("POST", "/notify/test") => await NotifyTest(),
                 ("GET", "/scripts") => await Scripts(ctx.Request),
                 ("GET", "/scripts/categories") => ScriptSync.Categories,
                 ("GET", "/scripts/browse") => scripts.Browse(ctx.Request.QueryString["dir"]),
@@ -481,6 +482,15 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
     {
         await services.GetRequiredService<IScriptManager>().StopScript();
         return new { stopped = true };
+    }
+
+    // Sends a test notification to each target (Notifier.cs): each one's error, or null.
+    private static async Task<object> NotifyTest()
+    {
+        var notifier = Notifier.For(SkuaRuntime.Instance + 1);
+        if (!notifier.Enabled)
+            return new { error = "no notifications set: NOTIFY_NTFY_URL or NOTIFY_SMTP_HOST" };
+        return await notifier.TestAsync();
     }
 
     private object Log(HttpListenerRequest request)

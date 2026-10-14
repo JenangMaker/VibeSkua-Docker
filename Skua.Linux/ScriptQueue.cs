@@ -138,11 +138,14 @@ public static class ScriptQueue
 
     private static Item? Current(Queue q) => q.Index >= 0 && q.Index < q.Items.Count ? q.Items[q.Index] : null;
 
-    private static void Note(int tab, Queue q, string note)
+    private static void Note(int tab, Queue q, string note, bool notify = false)
     {
         q.Note = note;
         q.NoteAt = DateTime.UtcNow;
         Console.WriteLine($"[tabs] tab {tab} queue: {note}");
+        // An entry done: the tab's own Skua notifies of the starts and stops.
+        if (notify)
+            Notifier.For(tab).Post(Notifier.QueueStep, "Queue", note);
     }
 
     public static string Name(string? path) => Path.GetFileNameWithoutExtension(path ?? "");
@@ -184,10 +187,10 @@ public static class ScriptQueue
             q.Index = 0;
             q.Playing = false;
             q.Finished = true;
-            Note(tab, q, done.Length > 0 ? $"{done} {why}; queue finished" : "queue finished");
+            Note(tab, q, done.Length > 0 ? $"{done} {why}; queue finished" : "queue finished", notify: true);
             return;
         }
-        Note(tab, q, done.Length > 0 ? $"{done} {why}; next: {Name(Current(q)?.Path)}" : $"next: {Name(Current(q)?.Path)}");
+        Note(tab, q, done.Length > 0 ? $"{done} {why}; next: {Name(Current(q)?.Path)}" : $"next: {Name(Current(q)?.Path)}", notify: true);
     }
 
     /// <summary>
