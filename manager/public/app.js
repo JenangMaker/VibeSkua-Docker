@@ -675,17 +675,48 @@ async function loadCharacter(n, r, opened) {
   }
 }
 
+// Game-panel style: the stat table as the game's Stats panel shows it (Core,
+// Combat, Modifier), and the boosts with their time left. The modifiers are
+// multipliers (1 is none): a resistance is 1 - incoming, a boost outgoing - 1;
+// healing intake and mana consumption are shown as they are (100% is normal).
 function renderCharacter(r, d) {
-  const pct = v => v == null ? '-' : `${(v * 100).toFixed(1).replace(/\.0$/, '')}%`;
   const s = d.stats;
   r.charPeek.textContent = d.className ? `${d.className}${d.classRank ? ` (rank ${d.classRank})` : ''}` : '';
+  const num = v => v == null ? '-' : fmtNum(Math.round(v));
+  const pct = v => v == null || !isFinite(v) ? '-' : `${(v * 100).toFixed(2)}%`;
+  const has = k => s && typeof s[k] === 'number';
   const cell = (label, value, title) => h('div', { title: title || label }, h('span', { class: 'muted', text: label }), h('b', { text: value }));
-  const stats = s ? h('div', { class: 'char-stats' },
-    cell('STR', fmtNum(s.strength), 'Strength'), cell('INT', fmtNum(s.intellect), 'Intellect'), cell('DEX', fmtNum(s.dexterity), 'Dexterity'),
-    cell('END', fmtNum(s.endurance), 'Endurance'), cell('WIS', fmtNum(s.wisdom), 'Wisdom'), cell('LCK', fmtNum(s.luck), 'Luck'),
-    cell('AP', fmtNum(s.attackPower), 'Attack power'), cell('SP', fmtNum(s.spellPower), 'Spell power'), cell('Haste', pct(s.haste)),
-    cell('Crit', pct(s.critChance), 'Critical chance'), cell('Crit dmg', pct(s.critMultiplier), 'Critical damage multiplier'), cell('Evasion', pct(s.evasion)))
-    : h('div', { class: 'muted small', text: 'Stats not loaded yet' });
+  const group = (title, ...rows) => [h('div', { class: 'char-head', text: title }), ...rows];
+  const mins = m => m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
+  const b = d.boosts || {};
+  const boost = (label, m) => h('span', { class: `boost${m > 0 ? ' on' : ''}`, title: m > 0 ? `${label} boost: ${mins(m)} left` : `No ${label.toLowerCase()} boost` },
+    `${label} ${m > 0 ? mins(m) : 'off'}`);
+  const boosts = h('div', { class: 'boosts' }, boost('XP', b.xp || 0), boost('Gold', b.gold || 0), boost('Rep', b.rep || 0), boost('Class', b.classPoints || 0));
+  if (!s) { r.charBody.replaceChildren(boosts, h('div', { class: 'muted small', text: 'Stats not loaded yet' })); }
+  else {
+    const core = h('div', { class: 'char-stats' },
+      cell('STR', num(s.STR), 'Strength'), cell('INT', num(s.INT), 'Intellect'), cell('DEX', num(s.DEX), 'Dexterity'),
+      cell('END', num(s.END), 'Endurance'), cell('WIS', num(s.WIS), 'Wisdom'), cell('LCK', num(s.LCK), 'Luck'));
+    const combat = h('div', { class: 'char-stats two' },
+      cell('Attack Power', num(s.ap)), cell('Critical Chance', pct(s.tcr)),
+      cell('Spell Power', num(s.sp)), cell('Critical Multiplier', pct(s.scm)),
+      cell('Hit Chance', pct(s.thi)), cell('Evasion Chance', pct(s.tdo)),
+      cell('Cooldown Reduction', pct(s.tha), 'Haste'), cell('Max Health', num(d.maxHp)));
+    const mod = (label, inKey, outKey, inLabel, intake) => {
+      const vin = has(inKey) ? (intake ? s[inKey] : 1 - s[inKey]) : null;
+      const vout = has(outKey) ? s[outKey] - 1 : null;
+      return [h('span', { class: 'muted', text: label }),
+        h('b', { text: pct(vin), title: `${label} ${inLabel} (game value ${s[inKey] ?? '-'})` }),
+        h('b', { text: pct(vout), title: `${label} Boost (game value ${s[outKey] ?? '-'})` })];
+    };
+    const mods = h('div', { class: 'char-mods' },
+      h('span'), h('span', { class: 'muted', text: 'Resist' }), h('span', { class: 'muted', text: 'Boost' }),
+      ...mod('Damage', 'cai', 'cao', 'Resistance'), ...mod('Physical', 'cpi', 'cpo', 'Resistance'),
+      ...mod('Magical', 'cmi', 'cmo', 'Resistance'), ...mod('Healing', 'chi', 'cho', 'Intake', true),
+      ...mod('DoT', 'cdi', 'cdo', 'Resistance'),
+      h('span', { class: 'muted', text: 'Mana Consumption' }), h('b', { text: pct(s.cmc), title: `Mana Consumption (game value ${s.cmc ?? '-'})` }), h('span'));
+    r.charBody.replaceChildren(boosts, ...group('Core Stats', core), ...group('Combat Stats', combat), ...group('Modifier Stats', mods));
+  }
   const factions = d.factions || [];
   const maxed = factions.filter(f => f.rank >= 10).length;
   const rep = factions.length ? h('ul', { class: 'rep-list' }, ...factions.map(f => {
