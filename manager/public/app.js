@@ -731,7 +731,6 @@ function renderCharacter(r, d) {
       h('span', { class: 'rep-bar' }, fill),
       h('span', { class: 'muted rep-num', text: max ? 'max' : `${fmtNum(f.rep)}/${fmtNum(f.repToRank)}` }));
   })) : h('div', { class: 'muted small', text: 'No factions yet' });
-  r.charBody.replaceChildren(stats);
   r.repPeek.textContent = factions.length ? `${factions.length} faction${factions.length === 1 ? '' : 's'}, ${maxed} at rank 10` : '';
   r.repBody.replaceChildren(rep);
 }
