@@ -115,8 +115,9 @@ in `queue.json` next to `accounts.json`, so a queue goes on after a restart or
 a redeploy (the entry that was playing starts again).
 
 **Favourites** and **Recently run** (the scripts tabs started lately): **Start**
-loads and starts one in the tab picked in **Start in**, **Add to queue** adds it
-to the end of that tab's queue. **Add to favourites** in the Load script window
+loads and starts one, **Add to queue** adds it to the end of a tab's queue: a
+favourite in the tab picked in **Start in**, a recently run script in the tab
+that ran it (its buttons are off while that tab is not running). **Add to favourites** in the Load script window
 adds the script in its Path. They are kept in `scripts.json` next to
 `accounts.json`, shared by everyone using the page.
 
