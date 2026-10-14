@@ -697,11 +697,11 @@ function renderCharacter(r, d) {
     const core = h('div', { class: 'char-stats' },
       cell('STR', num(s.STR), 'Strength'), cell('INT', num(s.INT), 'Intellect'), cell('DEX', num(s.DEX), 'Dexterity'),
       cell('END', num(s.END), 'Endurance'), cell('WIS', num(s.WIS), 'Wisdom'), cell('LCK', num(s.LCK), 'Luck'));
-    const combat = h('div', { class: 'char-stats two' },
-      cell('Attack Power', num(s.ap)), cell('Critical Chance', pct(s.tcr)),
-      cell('Spell Power', num(s.sp)), cell('Critical Multiplier', pct(s.scm)),
-      cell('Hit Chance', pct(s.thi)), cell('Evasion Chance', pct(s.tdo)),
-      cell('Cooldown Reduction', pct(s.tha), 'Haste'), cell('Max Health', num(d.maxHp)));
+    const combat = h('div', { class: 'char-stats one' },
+      cell('Attack Power', num(s.ap)), cell('Spell Power', num(s.sp)),
+      cell('Hit Chance', pct(s.thi)), cell('Cooldown Reduction', pct(s.tha), 'Haste'),
+      cell('Critical Chance', pct(s.tcr)), cell('Critical Multiplier', pct(s.scm)),
+      cell('Evasion Chance', pct(s.tdo)), cell('Max Health', num(d.maxHp)));
     const mod = (label, inKey, outKey, inLabel, intake) => {
       const vin = has(inKey) ? (intake ? s[inKey] : 1 - s[inKey]) : null;
       const vout = has(outKey) ? s[outKey] - 1 : null;
@@ -712,7 +712,7 @@ function renderCharacter(r, d) {
     const mods = h('div', { class: 'char-mods' },
       h('span'), h('span', { class: 'muted', text: 'Resist' }), h('span', { class: 'muted', text: 'Boost' }),
       ...mod('Damage', 'cai', 'cao', 'Resistance'), ...mod('Physical', 'cpi', 'cpo', 'Resistance'),
-      ...mod('Magical', 'cmi', 'cmo', 'Resistance'), ...mod('Healing', 'chi', 'cho', 'Intake', true),
+      ...mod('Magical', 'cmi', 'cmo', 'Resistance'), ...mod('Healing (intake)', 'chi', 'cho', 'Intake', true),
       ...mod('DoT', 'cdi', 'cdo', 'Resistance'),
       h('span', { class: 'muted', text: 'Mana Consumption' }), h('b', { text: pct(s.cmc), title: `Mana Consumption (game value ${s.cmc ?? '-'})` }), h('span'));
     r.charBody.replaceChildren(boosts, ...group('Core Stats', core), ...group('Combat Stats', combat), ...group('Modifier Stats', mods));

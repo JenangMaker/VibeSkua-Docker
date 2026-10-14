@@ -245,8 +245,7 @@ input.masked { -webkit-text-security: disc; }
 .char-body { margin: 6px 0 2px; display: grid; gap: 8px; font-size: 12px; }
 .char-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px 12px; }
 .char-stats div { display: flex; justify-content: space-between; gap: 6px; min-width: 0; white-space: nowrap; }
-.char-stats.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.char-stats.two span { overflow: hidden; text-overflow: ellipsis; }
+.char-stats.one { grid-template-columns: minmax(0, 1fr); }
 .char-head { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 1px solid var(--border); padding-bottom: 2px; margin-bottom: -4px; }
 .char-mods { display: grid; grid-template-columns: minmax(0, 1fr) 64px 64px; gap: 3px 8px; white-space: nowrap; }
 .char-mods b { text-align: right; font-variant-numeric: tabular-nums; }
