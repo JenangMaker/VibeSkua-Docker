@@ -443,7 +443,11 @@ function makeCard(n) {
       h('div', { class: 'fight-head' }, h('span', { class: 'muted', text: 'Target' }), r.targetName = h('b'), r.targetPct = h('span', { class: 'muted' })),
       bar('target', 'Target HP'),
       r.cellMons = h('div', { class: 'cell-mons' })),
-    r.questList = h('div', { class: 'quests' }),
+    // Closed by default like the sections below; it shows the first quest's
+    // progress while closed.
+    r.quest = h('details', { class: 'equip', hidden: true },
+      h('summary', {}, r.questTitle = h('span'), r.questPeek = h('span', { class: 'muted equip-peek' })),
+      r.questList = h('div', { class: 'quests' })),
     // Closed by default (the card stays short); open or closed, it stays so.
     r.equip = h('details', { class: 'equip', hidden: true },
       r.equipSummary = h('summary'),
@@ -609,8 +613,8 @@ function updateFight(r, combat) {
 const MAX_QUESTS = 3;
 
 function updateQuests(r, quests) {
-  r.questList.hidden = !quests?.length;
-  if (r.questList.hidden) return;
+  r.quest.hidden = !quests?.length;
+  if (r.quest.hidden) return;
   const shown = quests.slice(0, MAX_QUESTS).map(q => {
     const done = q.requirements.filter(x => x.have >= x.need).length;
     return h('div', { class: 'quest' },
@@ -624,8 +628,11 @@ function updateQuests(r, quests) {
         h('span', { class: 'req-count', text: `${fmtNum(x.have)}/${fmtNum(x.need)}` })))));
   });
   const more = quests.length - MAX_QUESTS;
+  r.questTitle.textContent = quests.length === 1 ? 'Quest' : `Quests (${quests.length})`;
+  const first = quests[0];
+  const firstDone = first.requirements.filter(x => x.have >= x.need).length;
+  r.questPeek.textContent = `${first.name} ${first.ready ? '(ready)' : `${firstDone}/${first.requirements.length}`}`;
   r.questList.replaceChildren(
-    h('div', { class: 'quests-title muted', text: quests.length === 1 ? 'Quest' : `Quests (${quests.length})` }),
     ...shown,
     ...(more > 0 ? [h('div', { class: 'muted small', text: `+${more} more` })] : []));
 }
