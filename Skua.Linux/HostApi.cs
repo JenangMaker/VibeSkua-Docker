@@ -73,6 +73,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 ("POST", "/bank/move") => await BankMove(ctx.Request),
                 ("POST", "/dialog/answer") => AnswerDialog(ctx.Request),
                 ("GET", "/inventory") => Inventory(),
+                ("GET", "/character") => Character(),
                 ("POST", "/inventory/equip") => await InventoryEquip(ctx.Request),
                 ("POST", _) when path.StartsWith("/army/") => await Army(path["/army/".Length..], ctx.Request),
                 _ when Routes.TryGetValue($"{method} {path}", out var route) => await route(ctx.Request),
@@ -230,6 +231,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                     maxMp = player.MaxMana,
                     level = player.Level,
                     gold = player.Gold,
+                    coins = player.Coins,
                     // Inventory space: two small reads.
                     bag = new { used = bot.Inventory.UsedSlots, slots = bot.Inventory.Slots },
                     className = items?.Find(i => i is { Equipped: true, Category: Skua.Core.Models.Items.ItemCategory.Class })?.Name,

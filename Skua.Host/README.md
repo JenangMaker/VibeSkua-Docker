@@ -44,7 +44,8 @@ body-less POST with 411 but may still run the handler.
 
 | Route | What |
 | :--- | :--- |
-| `GET /status` | Connected, logged in, player, map, cell, HP, the script and whether it runs. `?detail=1` adds level, gold, class, MP, the session stats, the target and the cell's monsters (`combat`), and the active quests with their requirements (`quests`). |
+| `GET /status` | Connected, logged in, player, map, cell, HP, the script and whether it runs. `?detail=1` adds level, gold, AC (`coins`), class, MP, the session stats, the target and the cell's monsters (`combat`), and the active quests with their requirements (`quests`). |
+| `GET /character` | The logged-in character: level, gold, AC (`coins`), the class and its rank, the stats with gear (`stats`: strength... luck, attack and spell power, and haste, critical chance, critical multiplier and evasion as fractions, 0.05 for 5%), and each faction's rank and reputation (`factions`: `rank`, `totalRep`, `rep` in this rank, `repToRank`). |
 | `POST /script/load?path=` | Load a script (a path relative to `Skua/Scripts`, or absolute) without starting it. |
 | `POST /script/start[?path=]` | Start the loaded script, or load and start `path`, or the script sent as the body. |
 | `POST /script/stop` | Stop the script. |
