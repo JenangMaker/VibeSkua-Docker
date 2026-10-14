@@ -215,8 +215,7 @@ input.masked { -webkit-text-security: disc; }
 .mon.targeted { outline: 1px solid var(--warn); }
 .mon.dead { color: var(--muted); text-decoration: line-through; }
 
-.quests { display: grid; gap: 8px; padding: 8px 10px; background: var(--panel-2); border-radius: 8px; font-size: 13px; }
-.quests-title { font-size: 12px; }
+.quests { display: grid; gap: 8px; margin: 6px 0 2px; }
 .quest { display: grid; gap: 3px; }
 .quest-head { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 .quest-head b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

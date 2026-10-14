@@ -49,7 +49,8 @@ One card per tab:
   VibeSkua newer than 1.3.0.
 - **Target:** what the character is fighting, with its HP, and every monster
   in the cell (the dead ones struck through).
-- **Quest:** the active quests and each requirement as have / need, so you can
+- **Quest** (click to open; it shows the first quest and its progress while
+  closed): the active quests and each requirement as have / need, so you can
   see a quest filling up.
 - **Equipment** (click to open; it shows the weapon while closed): class,
   weapon, armor, helm, cape, pet, necklace and ground item, each with its
