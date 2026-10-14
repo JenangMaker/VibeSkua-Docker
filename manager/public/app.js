@@ -1990,19 +1990,26 @@ function renderScripts() {
     $('#recent-list').replaceChildren();
     return;
   }
-  status.textContent = `${lib.favorites.length} favourite${lib.favorites.length === 1 ? '' : 's'}; scripts start in the tab picked here.`;
+  status.textContent = `${lib.favorites.length} favourite${lib.favorites.length === 1 ? '' : 's'}; favourites start in the tab picked here, recently run scripts in the tab that ran them.`;
   const favs = new Set(lib.favorites.map(f => f.path));
-  const row = (s, detail) => h('li', { class: 'lib-item', title: s.path },
-    h('div', { class: 'lib-main' }, h('b', { text: s.name }), detail ? h('small', { class: 'muted', text: detail }) : null, h('small', { class: 'path', text: s.path })),
-    h('div', { class: 'lib-actions' },
-      h('button', { class: 'small primary', disabled: !running.length || s.exists === false, title: 'Load and start it in the picked tab', onclick: () => libStart(s) }, 'Start'),
-      h('button', { class: 'small', disabled: !running.length || s.exists === false, title: "Add it to the end of the picked tab's queue", onclick: () => libQueue(s) }, 'Add to queue'),
-      h('button', { class: 'small ghost', 'aria-pressed': String(favs.has(s.path)), onclick: () => setFavorite(s.path, !favs.has(s.path)) }, favs.has(s.path) ? 'Unfavourite' : 'Favourite')));
+  // tab: the tab a recently run script ran in, which its buttons go to;
+  // none (favourites): the tab picked in Start in.
+  const row = (s, detail, tab) => {
+    const where = tab ? `tab ${tab}` : 'the picked tab';
+    const off = s.exists === false || (tab ? !running.includes(tab) : !running.length);
+    const why = tab && !running.includes(tab) ? ` (tab ${tab} is not running)` : '';
+    return h('li', { class: 'lib-item', title: s.path },
+      h('div', { class: 'lib-main' }, h('b', { text: s.name }), detail ? h('small', { class: 'muted', text: detail }) : null, h('small', { class: 'path', text: s.path })),
+      h('div', { class: 'lib-actions' },
+        h('button', { class: 'small primary', disabled: off, title: `Load and start it in ${where}${why}`, onclick: () => libStart(s, tab) }, 'Start'),
+        h('button', { class: 'small', disabled: off, title: `Add it to the end of ${where}'s queue${why}`, onclick: () => libQueue(s, tab) }, 'Add to queue'),
+        h('button', { class: 'small ghost', 'aria-pressed': String(favs.has(s.path)), onclick: () => setFavorite(s.path, !favs.has(s.path)) }, favs.has(s.path) ? 'Unfavourite' : 'Favourite')));
+  };
   $('#fav-list').replaceChildren(...(lib.favorites.length
     ? lib.favorites.map(f => row(f, f.exists === false ? 'Not in the Scripts folder any more' : ''))
     : [h('li', { class: 'none', text: 'No favourites yet: use Favourite below, or Add to favourites in the Load script window.' })]));
   $('#recent-list').replaceChildren(...(lib.recent.length
-    ? lib.recent.map(r => row(r, `Tab ${r.tab}, ${fmtAgo(r.at)}`))
+    ? lib.recent.map(r => row(r, `Tab ${r.tab}, ${fmtAgo(r.at)}`, +r.tab || null))
     : [h('li', { class: 'none', text: 'Scripts the tabs run show here.' })]));
 }
 
@@ -2016,15 +2023,15 @@ function tabLabel(n) {
 
 const libTab = () => +$('#lib-tab').value || null;
 
-async function libStart(s) {
-  const n = libTab();
+async function libStart(s, tab) {
+  const n = tab || libTab();
   if (!n) return;
   await act(`Tab ${n}: started ${s.name}`, () => api('POST', `/api/tabs/${n}/api/script/start?path=${q(s.path)}`));
   refresh();
 }
 
-async function libQueue(s) {
-  const n = libTab();
+async function libQueue(s, tab) {
+  const n = tab || libTab();
   if (!n) return;
   await act(`Added ${s.name} to tab ${n}'s queue`, () => api('POST', `/api/tabs/${n}/queue/add?path=${q(s.path)}`));
   refresh();
