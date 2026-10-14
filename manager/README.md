@@ -56,10 +56,16 @@ One card per tab:
   enhancement and special enhancement (Valiance, Awe Blast...). Needs a
   VibeSkua 1.3.0 or newer.
 - **Character** (click to open; it shows the class and its rank while closed):
-  gold, AC and level; the stats with gear (STR, INT, DEX, END, WIS, LCK,
-  attack and spell power, haste, critical chance and damage, evasion); and
-  each faction's rank with the reputation to the next one. Read when opened
-  and every 30 s while open. AC and Character need VibeSkua 2.2.0 or newer.
+  the boosts running (XP, gold, reputation, class points) with their time left,
+  and the stats as the game's Stats panel shows them: core (STR... LCK),
+  combat (attack and spell power, hit chance, cooldown reduction, critical
+  chance and multiplier, evasion, max health) and modifiers (damage, physical,
+  magical, healing and DoT resistance and boost, mana consumption). Hover a
+  modifier for the game's own value.
+- **Reputation** (click to open; it shows how many factions, and how many at
+  rank 10, while closed): each faction's rank with the reputation to the next
+  one. Character and Reputation are read when opened and every 30 s while
+  open. AC, Character and Reputation need VibeSkua 2.2.0 or newer.
 - **Kills, drops, quests, deaths, relogins** since the session started, and
   what the tab's Skua and game cost in CPU and memory.
 
