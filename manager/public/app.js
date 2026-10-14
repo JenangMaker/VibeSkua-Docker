@@ -638,7 +638,7 @@ function updateEquipment(r, items) {
   const weapon = items.find(i => i.slot === 'Weapon');
   r.equipSummary.replaceChildren(
     h('span', { text: 'Equipment' }),
-    weapon ? h('span', { class: 'muted equip-peek', text: weapon.name }) : null);
+    weapon ? h('span', { class: 'muted equip-peek', text: weapon.name }) : '');
   r.equipList.replaceChildren(...items.map(i => h('li', {},
     h('span', { class: 'equip-slot muted', text: i.slot }),
     h('span', { class: 'equip-name', text: i.name, title: i.name }),

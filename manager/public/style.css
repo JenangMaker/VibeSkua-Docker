@@ -245,7 +245,7 @@ input.masked { -webkit-text-security: disc; }
 .char-body { margin: 6px 0 2px; display: grid; gap: 8px; font-size: 12px; }
 .char-money { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .char-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px 12px; }
-.char-stats div { display: flex; justify-content: space-between; gap: 6px; min-width: 0; }
+.char-stats div { display: flex; justify-content: space-between; gap: 6px; min-width: 0; white-space: nowrap; }
 .rep-list { list-style: none; margin: 0; padding: 0 4px 0 0; display: grid; gap: 3px; max-height: 220px; overflow-y: auto; }
 .rep-list li { display: grid; grid-template-columns: minmax(0, 1fr) 20px 56px 76px; align-items: center; gap: 6px; }
 .rep-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
