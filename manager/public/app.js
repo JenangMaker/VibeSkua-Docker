@@ -448,10 +448,14 @@ function makeCard(n) {
     r.equip = h('details', { class: 'equip', hidden: true },
       r.equipSummary = h('summary'),
       r.equipList = h('ul', { class: 'equip-list' })),
-    // Stats and reputation (GET /character): read when opened, not polled.
+    // Battle stats and reputation (GET /character): read when either is
+    // opened, not polled.
     r.char = h('details', { class: 'equip char', hidden: true },
-      r.charSummary = h('summary', {}, h('span', { text: 'Character' }), r.charPeek = h('span', { class: 'muted equip-peek' })),
+      h('summary', {}, h('span', { text: 'Character' }), r.charPeek = h('span', { class: 'muted equip-peek' })),
       r.charBody = h('div', { class: 'char-body' })),
+    r.rep = h('details', { class: 'equip char', hidden: true },
+      h('summary', {}, h('span', { text: 'Reputation' }), r.repPeek = h('span', { class: 'muted equip-peek' })),
+      r.repBody = h('div', { class: 'char-body' })),
     h('div', { class: 'stats' }, stat('kills', 'Kills'), stat('drops', 'Drops'), stat('quests', 'Quests'), stat('deaths', 'Deaths'), stat('relogins', 'Relogins')),
     r.usage = h('div', { class: 'usage' }),
     h('div', { class: 'actions' },
@@ -467,7 +471,7 @@ function makeCard(n) {
       h('button', { class: 'small', title: "Restart this tab's Skua (a running script stops; the game logs back in if it was restarted too)", onclick: () => restartTab(n, false) }, 'Restart'),
       h('button', { class: 'small', title: 'Restart Skua and reload the game page (logs in again)', onclick: () => restartTab(n, true) }, 'Reload game'),
       h('button', { class: 'small danger', onclick: () => closeTab(n) }, 'Close')));
-  r.char.addEventListener('toggle', () => { if (r.char.open) loadCharacter(n, r, true); });
+  for (const d of [r.char, r.rep]) d.addEventListener('toggle', () => { if (d.open) loadCharacter(n, r, true); });
   r.pick.addEventListener('change', () => {
     if (r.pick.checked) picked.add(n); else picked.delete(n);
     el.classList.toggle('picked', r.pick.checked);
@@ -533,9 +537,9 @@ function updateCard(card, tab, status) {
   updateFight(r, loggedIn ? status?.combat : null);
   updateQuests(r, loggedIn ? status?.quests : null);
   updateEquipment(r, loggedIn ? status?.equipment : null);
-  r.char.hidden = !loggedIn;
-  if (!loggedIn) { r.char.open = false; r.charData = null; }
-  else if (r.char.open) loadCharacter(tab.tab, r, false);
+  r.char.hidden = r.rep.hidden = !loggedIn;
+  if (!loggedIn) { r.char.open = r.rep.open = false; r.charData = null; }
+  else if (r.char.open || r.rep.open) loadCharacter(tab.tab, r, false);
 
   r.kills.textContent = fmtNum(stats?.kills ?? 0);
   r.drops.textContent = fmtNum(stats?.drops ?? 0);
@@ -646,15 +650,15 @@ function updateEquipment(r, items) {
     i.proc ? h('span', { class: 'tag ok', text: i.proc, title: 'Special enhancement' }) : null)));
 }
 
-// The Character section (GET /character: VibeSkua 2.2.0+): the stats with
-// gear and every faction's rank. Read when opened, then every 30 s while it
-// stays open.
+// The Character and Reputation sections (GET /character: VibeSkua 2.2.0+):
+// the battle stats with gear, and every faction's rank. One read for both,
+// when either is opened, then every 30 s while one stays open.
 const CHAR_MS = 30000;
 async function loadCharacter(n, r, opened) {
   // Opening it again reads it again unless that was just now.
   if (r.charLoading || (r.charAt && Date.now() - r.charAt < (opened ? 5000 : CHAR_MS))) return;
   r.charLoading = true;
-  if (!r.charData) r.charBody.replaceChildren(h('div', { class: 'muted small', text: 'Loading...' }));
+  if (!r.charData) for (const b of [r.charBody, r.repBody]) b.replaceChildren(h('div', { class: 'muted small', text: 'Loading...' }));
   try {
     const d = await api('GET', `/api/tabs/${n}/api/character`);
     if (d?.error) throw new Error(d.error);
@@ -663,28 +667,56 @@ async function loadCharacter(n, r, opened) {
   } catch (e) {
     r.charData = null;
     const old = e.status === 404;
-    r.charBody.replaceChildren(h('div', { class: 'muted small', text: old ? 'Needs a newer VibeSkua image (2.2.0+).' : `Could not read: ${e.message}` }));
+    const text = old ? 'Needs a newer VibeSkua image (2.2.0+).' : `Could not read: ${e.message}`;
+    for (const b of [r.charBody, r.repBody]) b.replaceChildren(h('div', { class: 'muted small', text }));
   } finally {
     r.charAt = Date.now();
     r.charLoading = false;
   }
 }
 
+// Game-panel style: the stat table as the game's Stats panel shows it (Core,
+// Combat, Modifier), and the boosts with their time left. The modifiers are
+// multipliers (1 is none): a resistance is 1 - incoming, a boost outgoing - 1;
+// healing intake and mana consumption are shown as they are (100% is normal).
 function renderCharacter(r, d) {
-  const pct = v => v == null ? '-' : `${(v * 100).toFixed(1).replace(/\.0$/, '')}%`;
   const s = d.stats;
   r.charPeek.textContent = d.className ? `${d.className}${d.classRank ? ` (rank ${d.classRank})` : ''}` : '';
+  const num = v => v == null ? '-' : fmtNum(Math.round(v));
+  const pct = v => v == null || !isFinite(v) ? '-' : `${(v * 100).toFixed(2)}%`;
+  const has = k => s && typeof s[k] === 'number';
   const cell = (label, value, title) => h('div', { title: title || label }, h('span', { class: 'muted', text: label }), h('b', { text: value }));
-  const stats = s ? h('div', { class: 'char-stats' },
-    cell('STR', fmtNum(s.strength), 'Strength'), cell('INT', fmtNum(s.intellect), 'Intellect'), cell('DEX', fmtNum(s.dexterity), 'Dexterity'),
-    cell('END', fmtNum(s.endurance), 'Endurance'), cell('WIS', fmtNum(s.wisdom), 'Wisdom'), cell('LCK', fmtNum(s.luck), 'Luck'),
-    cell('AP', fmtNum(s.attackPower), 'Attack power'), cell('SP', fmtNum(s.spellPower), 'Spell power'), cell('Haste', pct(s.haste)),
-    cell('Crit', pct(s.critChance), 'Critical chance'), cell('Crit dmg', pct(s.critMultiplier), 'Critical damage multiplier'), cell('Evasion', pct(s.evasion)))
-    : h('div', { class: 'muted small', text: 'Stats not loaded yet' });
-  const money = h('div', { class: 'char-money' },
-    h('span', {}, h('span', { class: 'muted', text: 'Gold ' }), h('b', { text: fmtNum(d.gold) })),
-    h('span', {}, h('span', { class: 'muted', text: 'AC ' }), h('b', { text: fmtNum(d.coins) })),
-    h('span', {}, h('span', { class: 'muted', text: 'Level ' }), h('b', { text: String(d.level ?? '-') })));
+  const group = (title, ...rows) => [h('div', { class: 'char-head', text: title }), ...rows];
+  const mins = m => m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
+  const b = d.boosts || {};
+  const boost = (label, m) => h('span', { class: `boost${m > 0 ? ' on' : ''}`, title: m > 0 ? `${label} boost: ${mins(m)} left` : `No ${label.toLowerCase()} boost` },
+    `${label} ${m > 0 ? mins(m) : 'off'}`);
+  const boosts = h('div', { class: 'boosts' }, boost('XP', b.xp || 0), boost('Gold', b.gold || 0), boost('Rep', b.rep || 0), boost('Class', b.classPoints || 0));
+  if (!s) { r.charBody.replaceChildren(boosts, h('div', { class: 'muted small', text: 'Stats not loaded yet' })); }
+  else {
+    const core = h('div', { class: 'char-stats' },
+      cell('STR', num(s.STR), 'Strength'), cell('INT', num(s.INT), 'Intellect'), cell('DEX', num(s.DEX), 'Dexterity'),
+      cell('END', num(s.END), 'Endurance'), cell('WIS', num(s.WIS), 'Wisdom'), cell('LCK', num(s.LCK), 'Luck'));
+    const combat = h('div', { class: 'char-stats one' },
+      cell('Attack Power', num(s.ap)), cell('Spell Power', num(s.sp)),
+      cell('Hit Chance', pct(s.thi)), cell('Cooldown Reduction', pct(s.tha), 'Haste'),
+      cell('Critical Chance', pct(s.tcr)), cell('Critical Multiplier', pct(s.scm)),
+      cell('Evasion Chance', pct(s.tdo)), cell('Max Health', num(d.maxHp)));
+    const mod = (label, inKey, outKey, inLabel, intake) => {
+      const vin = has(inKey) ? (intake ? s[inKey] : 1 - s[inKey]) : null;
+      const vout = has(outKey) ? s[outKey] - 1 : null;
+      return [h('span', { class: 'muted', text: label }),
+        h('b', { text: pct(vin), title: `${label} ${inLabel} (game value ${s[inKey] ?? '-'})` }),
+        h('b', { text: pct(vout), title: `${label} Boost (game value ${s[outKey] ?? '-'})` })];
+    };
+    const mods = h('div', { class: 'char-mods' },
+      h('span'), h('span', { class: 'muted', text: 'Resist' }), h('span', { class: 'muted', text: 'Boost' }),
+      ...mod('Damage', 'cai', 'cao', 'Resistance'), ...mod('Physical', 'cpi', 'cpo', 'Resistance'),
+      ...mod('Magical', 'cmi', 'cmo', 'Resistance'), ...mod('Healing (intake)', 'chi', 'cho', 'Intake', true),
+      ...mod('DoT', 'cdi', 'cdo', 'Resistance'),
+      h('span', { class: 'muted', text: 'Mana Consumption' }), h('b', { text: pct(s.cmc), title: `Mana Consumption (game value ${s.cmc ?? '-'})` }), h('span'));
+    r.charBody.replaceChildren(boosts, ...group('Core Stats', core), ...group('Combat Stats', combat), ...group('Modifier Stats', mods));
+  }
   const factions = d.factions || [];
   const maxed = factions.filter(f => f.rank >= 10).length;
   const rep = factions.length ? h('ul', { class: 'rep-list' }, ...factions.map(f => {
@@ -699,9 +731,8 @@ function renderCharacter(r, d) {
       h('span', { class: 'rep-bar' }, fill),
       h('span', { class: 'muted rep-num', text: max ? 'max' : `${fmtNum(f.rep)}/${fmtNum(f.repToRank)}` }));
   })) : h('div', { class: 'muted small', text: 'No factions yet' });
-  r.charBody.replaceChildren(money, stats,
-    h('div', { class: 'char-head muted', text: `Reputation: ${factions.length} faction${factions.length === 1 ? '' : 's'}, ${maxed} at rank 10` }),
-    rep);
+  r.repPeek.textContent = factions.length ? `${factions.length} faction${factions.length === 1 ? '' : 's'}, ${maxed} at rank 10` : '';
+  r.repBody.replaceChildren(rep);
 }
 
 async function startStop(n) {

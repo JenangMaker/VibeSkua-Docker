@@ -241,11 +241,18 @@ input.masked { -webkit-text-security: disc; }
 .equip-slot { flex: none; width: 62px; }
 .equip-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .equip-list .tag { flex: none; }
-/* Character: stats and reputation (GET /character). */
+/* Character (battle stats) and Reputation (GET /character). */
 .char-body { margin: 6px 0 2px; display: grid; gap: 8px; font-size: 12px; }
-.char-money { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .char-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px 12px; }
 .char-stats div { display: flex; justify-content: space-between; gap: 6px; min-width: 0; white-space: nowrap; }
+.char-stats.one { grid-template-columns: minmax(0, 1fr); }
+.char-head { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 1px solid var(--border); padding-bottom: 2px; margin-bottom: -4px; }
+.char-mods { display: grid; grid-template-columns: minmax(0, 1fr) 64px 64px; gap: 3px 8px; white-space: nowrap; }
+.char-mods b { text-align: right; font-variant-numeric: tabular-nums; }
+.char-mods > span:nth-child(2), .char-mods > span:nth-child(3) { text-align: right; font-size: 11px; }
+.boosts { display: flex; flex-wrap: wrap; gap: 4px; }
+.boost { padding: 1px 7px; border-radius: 999px; background: var(--border); color: var(--muted); font-size: 11px; white-space: nowrap; }
+.boost.on { background: var(--accent); color: var(--accent-text); }
 .rep-list { list-style: none; margin: 0; padding: 0 4px 0 0; display: grid; gap: 3px; max-height: 220px; overflow-y: auto; }
 .rep-list li { display: grid; grid-template-columns: minmax(0, 1fr) 20px 56px 76px; align-items: center; gap: 6px; }
 .rep-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
