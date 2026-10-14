@@ -250,6 +250,9 @@ input.masked { -webkit-text-security: disc; }
 .char-mods { display: grid; grid-template-columns: minmax(0, 1fr) 64px 64px; gap: 3px 8px; white-space: nowrap; }
 .char-mods b { text-align: right; font-variant-numeric: tabular-nums; }
 .char-mods > span:nth-child(2), .char-mods > span:nth-child(3) { text-align: right; font-size: 11px; }
+.gear-boosts { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 3px 10px; white-space: nowrap; }
+.gear-boosts b { text-align: right; font-variant-numeric: tabular-nums; }
+.gear-item { overflow: hidden; text-overflow: ellipsis; text-align: right; }
 .boosts { display: flex; flex-wrap: wrap; gap: 4px; }
 .boost { padding: 1px 7px; border-radius: 999px; background: var(--border); color: var(--muted); font-size: 11px; white-space: nowrap; }
 .boost.on { background: var(--accent); color: var(--accent-text); }

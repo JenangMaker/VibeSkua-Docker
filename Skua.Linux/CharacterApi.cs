@@ -21,6 +21,9 @@ namespace Skua.Linux;
 /// damage over time, cmc mana consumption.
 /// boosts: the minutes left of each boost (XP, gold, reputation, class
 /// points), 0 when off.
+/// gear: the boosts of what is worn, from each equipped item's sMeta
+/// ("dmgAll:1.25,gold:1.1,Undead:1.3"): the boost (dmgAll, gold, rep, xp, cp,
+/// or a monster race for damage to it), its multiplier and the item.
 /// </summary>
 public sealed partial class HostApi
 {
@@ -46,10 +49,24 @@ public sealed partial class HostApi
                 .Where(kv => kv.Value.Type is Newtonsoft.Json.Linq.JTokenType.Integer or Newtonsoft.Json.Linq.JTokenType.Float)
                 .ToDictionary(kv => kv.Key.TrimStart('$'), kv => kv.Value.ToObject<double>()),
             boosts = new { xp = Boost("iBoostXP"), gold = Boost("iBoostG"), rep = Boost("iBoostRep"), classPoints = Boost("iBoostCP") },
+            gear = GearBoosts(bot),
             factions = bot.Reputation.FactionList
                 .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(f => new { id = f.ID, name = f.Name, rank = f.Rank, totalRep = f.TotalRep, rep = f.Rep, repToRank = f.RequiredRep })
                 .ToList(),
         };
+    }
+
+    private static List<object> GearBoosts(IScriptInterface bot)
+    {
+        var list = new List<object>();
+        foreach (var item in bot.Inventory.Items.Where(i => i.Equipped && !string.IsNullOrWhiteSpace(i.Meta)))
+            foreach (string part in item.Meta.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                int colon = part.LastIndexOf(':');
+                if (colon > 0 && double.TryParse(part[(colon + 1)..], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double value))
+                    list.Add(new { boost = part[..colon].Trim(), value, item = item.Name });
+            }
+        return list;
     }
 }
