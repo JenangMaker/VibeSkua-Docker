@@ -24,6 +24,7 @@ namespace Skua.Linux;
 ///   SKUA_SCRIPTS_REPO    repository scripts sync from, GitHub or Gitea
 ///                        (https://github.com/auqw/Scripts)
 ///   SKUA_SCRIPTS_BRANCH  its branch (Skua)
+///   NOTIFY_*             notifications on script progress: Notifier.cs
 /// </summary>
 public sealed class SkuaRuntime
 {
@@ -133,6 +134,7 @@ public sealed class SkuaRuntime
         new OptionKeeper(provider, Bridge).Start();
         new MemoryTrim(provider).Start();
         AuraWatch.Start(provider, Bridge);
+        Notifier.For(Instance + 1).Watch(provider);
         if (NativeGame.Enabled)
         {
             // No Electron page: this tab runs the game itself and logs it in.

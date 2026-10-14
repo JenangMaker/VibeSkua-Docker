@@ -189,6 +189,47 @@ are listed in a pop-up.
   when the account logs in, so it works for any CoreBots script; a room you
   set in CoreBots Options yourself lasts until the account next logs in.
 
+## Notifications
+
+Each tab can tell you how its script is doing, through [ntfy](https://ntfy.sh)
+(a phone app; ntfy.sh or your own server) and/or by email. Set either target
+and you get a notification when a script starts, stops (with how long it ran
+and its last log lines, so a script that quits at once says why), crashes,
+when the tab relogs, and when a queue moves on:
+
+```yaml
+    environment:
+      - NOTIFY_NTFY_URL=https://ntfy.sh/pick-a-long-random-topic
+      # and/or email (STARTTLS on 587; Gmail needs an app password):
+      - NOTIFY_SMTP_HOST=smtp.gmail.com
+      - NOTIFY_SMTP_USER=you@gmail.com
+      - NOTIFY_SMTP_PASS=your-app-password
+      - NOTIFY_SMTP_TO=you@gmail.com
+      - NOTIFY_SMTP_EVENTS=error,stop,drop     # fewer emails than ntfy
+      - NOTIFY_DROPS=Sin of the Undying,Sin of the Underworld
+      - NOTIFY_LOG=cannot|obtained             # script log lines to send
+```
+
+- **Events** (`NOTIFY_EVENTS`, comma list, all by default): `start`, `stop`,
+  `error`, `relogin`, `queue`, `drop`, `log`, `ping`. `NOTIFY_NTFY_EVENTS` and
+  `NOTIFY_SMTP_EVENTS` pick them for one target.
+- **`drop`:** an item whose name contains one of `NOTIFY_DROPS` reaches the
+  inventory or the bank (drops and quest rewards).
+- **`log`:** a script log line matches the regex `NOTIFY_LOG` (case ignored).
+  Note that CoreBots writes some words as `**Cannot**`.
+- **`ping`:** every `NOTIFY_PING_MINUTES` while a script runs.
+- Events within 5 seconds of each other go out as one notification, and each
+  target sends at most 30 an hour.
+- Every setting also takes `_N` for one tab (`NOTIFY_NTFY_URL_2`). The
+  notifications name the tab number, not the account.
+- **Test it:** `curl -X POST -d '' http://<host>:8791/notify/test` (tab 1's
+  control API) sends a test to each target and replies with each one's error,
+  or `null` when it went out (with `SKUA_API_TOKEN` set, add
+  `-H "Authorization: Bearer <token>"`).
+- An ntfy.sh topic can be read by anyone who knows its name: pick a long
+  random one, or use your own server with `NOTIFY_NTFY_TOKEN` (or
+  `NOTIFY_NTFY_USER` and `NOTIFY_NTFY_PASS`).
+
 ## Keeping your settings
 
 Mount `/config` (the minimal compose file does). Everything worth keeping is
@@ -305,6 +346,9 @@ LinuxServer's base image also takes its usual settings (`PUID`, `PGID`, `TZ`,
 | `VIBESKUA_ACCOUNTS_FILE` | `/config/.config/vibeskua/accounts.json` | Accounts added through the tab host API. |
 | `VIBESKUA_QUEUE_FILE`, `VIBESKUA_SCRIPTS_FILE` | `queue.json`, `scripts.json` next to the accounts file | The script queues; the favourite and recent scripts. |
 | `REMOTE_DEBUG_PORT` | off | Chrome DevTools port (see below). 1.x (Electron) only. |
+| `NOTIFY_NTFY_URL`, `NOTIFY_NTFY_TOKEN` | off | ntfy topic URL (and its token) for script progress notifications; see [Notifications](#notifications). |
+| `NOTIFY_SMTP_HOST`, `_PORT`, `_TLS`, `_USER`, `_PASS`, `_FROM`, `_TO` | off, `587`, on | Email for the same notifications. |
+| `NOTIFY_EVENTS`, `NOTIFY_DROPS`, `NOTIFY_LOG`, `NOTIFY_PING_MINUTES`, `NOTIFY_STOP_LINES` | all events, none, none, off, `5` | Which events notify, and what counts; each takes `_N` for one tab. |
 
 ## Web manager
 
