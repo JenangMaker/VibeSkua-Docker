@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -17,6 +18,8 @@ namespace Skua.App.Avalonia;
 ///   POST   /tabs/N/queue/pause               stop moving on (the running script goes on)
 ///   POST   /tabs/N/queue/skip                stop the running entry and go on
 ///   POST   /tabs/N/queue/clear
+///   GET    /tabs/N/queue/options?index=K   entry K's script options, as GET /script/options
+///                                            gives them, for the tab's account (ScriptOptionsProbe)
 ///   GET    /scripts/library                  favourite and recent scripts
 ///   POST   /scripts/favorite?path=&amp;on=1|0
 /// </summary>
@@ -85,6 +88,77 @@ public partial class TabHostWindow
         catch
         {
             return false;
+        }
+    }
+
+    // The account logged in to the tab (its options are the ones read); null if none.
+    private async Task<string?> TabAccount(SkuaTab tab)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(await _quick.GetStringAsync($"{tab.Api}/status"));
+            return doc.RootElement.TryGetProperty("game", out var g) && g.ValueKind == JsonValueKind.Object
+                && g.TryGetProperty("player", out var p) && p.ValueKind == JsonValueKind.String && p.GetString() is { Length: > 0 } name
+                ? name : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static readonly SemaphoreSlim ProbeGate = new(1, 1);
+
+    // A script's options from a Skua of its own (Skua.Linux/ScriptOptionsProbe.cs),
+    // so the tab's running script is not touched. One at a time: each compiles
+    // the script and its includes (a few seconds, a few hundred MB while it runs).
+    private static async Task<object> ProbeOptions(string script, string? account)
+    {
+        if (!File.Exists(script))
+            return new ApiError(404, $"{Path.GetFileName(script)} is not in the Scripts folder");
+        await ProbeGate.WaitAsync();
+        string output = Path.Combine(Path.GetTempPath(), $"skua-options-{Guid.NewGuid():N}.json");
+        try
+        {
+            var psi = new ProcessStartInfo(Environment.ProcessPath!)
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            if (Path.GetFileNameWithoutExtension(psi.FileName) == "dotnet")
+                psi.ArgumentList.Add(typeof(TabHostWindow).Assembly.Location);
+            psi.ArgumentList.Add("--script-options");
+            psi.ArgumentList.Add(script);
+            psi.ArgumentList.Add(output);
+            if (account is not null)
+                psi.ArgumentList.Add(account);
+            psi.Environment.Remove("SKUA_INSTANCE");
+            using var process = Process.Start(psi)!;
+            var errors = new System.Collections.Concurrent.ConcurrentQueue<string>();
+            process.OutputDataReceived += (_, _) => { };
+            process.ErrorDataReceived += (_, e) => { if (e.Data is { Length: > 0 } line) { errors.Enqueue(line); if (errors.Count > 5) errors.TryDequeue(out string? _); } };
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+            try
+            {
+                await process.WaitForExitAsync(timeout.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                process.Kill(true);
+                return new ApiError(504, $"reading the options of {Path.GetFileName(script)} took over 3 minutes");
+            }
+            if (!File.Exists(output))
+                return new ApiError(500, $"reading the options of {Path.GetFileName(script)} failed (exit {process.ExitCode}): {string.Join(" | ", errors)}");
+            using var doc = JsonDocument.Parse(await File.ReadAllTextAsync(output));
+            return doc.RootElement.Clone();
+        }
+        finally
+        {
+            try { File.Delete(output); } catch { }
+            ProbeGate.Release();
         }
     }
 
@@ -157,6 +231,13 @@ public partial class TabHostWindow
             }
             case ("POST", "clear"):
                 return QueueView(n, ScriptQueue.Clear(n));
+            case ("GET", "options"):
+            {
+                var items = ScriptQueue.Get(n).Items;
+                if (!int.TryParse(query("index"), out int k) || k < 0 || k >= items.Count)
+                    return new ApiError(400, $"index is required (0 to {items.Count - 1})");
+                return await ProbeOptions(items[k].Path, await TabAccount(tab) ?? AccountStore.UserFor(n));
+            }
             default:
                 return null;
         }

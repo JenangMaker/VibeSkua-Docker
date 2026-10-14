@@ -5,6 +5,7 @@
 //   Skua.App.Avalonia                  windows + bot + control API
 //   Skua.App.Avalonia --headless       bot + control API only (as Skua.Host)
 //   Skua.App.Avalonia --snapshot DIR   render every view to DIR/*.png and exit
+//   Skua.App.Avalonia --script-options SCRIPT OUT [ACCOUNT]   a script's options as JSON, then exit
 
 using Avalonia;
 using Skua.App.Avalonia;
@@ -24,6 +25,12 @@ if (Array.IndexOf(args, "--fake-game") is int f and >= 0)
 {
     FakeGame.Run(f + 1 < args.Length && int.TryParse(args[f + 1], out int port) ? port : 8770);
     return;
+}
+
+// A script's options, read in a process of its own (Skua.Linux/ScriptOptionsProbe.cs).
+if (Array.IndexOf(args, "--script-options") is int o and >= 0 && o + 2 < args.Length)
+{
+    Environment.Exit(ScriptOptionsProbe.Run(args[o + 1], args[o + 2], o + 3 < args.Length ? args[o + 3] : null));
 }
 
 if (Array.IndexOf(args, "--snapshot") is int s and >= 0 && s + 1 < args.Length)

@@ -36,11 +36,11 @@ public sealed partial class HostApi
             return new { error = "no script loaded: load one first" };
         if (manager.ScriptRunning)
             return manager.Config is { } running
-                ? Describe(manager.LoadedScript, running, editable: false)
+                ? DescribeOptions(manager.LoadedScript, running, editable: false, AccountOptions.Account(services))
                 : new { error = "the script is running and its options are not available" };
         if (await LoadOptionsAsync(manager) is { } error)
             return new { error };
-        return Describe(manager.LoadedScript, manager.Config!, editable: true);
+        return DescribeOptions(manager.LoadedScript, manager.Config!, editable: true, AccountOptions.Account(services));
     }
 
     private async Task<object> SaveScriptOptions(HttpListenerRequest request)
@@ -177,7 +177,8 @@ public sealed partial class HostApi
         }
     }
 
-    private object Describe(string script, IScriptOptionContainer config, bool editable)
+    /// <summary>A script's options for the Manager (GET /script/options; ScriptOptionsProbe).</summary>
+    public static object DescribeOptions(string script, IScriptOptionContainer config, bool editable, string? account)
     {
         object Item(string category, IOption o) => new
         {
@@ -192,7 +193,6 @@ public sealed partial class HostApi
             @default = Shown(o, o.DefaultValue?.ToString() ?? ""),
             transient = o.Transient,
         };
-        string? account = AccountOptions.Account(services);
         var options = config.Options.Select(o => Item("Options", o))
             .Concat(config.MultipleOptions.SelectMany(g => g.Value.Select(o => Item(g.Key, o))))
             .ToList();
