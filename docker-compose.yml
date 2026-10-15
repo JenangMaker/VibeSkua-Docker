@@ -145,6 +145,7 @@ services:
       # Needs AQW_USER/AQW_PASS.
       # RECYCLE_AFTER_MINUTES: "120"
       # RECYCLE_AFTER_MAP_CHANGES: "60"
+      # RECYCLE_AT: "12:00 WIB"         # native image: also at set times of day
       # Skua itself (Skua.App.Avalonia): the page connects to it and it drives
       # the game; its windows (main menu, bot window, options, ...) open on
       # this desktop. SKUA_UI: "0" runs it without windows. Scripts can also
