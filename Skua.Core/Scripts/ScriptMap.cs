@@ -59,7 +59,7 @@ public partial class ScriptMap : IScriptMap
         : Flash.GetGameObject("world.strAreaName")?.Replace("\"", string.Empty) is { Length: > 0 } area && area != "null" ? area
         : Flash.GetGameObject("ui.mcInterface.areaList.title.t1.text")?.Split(' ').Last().Replace("\"", string.Empty) ?? string.Empty;
 
-    [ObjectBinding("world.strMapName", RequireNotNull = "world", Default = "string.Empty")]
+    [ObjectBinding("world.strMapName", Default = "string.Empty")]
     private string _name = string.Empty;
 
     [ObjectBinding("world.mapLoadInProgress", Default = "false")]
