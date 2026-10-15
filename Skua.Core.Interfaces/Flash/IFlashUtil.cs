@@ -109,7 +109,9 @@ public interface IFlashUtil : IDisposable
     {
         try
         {
-            return JsonConvert.DeserializeObject<T>(GetGameObject(path)!) ?? def;
+            // No value (a missing property, or a missing parent while logged
+            // out) is the default without an exception.
+            return GetGameObject(path) is { } json ? JsonConvert.DeserializeObject<T>(json) ?? def : def;
         }
         catch
         {
