@@ -66,7 +66,10 @@ public partial class ScriptPlayer : IScriptPlayer
     [CallBinding("isKicked")]
     private bool _kicked;
 
-    [ObjectBinding("world.myAvatar.dataLeaf.intState", RequireNotNull = "world.myAvatar")]
+    // One call per read: skua.swf's getGameObject gives null while myAvatar is
+    // missing (logged out), so no isNull call first. Alive, InCombat and
+    // Playing read this thousands of times a minute.
+    [ObjectBinding("world.myAvatar.dataLeaf.intState")]
     private int _state;
 
     public bool InCombat => State == 2;

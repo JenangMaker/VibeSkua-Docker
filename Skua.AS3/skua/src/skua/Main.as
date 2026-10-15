@@ -296,8 +296,7 @@ public class Main extends MovieClip {
     }
 
     public static function getGameObject(path:String):String {
-        var obj:* = _getObjectS(instance.game, path);
-        return JSON.stringify(obj);
+        return JSON.stringify(_getObjectOrNull(instance.game, path));
     }
 
 
@@ -321,8 +320,7 @@ public class Main extends MovieClip {
         if (_gameClass == null) {
             _gameClass = instance.gameDomain.getDefinition(getQualifiedClassName(instance.game)) as Class;
         }
-        var obj:* = _getObjectS(_gameClass, path);
-        return JSON.stringify(obj);
+        return JSON.stringify(_getObjectOrNull(_gameClass, path));
     }
 
     public static function getGameObjectKey(path:String, key:String):String {
@@ -515,6 +513,23 @@ public class Main extends MovieClip {
         var obj:* = root;
         for (var i:int = 0; i < parts.length; i++) {
             obj = obj[parts[i]];
+        }
+        return obj;
+    }
+
+    /**
+     * The object at path, or null when a part before its end is null (logged
+     * out, no world yet) instead of a throw. Skua checked isNull before reading
+     * such values, two calls for each read of the player's state or the map
+     * name, thousands a minute per tab.
+     */
+    private static function _getObjectOrNull(root:*, path:String):* {
+        var obj:* = root;
+        for each (var part:String in path.split('.')) {
+            if (obj == null) {
+                return null;
+            }
+            obj = obj[part];
         }
         return obj;
     }

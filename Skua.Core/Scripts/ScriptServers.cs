@@ -95,7 +95,7 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
         return Player.Playing;
     }
 
-    [ObjectBinding("sfc.isConnected", RequireNotNull = "sfc", Default = "false")]
+    [ObjectBinding("sfc.isConnected", Default = "false")]
     private bool _isConnected;
 
     public void Login()
