@@ -17,8 +17,8 @@ namespace Skua.Linux;
 /// script that was running.</item>
 /// <item><b>Recycling.</b> Ruffle keeps much of what each map loads, so a
 /// long session's player grows (~0.4 GB fresh, 0.7-0.95 GB after 7 hours).
-/// RECYCLE_AFTER_MINUTES, RECYCLE_AFTER_MAP_CHANGES and RECYCLE_ABOVE_MB
-/// restart the player out of combat, log back in, return to the same room and
+/// RECYCLE_AFTER_MINUTES, RECYCLE_AFTER_MAP_CHANGES, RECYCLE_ABOVE_MB and
+/// RECYCLE_AT (times of day) restart the player out of combat, log back in, return to the same room and
 /// cell, and start again the script that was running. One tab at a time
 /// (a lock file), so the tabs don't all log in at once.</item>
 /// </list>
@@ -37,6 +37,7 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
     private readonly int _afterMapChanges = EnvInt("RECYCLE_AFTER_MAP_CHANGES");
     private readonly int _aboveMb = EnvInt("RECYCLE_ABOVE_MB");
     private readonly int _minMinutes = int.TryParse(SkuaRuntime.EnvRaw("RECYCLE_MIN_MINUTES"), out int m) && m >= 0 ? m : 30;
+    private readonly DailyTime[] _at = DailyTime.ParseList(SkuaRuntime.EnvRaw("RECYCLE_AT"));
     private const string RecycleLock = "/tmp/vibeskua-recycle.lock";
 
     // Where to go back to after a recycle, and whether a script ran there.
@@ -80,6 +81,7 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
         if (_afterMinutes > 0) rules.Add($"after {_afterMinutes} min");
         if (_afterMapChanges > 0) rules.Add($"after {_afterMapChanges} map changes");
         if (_aboveMb > 0) rules.Add($"above {_aboveMb} MB (after {_minMinutes} min)");
+        if (_at.Length > 0) rules.Add($"daily at {string.Join(", ", _at.Select(a => a.ToString()))}");
         if (rules.Count > 0)
             Console.WriteLine($"[session] recycle the game {string.Join(", or ", rules)}");
     }
@@ -234,6 +236,10 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
     // Why the game is due a recycle, or null.
     private string? RecycleDue()
     {
+        // A time of day passed since this game started (a game started after
+        // it waits for the next one, so a recycle does not repeat).
+        if (_at.Length > 0 && _at.Max(a => a.LastUtc(DateTime.UtcNow)) is var last && _gameStarted < last)
+            return $"daily at {_at.First(a => a.LastUtc(DateTime.UtcNow) == last)}";
         if (_afterMinutes > 0 && DateTime.UtcNow - _gameStarted >= TimeSpan.FromMinutes(_afterMinutes))
             return $"{_afterMinutes} min";
         if (_afterMapChanges > 0 && _mapChanges >= _afterMapChanges)
@@ -428,4 +434,85 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
         else
             Console.WriteLine($"[session] recycle: script {Path.GetFileNameWithoutExtension(manager.LoadedScript ?? "")} started again");
     }
+}
+
+/// <summary>
+/// A RECYCLE_AT time of day: "12:00", "12" or "12pm" in the container's time
+/// zone (TZ, UTC when unset), or with a zone of its own: "12:00 WIB" (WITA,
+/// WIT, UTC/GMT) or "12:00+07:00", so it does not depend on TZ.
+/// </summary>
+internal readonly record struct DailyTime(TimeSpan At, TimeSpan? Offset, string Text)
+{
+    private static readonly Dictionary<string, int> Zones = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["UTC"] = 0, ["GMT"] = 0, ["Z"] = 0, ["WIB"] = 7, ["WITA"] = 8, ["WIT"] = 9,
+    };
+
+    private static readonly System.Text.RegularExpressions.Regex Pattern = new(
+        @"^(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?\s*(?:([A-Za-z]+)|([+-])(\d{1,2})(?::?(\d{2}))?)?$",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    /// <summary>The times in a comma-separated list; a bad one is logged and left out.</summary>
+    public static DailyTime[] ParseList(string? list)
+    {
+        var times = new List<DailyTime>();
+        foreach (string item in (list ?? "").Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (Parse(item) is { } time)
+                times.Add(time);
+            else
+                Console.Error.WriteLine($"[session] RECYCLE_AT: ignoring \"{item}\" (use 12:00, 12:00 WIB or 12:00+07:00)");
+        }
+        return times.ToArray();
+    }
+
+    private static DailyTime? Parse(string text)
+    {
+        var m = Pattern.Match(text);
+        if (!m.Success)
+            return null;
+        int hour = int.Parse(m.Groups[1].Value);
+        int minute = m.Groups[2].Success ? int.Parse(m.Groups[2].Value) : 0;
+        if (m.Groups[3].Success)
+        {
+            if (hour < 1 || hour > 12)
+                return null;
+            hour = hour % 12 + (m.Groups[3].Value.Equals("pm", StringComparison.OrdinalIgnoreCase) ? 12 : 0);
+        }
+        if (hour > 23 || minute > 59)
+            return null;
+        TimeSpan? offset = null;
+        if (m.Groups[4].Success)
+        {
+            if (!Zones.TryGetValue(m.Groups[4].Value, out int zone))
+                return null;
+            offset = TimeSpan.FromHours(zone);
+        }
+        else if (m.Groups[5].Success)
+        {
+            var o = new TimeSpan(int.Parse(m.Groups[6].Value), m.Groups[7].Success ? int.Parse(m.Groups[7].Value) : 0, 0);
+            offset = m.Groups[5].Value == "-" ? -o : o;
+        }
+        return new DailyTime(new TimeSpan(hour, minute, 0), offset, text);
+    }
+
+    /// <summary>The latest time this came round, at or before <paramref name="nowUtc"/>, in UTC.</summary>
+    public DateTime LastUtc(DateTime nowUtc)
+    {
+        if (Offset is { } offset)
+        {
+            DateTime local = nowUtc + offset;
+            DateTime slot = local.Date + At;
+            if (slot > local)
+                slot = slot.AddDays(-1);
+            return DateTime.SpecifyKind(slot - offset, DateTimeKind.Utc);
+        }
+        DateTime here = nowUtc.ToLocalTime();
+        DateTime mine = DateTime.SpecifyKind(here.Date + At, DateTimeKind.Local);
+        if (mine > here)
+            mine = mine.AddDays(-1);
+        return mine.ToUniversalTime();
+    }
+
+    public override string ToString() => Offset is null ? $"{Text} (container time)" : Text;
 }
