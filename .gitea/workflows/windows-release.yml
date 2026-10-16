@@ -1,7 +1,8 @@
 # The Windows client: VibeSkua (the Avalonia UI) with each tab's game in Ruffle's
 # desktop player, the same native mode as docker/Dockerfile.native, built for
 # Windows on the Linux runner and published as a portable zip in a draft Gitea
-# release. Manual only (Run workflow).
+# release. Run by hand (Run workflow), or by pushing a tag windows-v<version>
+# (e.g. windows-v1.8.5-test1), which is then the release's tag.
 #
 # - Ruffle: the fork's commit pinned in docker/ruffle-windows.ref (branch
 #   windows-skua, on this Gitea), cross-compiled with MinGW-w64
@@ -16,6 +17,8 @@
 name: Windows release
 
 on:
+  push:
+    tags: ["windows-v*"]
   workflow_dispatch:
     inputs:
       version:
@@ -53,6 +56,12 @@ jobs:
         run: |
           set -eu
           V="${{ inputs.version }}"
+          if [ "${GITHUB_REF#refs/tags/}" != "$GITHUB_REF" ]; then
+            echo "version=${GITHUB_REF_NAME#windows-v}" >> "$GITHUB_OUTPUT"
+            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+            echo "Releasing $GITHUB_REF_NAME"
+            exit 0
+          fi
           if [ -z "$V" ]; then
             V=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props | head -1 | tr -d '[:space:]')
           fi
@@ -129,7 +138,7 @@ jobs:
           tag_name: ${{ steps.ver.outputs.tag }}
           target_commitish: ${{ github.sha }}
           title: VibeSkua for Windows ${{ steps.ver.outputs.version }} (test)
-          draft: ${{ inputs.draft }}
+          draft: ${{ inputs.draft || 'true' }}
           files: dist/*
           body: |
             VibeSkua for Windows, test build: the Avalonia client with each tab's game in
