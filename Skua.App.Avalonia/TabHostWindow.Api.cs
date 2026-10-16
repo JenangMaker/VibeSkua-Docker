@@ -387,6 +387,9 @@ public partial class TabHostWindow
         var tabOf = Tabs.Where(t => t.Process is { HasExited: false })
             .ToDictionary(t => t.Process!.Id, t => t.Number);
         var pids = new Dictionary<int, int>();
+        // From /proc: Linux only (on Windows the stats leave the players out).
+        if (!OperatingSystem.IsLinux())
+            return pids;
         foreach (string dir in Directory.EnumerateDirectories("/proc"))
         {
             if (!int.TryParse(Path.GetFileName(dir), out int pid))

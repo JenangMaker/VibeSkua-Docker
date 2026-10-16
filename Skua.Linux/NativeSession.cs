@@ -38,7 +38,8 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
     private readonly int _aboveMb = EnvInt("RECYCLE_ABOVE_MB");
     private readonly int _minMinutes = int.TryParse(SkuaRuntime.EnvRaw("RECYCLE_MIN_MINUTES"), out int m) && m >= 0 ? m : 30;
     private readonly DailyTime[] _at = DailyTime.ParseList(SkuaRuntime.EnvRaw("RECYCLE_AT"));
-    private const string RecycleLock = "/tmp/vibeskua-recycle.lock";
+    // Shared by all tabs (one recycle at a time); /tmp on Linux, %TEMP% on Windows.
+    private static readonly string RecycleLock = Path.Combine(OperatingSystem.IsWindows() ? Path.GetTempPath() : "/tmp", "vibeskua-recycle.lock");
 
     // Where to go back to after a recycle, and whether a script ran there.
     private sealed record Place(string Area, string Map, string Cell, string Pad, bool Script);

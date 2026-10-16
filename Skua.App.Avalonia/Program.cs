@@ -40,7 +40,7 @@ if (Array.IndexOf(args, "--snapshot") is int s and >= 0 && s + 1 < args.Length)
 }
 
 // Avalonia 11 on Linux draws through X11 only.
-if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")))
+if (OperatingSystem.IsLinux() && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")))
 {
     Console.Error.WriteLine("[host] no display (DISPLAY unset); running without windows");
     var headless = SkuaRuntime.Create();
@@ -49,7 +49,8 @@ if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")))
     return;
 }
 
-XConnectionLoss.Install();
+if (OperatingSystem.IsLinux())
+    XConnectionLoss.Install();
 
 // Tabs, as Skua.App.WPF's TabbedHostWindow: this process draws the tab strip
 // and starts one Skua per tab (--tab-child), each with its own game. On by

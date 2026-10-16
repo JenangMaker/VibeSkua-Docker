@@ -117,7 +117,8 @@ public partial class TabHostWindow : Window
         };
         Opened += (_, _) =>
         {
-            _display = X.XOpenDisplay(null);
+            // Linux only: on Windows the games stay in windows of their own for now.
+            _display = OperatingSystem.IsLinux() ? X.XOpenDisplay(null) : IntPtr.Zero;
             _hostXid = TryGetPlatformHandle()?.Handle is { } h ? (ulong)h : 0;
             foreach (int n in InitialTabs)
                 AddTab(n);
@@ -357,6 +358,13 @@ public partial class TabHostWindow : Window
         {
             if (process.HasExited)
                 return;
+            // Windows has no SIGTERM, and no game window to hand back: end it
+            // and its player.
+            if (!OperatingSystem.IsLinux())
+            {
+                process.Kill(entireProcessTree: true);
+                return;
+            }
             Kill(process.Id, 15);
             if (!process.WaitForExit(grace))
                 process.Kill();
@@ -376,6 +384,21 @@ public partial class TabHostWindow : Window
             return;
         _ = Task.Run(async () =>
         {
+            if (!OperatingSystem.IsLinux())
+            {
+                try
+                {
+                    using var parent = Process.GetProcessById(host);
+                    await parent.WaitForExitAsync();
+                }
+                catch (ArgumentException)
+                {
+                    // Already gone.
+                }
+                Console.Error.WriteLine("[host] the tab host is gone; stopping");
+                Environment.Exit(0);   // runs ProcessExit: NativeGame ends the player
+                return;
+            }
             while (Directory.Exists($"/proc/{host}"))
                 await Task.Delay(2000);
             Console.Error.WriteLine("[host] the tab host is gone; stopping");

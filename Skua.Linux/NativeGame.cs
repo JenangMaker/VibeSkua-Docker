@@ -119,7 +119,9 @@ public sealed class NativeGame
 
     private async Task Keep()
     {
-        string bin = SkuaRuntime.Env("SKUA_RUFFLE_BIN", "/opt/ruffle/ruffle_desktop");
+        string bin = SkuaRuntime.Env("SKUA_RUFFLE_BIN", OperatingSystem.IsWindows()
+            ? Path.Combine(AppContext.BaseDirectory, "ruffle", "ruffle_desktop.exe")
+            : "/opt/ruffle/ruffle_desktop");
         string swf = SkuaRuntime.Env("SKUA_SWF", Path.Combine(AppContext.BaseDirectory, "skua.swf"));
         var delay = TimeSpan.FromSeconds(2);
         _graphics = InitialGraphics();
@@ -230,6 +232,9 @@ public sealed class NativeGame
         info.ArgumentList.Add(swf);
 
         info.Environment["SKUA_BRIDGE_URL"] = _bridgeUrl;
+        // So the player ends with this Skua on Windows too, where it cannot
+        // tell from its parent (the bridge's parent_watch).
+        info.Environment["SKUA_PARENT_PID"] = Environment.ProcessId.ToString();
         info.Environment["RUST_LOG"] = SkuaRuntime.Env("RUFFLE_LOG", "warn,ruffle_core::avm2=off,ruffle_desktop::gui::controller=info");
         info.Environment["NO_COLOR"] = "1";
         if (_software)
