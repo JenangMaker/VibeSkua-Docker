@@ -287,8 +287,11 @@ public static class Services
                     // what scripts use (Process, System.Drawing, ...). A headless
                     // host has loaded far less; reference the whole framework, plus
                     // any System.* stand-ins shipped beside it (Skua.Host's
-                    // System.Windows.Forms).
-                    if (!OperatingSystem.IsWindows()
+                    // System.Windows.Forms). Also the Avalonia app on Windows: it is
+                    // not WPF either.
+                    bool wpf = OperatingSystem.IsWindows()
+                        && AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetName().Name == "PresentationFramework");
+                    if (!wpf
                         && AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is string tpa)
                     {
                         HashSet<string> have = new(refs.Select(r => Path.GetFileName(r.FilePath ?? "")), StringComparer.OrdinalIgnoreCase);
