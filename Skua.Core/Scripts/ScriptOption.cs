@@ -235,46 +235,14 @@ public partial class ScriptOption : ObservableRecipient, IScriptOption, IOptionD
                         var flash = _lazyFlash.Value;
                         if (flash == null) return;
                         
-                        // We must interact with the COM object carefully. The Flash client natively handles calls 
-                        // but setting data fields aggressively breaks the game. 
-                        
-                        // Override visuals only, NEVER overwrite objData as it breaks shops/inventory
-                        flash.Call("setGameObject", "world.myAvatar.pMC.pname.ti.text", "VibeSkuaUser");
-                        flash.Call("setGameObject", "world.myAvatar.pMC.pname.tg.text", "Hidden");
-                        flash.Call("setGameObject", "world.rootClass.ui.mcPortrait.strName.text", "VibeSkuaUser");
-                        flash.Call("setGameObject", "world.rootClass.ui.mcPortraitTarget.strName.text", "Hidden");
-
-                        // The game writes the real name back into the name tag and
-                        // the portrait (on HP changes, in a fight several times a
-                        // second), so the two blinked; hidden, they stay hidden.
-                        flash.Call("setGameObject", "world.myAvatar.pMC.pname.ti.visible", false);
-                        flash.Call("setGameObject", "world.rootClass.ui.mcPortrait.strName.visible", false);
-
-                        // (The gold and coin labels it used to hide are gone from
-                        // the current client; setting them only threw errors.)
-                        
-                        // Hide the chat log (other players' names and messages). Not
-                        // the entry box (te): hiding it every half second took its
-                        // focus away right after a click, so nothing could be typed.
-                        flash.Call("setGameObject", "world.rootClass.ui.mcInterface.t1.visible", false);
-                        
-                        // Force map UI text cleanly
-                        // (getGameObject returns JSON: without the Trim the name
-                        // kept its quotes, "Battleon" with them in the area list.)
-                        var rawMapName = (flash.GetGameObject("world.strMapName") ?? "").Trim('"');
-                        if (!string.IsNullOrEmpty(rawMapName) && rawMapName != "null")
-                        {
-                            var cleanMapName = rawMapName.Length > 1 
-                                ? char.ToUpper(rawMapName[0]) + rawMapName.Substring(1).ToLower() 
-                                : rawMapName.ToUpper();
-                            
-                            flash.Call("setGameObject", "ui.mcInterface.areaList.title.t1.text", cleanMapName);
-
-                            // A house map titles itself "<owner>'s House" (txtHouse,
-                            // only on house maps, so only set there).
-                            if (rawMapName.Equals("house", StringComparison.OrdinalIgnoreCase))
-                                flash.Call("setGameObject", "world.map.txtHouse.text", "House");
-                        }
+                        // One call (skua.swf streamerMode) instead of eight or nine:
+                        // names and portraits say VibeSkuaUser/Hidden, the real name
+                        // labels and the chat log stay hidden (the game writes them
+                        // back, in a fight several times a second), and the area
+                        // title shows the bare map name. Visuals only: never objData,
+                        // which breaks shops and inventory. Not the chat entry box
+                        // (te): hiding it took its focus away right after a click.
+                        flash.Call("streamerMode", "VibeSkuaUser", "Hidden");
                     }
                     catch { }
                     await System.Threading.Tasks.Task.Delay(500, _streamerModeCts.Token);

@@ -295,7 +295,9 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
                     CheckOptions();
                 });
 
-                _limit.LimitedRun("connDetail", 100, () => (lastConnChange, lastConnDetail) = CheckStuckonLoading(lastConnChange, lastConnDetail));
+                // Its timeouts are seconds long: 500 ms is soon enough, and saves
+                // ~480 isNull calls a minute.
+                _limit.LimitedRun("connDetail", 500, () => (lastConnChange, lastConnDetail) = CheckStuckonLoading(lastConnChange, lastConnDetail));
                 _limit.LimitedRun("loginStuck", 500, CheckStuckOnLogin);
 
                 if (Manager.ScriptRunning)
@@ -313,28 +315,22 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
 
     private void CheckOptions()
     {
-        if (Options.LagKiller)
-            Flash.Call("killLag", true);
+        // One call for the lag killer, magnetize, infinite range, skip cutscenes
+        // and the Lite untarget settings (skua.swf keepOptions): they were up to
+        // six calls four times a second.
+        bool playing = Player.Playing;
+        Flash.Call("keepOptions", Options.LagKiller, playing && Options.Magnetise, playing && Options.InfiniteRange,
+            playing && Options.SkipCutscenes, playing);
 
-        if (!Player.Playing)
+        if (!playing)
             return;
 
-        if (Options.Magnetise)
-            Flash.Call("magnetize");
-        if (Options.InfiniteRange)
-            Flash.Call("infiniteRange");
         if (Options.AggroMonsters)
             Flash.CallGameFunction("world.aggroAllMon");
         if (Options.AggroAllMonsters)
             Send.Packet($"%xt%zm%aggroMon%{Map.RoomID}%{string.Join("%", Monsters.MapMonsters.Select(m => m.MapID))}%");
-        if (Options.SkipCutscenes)
-            Flash.Call("skipCutscenes");
         if (Options.WalkSpeed != 8)
             Player.WalkSpeed = Options.WalkSpeed;
-        if (!Lite.UntargetSelf)
-            Lite.UntargetSelf = true;
-        if (!Lite.UntargetDead)
-            Lite.UntargetDead = true;
     }
 
     /// <summary>

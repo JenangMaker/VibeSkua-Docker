@@ -94,9 +94,13 @@ public sealed class RuffleFlashUtil : IFlashUtil
         if (cacheable && _cache.TryGetValue(key, out var hit) && DateTime.UtcNow.Ticks - hit.Ticks < CacheTicks)
         {
             result = hit.Value;
+            if (CallStats)
+                Count(function, args, true);
         }
         else
         {
+            if (CallStats)
+                Count(function, args, false);
             var raw = Bridge.Invoke(function, args);
             result = raw is { } r ? FlashValue.ResultString(r) : null;
             if (cacheable)
@@ -111,6 +115,29 @@ public sealed class RuffleFlashUtil : IFlashUtil
             return null;
         var target = Nullable.GetUnderlyingType(type) ?? type;
         return target == typeof(string) ? result : Convert.ChangeType(result, target, CultureInfo.InvariantCulture);
+    }
+
+    // SKUA_CALL_STATS=1: once a minute, logs Skua's calls into the game by kind
+    // (function and first argument) with how many the 15 ms cache answered.
+    // The player's own per-minute line lists only the largest replies.
+    private static readonly bool CallStats = Environment.GetEnvironmentVariable("SKUA_CALL_STATS") == "1";
+    private readonly ConcurrentDictionary<string, int[]> _stats = new();
+    private long _statsSince = Environment.TickCount64;
+
+    private void Count(string function, object[] args, bool cached)
+    {
+        string kind = args.Length > 0 && args[0] is string a ? $"{function}({a})" : function;
+        int[] n = _stats.GetOrAdd(kind, _ => new int[2]);
+        Interlocked.Increment(ref n[cached ? 1 : 0]);
+        long now = Environment.TickCount64, since = Interlocked.Read(ref _statsSince);
+        if (now - since < 60_000 || Interlocked.CompareExchange(ref _statsSince, now, since) != since)
+            return;
+        var rows = _stats.ToArray();
+        _stats.Clear();
+        int calls = rows.Sum(r => r.Value[0]), hits = rows.Sum(r => r.Value[1]);
+        var top = rows.OrderByDescending(r => r.Value[0] + r.Value[1]).Take(30)
+            .Select(r => r.Value[1] > 0 ? $"{r.Key} {r.Value[0]} (+{r.Value[1]} cached)" : $"{r.Key} {r.Value[0]}");
+        Console.Error.WriteLine($"[calls] last minute: {calls} calls, {hits} from the cache: {string.Join(", ", top)}");
     }
 
     /// <summary>Same conversion as FlashUtil, for callers that still hold Flash XML.</summary>

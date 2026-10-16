@@ -65,6 +65,8 @@ public class Externalizer {
         this.addCallback("hidePlayers", World.hidePlayers);
         this.addCallback("disableFX", World.disableFX);
         this.addCallback("killLag", World.killLag);
+        this.addCallback("keepOptions", World.keepOptions);
+        this.addCallback("streamerMode", World.streamerMode);
 
         // Monster
         this.addCallback("availableMonsters", Monster.availableMonstersInCell);
