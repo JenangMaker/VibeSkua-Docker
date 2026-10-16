@@ -277,5 +277,50 @@ public class World {
         if (Main.instance.customBGLagKiller)
             Main.instance.customBGLagKiller.visible = enable;
     }
+
+    /**
+     * The script timer's options in one call: it made up to six calls four
+     * times a second (lag killer, magnetize, infinite range, skip cutscenes
+     * and the two Lite untarget settings, read then set). Each part fails on
+     * its own, as the separate calls did.
+     */
+    public static function keepOptions(lagKiller:Boolean, magnetize:Boolean, infiniteRange:Boolean, skipCutscenes:Boolean, untarget:Boolean):void {
+        if (lagKiller) try { killLag(true); } catch (e:*) {}
+        if (magnetize) try { Combat.magnetize(); } catch (e:*) {}
+        if (infiniteRange) try { Combat.infiniteRange(); } catch (e:*) {}
+        if (skipCutscenes) try { World.skipCutscenes(); } catch (e:*) {}
+        if (untarget) try {
+            var pref:* = Main.instance.game.litePreference.data;
+            if (!pref.bUntargetSelf) pref.bUntargetSelf = true;
+            if (!pref.bUntargetDead) pref.bUntargetDead = true;
+        } catch (e:*) {}
+    }
+
+    /**
+     * Streamer mode's half-second pass in one call (it was eight or nine):
+     * the name tag, guild and portraits say name/guild, the real name labels
+     * and the chat log stay hidden (the game writes them back), and the area
+     * title shows the bare map name. Each set fails on its own, as the
+     * separate calls did.
+     */
+    public static function streamerMode(name:String, guild:String):void {
+        var game:* = Main.instance.game;
+        try { game.world.myAvatar.pMC.pname.ti.text = name; } catch (e:*) {}
+        try { game.world.myAvatar.pMC.pname.tg.text = guild; } catch (e:*) {}
+        try { game.world.rootClass.ui.mcPortrait.strName.text = name; } catch (e:*) {}
+        try { game.world.rootClass.ui.mcPortraitTarget.strName.text = guild; } catch (e:*) {}
+        try { game.world.myAvatar.pMC.pname.ti.visible = false; } catch (e:*) {}
+        try { game.world.rootClass.ui.mcPortrait.strName.visible = false; } catch (e:*) {}
+        try { game.world.rootClass.ui.mcInterface.t1.visible = false; } catch (e:*) {}
+        try {
+            var map:* = game.world.strMapName;
+            if (map is String && map.length > 0) {
+                game.ui.mcInterface.areaList.title.t1.text = map.charAt(0).toUpperCase() + map.substr(1).toLowerCase();
+                // A house map titles itself "<owner>'s House".
+                if (map.toLowerCase() == "house")
+                    game.world.map.txtHouse.text = "House";
+            }
+        } catch (e:*) {}
+    }
 }
 }
