@@ -22,7 +22,8 @@ namespace Skua.Linux;
 /// nobody sees. SKUA_HIDDEN_DRAW=1 keeps drawing hidden tabs (not headless
 /// ones). Unlike there, all this is put back every few seconds: Skua's own FPS
 /// option (Options > SetFPS) writes stage.frameRate whenever a script starts,
-/// and a reloaded page starts out drawing.
+/// and a reloaded page starts out drawing. A throttled tab runs at full speed
+/// in a cutscene cell and while it loads a map (see <see cref="ThrottledFps"/>).
 /// </summary>
 public sealed partial class HostApi
 {
@@ -34,6 +35,10 @@ public sealed partial class HostApi
     /// <summary>SKUA_HIDDEN_DRAW=1: keep drawing a tab that is hidden (not one in Headless Mode).</summary>
     private static readonly bool KeepDrawingHidden =
         SkuaRuntime.EnvRaw("SKUA_HIDDEN_DRAW")?.Trim().ToLowerInvariant() is "1" or "true" or "yes" or "on";
+
+    /// <summary>SKUA_LOAD_BOOST=0: keep a throttled tab at its low frame rate while it loads a map.</summary>
+    private static readonly bool LoadBoost =
+        SkuaRuntime.EnvRaw("SKUA_LOAD_BOOST")?.Trim().ToLowerInvariant() is not ("0" or "false" or "no" or "off");
 
     /// <summary>Raised (on any thread) when the game window should shrink to 1x1 (true) or fill its area (false).</summary>
     public static event Action<bool>? Shrunk;
@@ -64,6 +69,7 @@ public sealed partial class HostApi
             };
         UpdateThrottle();
         WatchCutscenes();
+        WatchMapLoads();
         _ = Task.Run(RestoreHeadless);
     }
 
@@ -169,7 +175,7 @@ public sealed partial class HostApi
         }
         if (target > 0)
         {
-            ApplyFrameRate(_cutscene is null ? target : FullFps());
+            ApplyFrameRate(ThrottledFps());
             PauseDrawing(true, headless);
         }
         else if (restore)
@@ -198,7 +204,7 @@ public sealed partial class HostApi
             bool changed = SetCutscene(CutsceneCell());
             if (changed || tick % 3 == 0)
             {
-                ApplyFrameRate(_cutscene is null ? _throttleFps : FullFps());
+                ApplyFrameRate(ThrottledFps());
                 PauseDrawing(true, IsHeadless);
                 ClearDropToasts();
             }
@@ -227,8 +233,54 @@ public sealed partial class HostApi
                 string? cell = IsCutscene(message.Cell) ? message.Cell : null;
                 // Raised on the bridge's thread: the game call must not wait on it.
                 if (host.SetCutscene(cell))
-                    _ = Task.Run(() => host.ApplyFrameRate(cell is null ? host._throttleFps : host.FullFps()));
+                    _ = Task.Run(() => host.ApplyFrameRate(host.ThrottledFps()));
             });
+
+    // The game loads a map in steps that each wait for the next frame: at the
+    // 1 fps of Headless Mode a join took ~0.7 s longer than at 30 fps (local
+    // room tour, 8 maps twice: Skua's Map.Join 3.3 s vs 2.6 s). From the
+    // server's move to another map until the map is loaded (Map.Loaded, what
+    // Map.Join waits for), a throttled tab runs at full speed like in a
+    // cutscene; drawing stays paused, so the extra frames only cost the
+    // game's own work for about a second.
+    private volatile int _mapLoad;
+    private int _mapLoads;
+
+    private void WatchMapLoads() =>
+        StrongReferenceMessenger.Default.Register<HostApi, MapChangedMessage, int>(this, (int)MessageChannels.GameEvents,
+            (host, _) =>
+            {
+                if (LoadBoost && host._throttleLoop is not null)
+                    Task.Run(host.FullSpeedWhileLoading);
+            });
+
+    private async Task FullSpeedWhileLoading()
+    {
+        int load = _mapLoad = Interlocked.Increment(ref _mapLoads);
+        ApplyFrameRate(FullFps());
+        var map = Get<IScriptMap>();
+        var started = DateTime.UtcNow;
+        // The loading screen comes up a moment after the move: don't stop
+        // before it could have, and give up after 20 s (a stuck load is
+        // Skua's to handle).
+        while (DateTime.UtcNow - started < TimeSpan.FromSeconds(20))
+        {
+            await Task.Delay(250);
+            if (_mapLoad != load)
+                return;
+            try
+            {
+                if (DateTime.UtcNow - started > TimeSpan.FromMilliseconds(750) && map.Loaded)
+                    break;
+            }
+            catch { break; }
+        }
+        if (Interlocked.CompareExchange(ref _mapLoad, 0, load) == load && _throttleLoop is not null)
+            ApplyFrameRate(ThrottledFps());
+    }
+
+    /// <summary>A throttled tab's frame rate now: full speed in a cutscene cell or while a map loads.</summary>
+    private int ThrottledFps() => _cutscene is null && _mapLoad == 0 ? _throttleFps : FullFps();
 
     private static bool IsCutscene(string? cell) => cell?.StartsWith("Cut", StringComparison.OrdinalIgnoreCase) == true;
 
