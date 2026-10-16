@@ -51,8 +51,7 @@ public partial class ScriptPlayer : IScriptPlayer
 
     public bool Playing => LoggedIn && Alive;
 
-    [CallBinding("isLoggedIn")]
-    private bool _loggedIn;
+    public bool LoggedIn => Shared(ref _loggedInRead, static f => f.Call<bool>("isLoggedIn") ? 1 : 0) != 0;
 
     [ObjectBinding("loginInfo.strUsername", IsStatic = true)]
     private string _username;
@@ -67,10 +66,33 @@ public partial class ScriptPlayer : IScriptPlayer
     private bool _kicked;
 
     // One call per read: skua.swf's getGameObject gives null while myAvatar is
-    // missing (logged out), so no isNull call first. Alive, InCombat and
-    // Playing read this thousands of times a minute.
-    [ObjectBinding("world.myAvatar.dataLeaf.intState")]
-    private int _state;
+    // missing (logged out), so no isNull call first.
+    public int State => Shared(ref _stateRead, static f => f.GetGameObject<int>("world.myAvatar.dataLeaf.intState"));
+
+    // Scripts read LoggedIn, and State through Alive, InCombat and Playing,
+    // thousands of times a minute (isLoggedIn alone ~2,400): reads within
+    // 100 ms share one answer, like Target. A waiting loop sees a change at
+    // most 100 ms later.
+    private sealed record SharedRead(int Tick, int Value);
+    private SharedRead? _loggedInRead, _stateRead;
+
+    private int Shared(ref SharedRead? read, Func<IFlashUtil, int> get)
+    {
+        int now = Environment.TickCount;
+        if (read is { } last && now - last.Tick <= 100)
+            return last.Value;
+        int value;
+        try
+        {
+            value = get(Flash);
+        }
+        catch
+        {
+            value = 0;
+        }
+        read = new(now, value);
+        return value;
+    }
 
     public bool InCombat => State == 2;
     public bool IsMember => Flash.GetGameObject<int>("world.myAvatar.objData.iUpgDays") >= 0;
