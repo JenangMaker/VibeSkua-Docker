@@ -44,7 +44,9 @@ public sealed class NativeGame
         return v.Equals("on", StringComparison.OrdinalIgnoreCase) || v == "1" || v.Equals("true", StringComparison.OrdinalIgnoreCase);
     }
 
-    public static bool Enabled => SkuaRuntime.EnvRaw("SKUA_GAME") is { } g && g.Equals("native", StringComparison.OrdinalIgnoreCase);
+    // On Windows always: there is no Electron page there.
+    public static bool Enabled => OperatingSystem.IsWindows()
+        || SkuaRuntime.EnvRaw("SKUA_GAME") is { } g && g.Equals("native", StringComparison.OrdinalIgnoreCase);
 
     private readonly string _bridgeUrl;
     private readonly object _lock = new();

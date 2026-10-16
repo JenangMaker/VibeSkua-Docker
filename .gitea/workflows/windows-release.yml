@@ -1,0 +1,139 @@
+# The Windows client: VibeSkua (the Avalonia UI) with each tab's game in Ruffle's
+# desktop player, the same native mode as docker/Dockerfile.native, built for
+# Windows on the Linux runner and published as a portable zip in a draft Gitea
+# release. Manual only (Run workflow).
+#
+# - Ruffle: the fork's commit pinned in docker/ruffle-windows.ref (branch
+#   windows-skua, on this Gitea), cross-compiled with MinGW-w64
+#   (x86_64-pc-windows-gnu). The exe needs only DLLs that come with Windows.
+# - Skua: Skua.App.Avalonia published self-contained for win-x64, so no .NET
+#   install is needed.
+# - The zip: the app with skua.swf beside it and the player in ruffle\.
+#
+# Not for the original Skua.Manager yet: it starts Skua.exe with -u/-p/-s,
+# which this client does not take.
+
+name: Windows release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (e.g. 1.8.5). Blank = <Version> in Directory.Build.props"
+        required: false
+        default: ""
+      draft:
+        description: "Create as draft"
+        required: false
+        default: "true"
+
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_INCREMENTAL: "0"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  # The C parts of Ruffle's dependencies and the final link, for Windows.
+  CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: x86_64-w64-mingw32-gcc-posix
+  CC_x86_64_pc_windows_gnu: x86_64-w64-mingw32-gcc-posix
+  CXX_x86_64_pc_windows_gnu: x86_64-w64-mingw32-g++-posix
+  AR_x86_64_pc_windows_gnu: x86_64-w64-mingw32-ar
+
+jobs:
+  windows:
+    runs-on: ubuntu-latest
+    container:
+      image: node:22-bookworm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: ver
+        run: |
+          set -eu
+          V="${{ inputs.version }}"
+          if [ -z "$V" ]; then
+            V=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props | head -1 | tr -d '[:space:]')
+          fi
+          if [ -z "$V" ]; then echo "could not resolve a version"; exit 1; fi
+          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "tag=windows-v$V-$SHA" >> "$GITHUB_OUTPUT"
+          echo "Releasing windows-v$V-$SHA"
+
+      - name: Install toolchains
+        run: |
+          set -eu
+          apt-get update
+          # Java compiles Ruffle's playerglobal ActionScript at build time.
+          apt-get install -y --no-install-recommends default-jre-headless \
+            gcc-mingw-w64-x86-64-posix g++-mingw-w64-x86-64-posix binutils-mingw-w64-x86-64 zip
+          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable \
+            --target x86_64-pc-windows-gnu
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+          bash /tmp/dotnet-install.sh --channel 10.0 --install-dir "$HOME/.dotnet" --no-path
+          echo "$HOME/.dotnet" >> "$GITHUB_PATH"
+          echo "DOTNET_ROOT=$HOME/.dotnet" >> "$GITHUB_ENV"
+
+      - name: Fetch Ruffle
+        run: |
+          set -eu
+          ref="$(tr -d ' \r\n' < docker/ruffle-windows.ref)"
+          git init -q ruffle
+          git -C ruffle fetch -q --depth 1 https://gitea.jenangmaker.cloud/jenangmaker/ruffle.git "$ref"
+          git -C ruffle checkout -q FETCH_HEAD
+          git -C ruffle log --oneline -1
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ruffle/target
+          key: windows-ruffle-${{ hashFiles('ruffle/Cargo.lock') }}
+
+      - name: Build Ruffle for Windows
+        run: |
+          set -eu
+          cd ruffle
+          cargo build --release --target x86_64-pc-windows-gnu -p ruffle_desktop
+          ls -la target/x86_64-pc-windows-gnu/release/ruffle_desktop.exe
+
+      - name: Publish Skua for Windows
+        run: |
+          set -eu
+          dotnet publish Skua.App.Avalonia/Skua.App.Avalonia.csproj -c Release -r win-x64 \
+            --self-contained true -p:EnableWindowsTargeting=true -p:WarningLevel=0 -o out/VibeSkua
+          test -f out/VibeSkua/Skua.App.Avalonia.exe
+
+      - name: Package portable zip
+        run: |
+          set -eu
+          cp Skua.AS3/skua/bin/skua.swf out/VibeSkua/
+          install -D ruffle/target/x86_64-pc-windows-gnu/release/ruffle_desktop.exe out/VibeSkua/ruffle/ruffle_desktop.exe
+          cp docs/windows-client.txt out/VibeSkua/README.txt
+          mkdir -p dist
+          cd out
+          zip -qr "../dist/VibeSkua-windows-${{ steps.ver.outputs.version }}.zip" VibeSkua
+          cd ..
+          ls -la dist
+
+      - name: Publish Gitea release
+        uses: https://gitea.com/actions/gitea-release-action@main
+        with:
+          token: ${{ secrets.GITEA_TOKEN }}
+          tag_name: ${{ steps.ver.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          title: VibeSkua for Windows ${{ steps.ver.outputs.version }} (test)
+          draft: ${{ inputs.draft }}
+          files: dist/*
+          body: |
+            VibeSkua for Windows, test build: the Avalonia client with each tab's game in
+            Ruffle's desktop player (no Flash, no browser), from branch windows at ${{ github.sha }}.
+
+            Extract the zip and run `Skua.App.Avalonia.exe`; see README.txt inside.
+            Not compatible with the original Skua.Manager yet.

@@ -1,0 +1,42 @@
+VibeSkua for Windows (test build)
+================================
+
+VibeSkua's Avalonia client with each tab's game in Ruffle's desktop player:
+no Flash Player and no browser. Built from the "windows" branch.
+
+Running it
+----------
+1. Extract the zip anywhere (keep the folder together: skua.swf and the
+   ruffle folder must stay next to Skua.App.Avalonia.exe).
+2. Run Skua.App.Avalonia.exe. Windows may warn that the app is unsigned
+   (SmartScreen): "More info" > "Run anyway".
+3. Log in by hand in the game window, or set the account in the environment
+   (see below).
+
+What to expect
+--------------
+- Each tab's game opens in a window of its own ("Ruffle - skua.swf"); it is
+  not inside VibeSkua's window yet. VibeSkua's window is the menu bar.
+- The first start downloads the scripts (about 1900) to
+  %AppData%\Skua\Scripts, as Skua does.
+- The first script start asks the Data Collection question once, and
+  CoreBots may restart the first script once while it builds its quest cache.
+- A script with options opens its Options window and waits for Start.
+  SKUA_SKIP_SCRIPT_OPTIONS=1 starts with the saved options instead.
+- Closing VibeSkua's window ends every tab and its game.
+- The original Skua.Manager cannot launch this client yet.
+
+Settings (environment variables, all optional)
+----------------------------------------------
+SKUA_TABS                  number of tabs (0: a single Skua, no tab strip)
+AQW_USER_1, AQW_PASS_1     tab 1's account (_2 for tab 2, ...); logs it in
+AQW_SERVER_1               tab 1's server
+SKUA_SCRIPT_1              script for tab 1 (full path), started after login
+                           with SKUA_SCRIPT_AUTO_START_1=1
+SKUA_SKIP_SCRIPT_OPTIONS   1: do not open a script's Options window
+RUFFLE_QUALITY             low (default), medium, high
+RUFFLE_GRAPHICS            the player's graphics API (default: its own choice)
+
+The control API listens on 127.0.0.1 only: 8791 for tab 1, 8801 for tab 2...
+(GET /status). The same settings as the Docker image apply; see DOCKER.md in
+the repository.

@@ -25,7 +25,8 @@ name: Publish image
 
 on:
   push:
-    branches: ["**"]
+    # Not the Windows client's branches: no image there (windows-release.yml).
+    branches: ["**", "!windows", "!windows-*"]
     # A push that changes only these (or nothing: an empty commit) does not
     # build. To build again without a change, use Run workflow (workflow_dispatch).
     paths-ignore:
