@@ -47,7 +47,9 @@ AQW_SERVER_1               tab 1's server
 SKUA_SCRIPT_1              script for tab 1 (full path), started after login
                            with SKUA_SCRIPT_AUTO_START_1=1
 SKUA_SKIP_SCRIPT_OPTIONS   1: do not open a script's Options window
-RUFFLE_QUALITY             low (default), medium, high
+RUFFLE_QUALITY             low (default), medium, high: anti-aliasing; also
+                           the most the game can raise it to
+RUFFLE_MAX_QUALITY         that limit on its own (default: RUFFLE_QUALITY)
 RUFFLE_GRAPHICS            the player's graphics API (default: its own choice)
 RUFFLE_FILTERS             on (default here): glows, blurs and blend effects;
                            off draws faster, as the Docker build does

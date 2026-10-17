@@ -15,7 +15,11 @@ namespace Skua.Linux;
 ///   SKUA_GAME          native: this mode (anything else: the Electron page)
 ///   SKUA_RUFFLE_BIN    the player       (/opt/ruffle/ruffle_desktop)
 ///   SKUA_SWF           skua.swf         (next to Skua's own files)
-///   RUFFLE_QUALITY     low, medium, high... (low)
+///   RUFFLE_QUALITY     low, medium, high... (low); also the most the game
+///                      can raise it to (RUFFLE_MAX_QUALITY, below)
+///   RUFFLE_MAX_QUALITY the highest anti-aliasing the game may set with
+///                      stage.quality (default: RUFFLE_QUALITY; Windows
+///                      player only)
 ///   RUFFLE_GRAPHICS    vulkan, gl...    (the player's default; gl when
 ///                      RUFFLE_FILTERS is on, see InitialGraphics). If the GPU
 ///                      fails while the player draws, it is started again one
@@ -234,8 +238,9 @@ public sealed class NativeGame
         info.ArgumentList.Add("--no-gui");
         info.ArgumentList.Add("--tcp-connections");
         info.ArgumentList.Add("allow");
+        string quality = SkuaRuntime.Env("RUFFLE_QUALITY", "low");
         info.ArgumentList.Add("--quality");
-        info.ArgumentList.Add(SkuaRuntime.Env("RUFFLE_QUALITY", "low"));
+        info.ArgumentList.Add(quality);
         string[] extraArgs = (SkuaRuntime.EnvRaw("RUFFLE_ARGS") ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
         // A --graphics in RUFFLE_ARGS wins, until a fallback replaces it.
         string? graphics = _graphics;
@@ -256,6 +261,11 @@ public sealed class NativeGame
         info.ArgumentList.Add(swf);
 
         info.Environment["SKUA_BRIDGE_URL"] = _bridgeUrl;
+        // AQW sets stage.quality HIGH (4x anti-aliasing) whatever the player
+        // started with; with filters on that made each blended object's pass
+        // 4x and resolved the whole stage at every break (Battleon: 108-118 ms
+        // of an integrated GPU a frame, ~15 ms capped at low).
+        info.Environment["RUFFLE_MAX_QUALITY"] = SkuaRuntime.Env("RUFFLE_MAX_QUALITY", quality);
         // So the player ends with this Skua on Windows too, where it cannot
         // tell from its parent (the bridge's parent_watch).
         info.Environment["SKUA_PARENT_PID"] = Environment.ProcessId.ToString();
