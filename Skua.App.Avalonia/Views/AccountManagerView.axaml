@@ -25,10 +25,10 @@
         <Border x:Name="AddAccountForm" Grid.Row="0" IsVisible="False" Margin="0,0,0,6" Padding="8"
                 BorderBrush="{DynamicResource SkuaDividerBrush}" BorderThickness="1" CornerRadius="4">
             <Grid ColumnDefinitions="*,*,*,Auto,Auto">
-                <TextBox Grid.Column="0" Margin="0,0,4,0" Watermark="Username" UseFloatingWatermark="True" Text="{Binding UsernameInput}" />
-                <TextBox x:Name="PasswordBox" Grid.Column="1" Margin="4,0" Watermark="Password" UseFloatingWatermark="True" PasswordChar="*" />
-                <TextBox Grid.Column="2" Margin="4,0" Watermark="Display Name (optional)" UseFloatingWatermark="True" Text="{Binding DisplayNameInput}" />
-                <Button Grid.Column="3" Margin="4,0" Classes="flat" Command="{Binding AddAccountCommand}" ToolTip.Tip="Add Account">
+                <TextBox Grid.Column="0" Margin="0,0,4,0" AutomationProperties.Name="Username" Watermark="Username" UseFloatingWatermark="True" Text="{Binding UsernameInput}" />
+                <TextBox x:Name="PasswordBox" Grid.Column="1" AutomationProperties.Name="Password" Margin="4,0" Watermark="Password" UseFloatingWatermark="True" PasswordChar="*" />
+                <TextBox Grid.Column="2" Margin="4,0" AutomationProperties.Name="Display Name" Watermark="Display Name (optional)" UseFloatingWatermark="True" Text="{Binding DisplayNameInput}" />
+                <Button Grid.Column="3" Margin="4,0" Classes="flat" Command="{Binding AddAccountCommand}" ToolTip.Tip="Add Account" AutomationProperties.Name="Confirm Add Account">
                     <icons:MaterialIcon Kind="Check" Width="20" Height="20" />
                 </Button>
                 <Button Grid.Column="4" Classes="flat" Click="HideAddAccount_Click" ToolTip.Tip="Cancel">
@@ -68,7 +68,7 @@
                                 IsVisible="{Binding SelectedAccountQuant, Converter={StaticResource EqualToConverter}, ConverterParameter=1}">
                             <icons:MaterialIcon Kind="ArrowDown" Width="18" Height="18" />
                         </Button>
-                        <Button x:Name="ShowAddAccountButton" Grid.Column="6" Margin="0,0,8,0" Classes="flat" Click="ShowAddAccount_Click">
+                        <Button x:Name="ShowAddAccountButton" Grid.Column="6" AutomationProperties.Name="Add Account" Margin="0,0,8,0" Classes="flat" Click="ShowAddAccount_Click">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <icons:MaterialIcon Kind="Plus" Width="14" Height="14" />
                                 <TextBlock Text="Add Account" FontSize="11" VerticalAlignment="Center" />
@@ -177,7 +177,7 @@
                                                         </ItemsControl.ItemTemplate>
                                                     </ItemsControl>
                                                 </StackPanel>
-                                                <Button Grid.Column="2" Classes="flat" VerticalAlignment="Center" Command="{Binding RemoveCommand}" ToolTip.Tip="Remove Account">
+                                                <Button Grid.Column="2" Classes="flat" VerticalAlignment="Center" Command="{Binding RemoveCommand}" ToolTip.Tip="Remove Account" AutomationProperties.Name="Remove Account">
                                                     <icons:MaterialIcon Kind="DeleteOutline" Width="16" Height="16" />
                                                 </Button>
                                             </Grid>
