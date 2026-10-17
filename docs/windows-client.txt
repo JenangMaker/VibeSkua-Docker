@@ -49,6 +49,8 @@ SKUA_SCRIPT_1              script for tab 1 (full path), started after login
 SKUA_SKIP_SCRIPT_OPTIONS   1: do not open a script's Options window
 RUFFLE_QUALITY             low (default), medium, high
 RUFFLE_GRAPHICS            the player's graphics API (default: its own choice)
+RUFFLE_FILTERS             on (default here): glows, blurs and blend effects;
+                           off draws faster, as the Docker build does
 
 The control API listens on 127.0.0.1 only: 8791 for tab 1, 8801 for tab 2...
 (GET /status). The same settings as the Docker image apply; see DOCKER.md in

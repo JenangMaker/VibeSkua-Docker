@@ -27,7 +27,9 @@ namespace Skua.Linux;
 ///                      player presents frames (passed on as it is)
 ///   RUFFLE_FILTERS     on to draw filters (glows, blurs), bitmap caches and
 ///                      blend modes; off by default, as Ruffle's browser WebGL
-///                      renderer under Electron draws (see Start)
+///                      renderer under Electron draws (see Start). On by
+///                      default on Windows: a desktop PC's GPU draws them, and
+///                      the game there is watched, not a headless bot
 ///   RUFFLE_LOG         its RUST_LOG     (warn,ruffle_core::avm2=off: the
 ///                      player otherwise logs every ActionScript error the
 ///                      game throws, with its stack, up to ~1900 lines/s;
@@ -40,9 +42,12 @@ public sealed class NativeGame
     /// the effects on (render/wgpu/src/backend.rs, offscreen_effects).</summary>
     private static bool FiltersOn()
     {
-        string v = SkuaRuntime.Env("RUFFLE_FILTERS", "off").Trim();
+        string v = FiltersSetting.Trim();
         return v.Equals("on", StringComparison.OrdinalIgnoreCase) || v == "1" || v.Equals("true", StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>RUFFLE_FILTERS, else on on Windows and off elsewhere.</summary>
+    private static string FiltersSetting => SkuaRuntime.Env("RUFFLE_FILTERS", OperatingSystem.IsWindows() ? "on" : "off");
 
     // On Windows always: there is no Electron page there.
     public static bool Enabled => OperatingSystem.IsWindows()
@@ -179,7 +184,9 @@ public sealed class NativeGame
         // ("Acquiring a texture failed"), every build back to the first. Mesa's
         // OpenGL driver splits the work into smaller batches and drew it
         // without a fault, so filters on start on gl.
-        return FiltersOn() ? "gl" : null;
+        // Not on Windows: that was the server's Intel iGPU under Mesa; on
+        // Windows the player's own choice (Vulkan or DirectX 12) suits best.
+        return FiltersOn() && !OperatingSystem.IsWindows() ? "gl" : null;
     }
 
     /// <summary>The player died of a GPU fault: one step down, as Selkies
@@ -245,7 +252,7 @@ public sealed class NativeGame
         // renderer draws each filtered, cached or blended object into its own
         // full-size texture, and AQW has many. A drawing tab then took 4-36 s a
         // frame (on the server's GPU too) and Skua's calls waited behind them.
-        info.Environment["RUFFLE_FILTERS"] = SkuaRuntime.Env("RUFFLE_FILTERS", "off");
+        info.Environment["RUFFLE_FILTERS"] = FiltersSetting;
         // The player has no use for the accounts; Skua logs in (NativeSession).
         foreach (string key in info.Environment.Keys.Where(k => k.StartsWith("AQW_PASS", StringComparison.Ordinal)).ToList())
             info.Environment.Remove(key);
