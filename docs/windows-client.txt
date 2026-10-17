@@ -53,6 +53,10 @@ RUFFLE_MAX_QUALITY         that limit on its own (default: RUFFLE_QUALITY)
 RUFFLE_GRAPHICS            the player's graphics API (default: its own choice)
 RUFFLE_FILTERS             on (default here): glows, blurs and blend effects;
                            off draws faster, as the Docker build does
+RUFFLE_IDLE_PICK_MS        how often the player checks what is under a resting
+                           mouse, in ms (default 100; 0: after every update,
+                           which halves the frame rate with the pointer over
+                           the game)
 RUFFLE_GPU_MEMORY          low (default): the player takes GPU memory in small
                            blocks (about 130 MB a player at login instead
                            of 290 MB); performance: wgpu's own large blocks
