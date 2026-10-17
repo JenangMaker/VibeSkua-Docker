@@ -81,8 +81,15 @@ App.Runtime = SkuaRuntime.Create(services =>
 // The tab host only uses Skua's services for its dialogs (Scheduler, Script
 // Repo); the bot, bridge and API run in the tabs. The Manager runs no bot either.
 App.StartRuntime = App.Mode is not (AppMode.TabHost or AppMode.Manager);
+// Windows: windows with a redirection surface, not composition (WinUI or
+// DirectComposition) ones. Those are created with WS_EX_NOREDIRECTIONBITMAP,
+// and the game is a child window of ours: AMD's Vulkan driver (seen on a
+// Ryzen 5500U's iGPU) presents a child window into its top-level window's
+// redirection surface, so with none the game was never shown and its area was
+// see-through. DX12 (flip model) was shown either way. Ignored elsewhere.
 AppBuilder.Configure<App>()
     .UsePlatformDetect()
+    .With(new Win32PlatformOptions { CompositionMode = [Win32CompositionMode.RedirectionSurface] })
     .WithInterFont()
     .LogToTrace()
     .StartWithClassicDesktopLifetime(args);
