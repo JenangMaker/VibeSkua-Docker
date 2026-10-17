@@ -51,6 +51,9 @@ RUFFLE_QUALITY             low (default), medium, high
 RUFFLE_GRAPHICS            the player's graphics API (default: its own choice)
 RUFFLE_FILTERS             on (default here): glows, blurs and blend effects;
                            off draws faster, as the Docker build does
+RUFFLE_GPU_MEMORY          low (default): the player takes GPU memory in small
+                           blocks (about 130 MB a player at login instead
+                           of 290 MB); performance: wgpu's own large blocks
 
 The control API listens on 127.0.0.1 only: 8791 for tab 1, 8801 for tab 2...
 (GET /status). The same settings as the Docker image apply; see DOCKER.md in
