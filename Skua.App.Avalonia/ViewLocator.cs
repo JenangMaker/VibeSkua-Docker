@@ -21,8 +21,10 @@ public sealed class ViewLocator : IDataTemplate
 
     public static IReadOnlyCollection<Type> RegisteredViewModels => Views.Keys;
 
+    // Skua.Core's view models, and this app's own registered ones (the Manager's Running tab).
     public bool Match(object? data) =>
-        data is not null && data.GetType().Namespace?.StartsWith("Skua.Core.ViewModels", StringComparison.Ordinal) == true;
+        data is not null && (data.GetType().Namespace?.StartsWith("Skua.Core.ViewModels", StringComparison.Ordinal) == true
+            || Views.ContainsKey(data.GetType()));
 
     public Control Build(object? data)
     {
