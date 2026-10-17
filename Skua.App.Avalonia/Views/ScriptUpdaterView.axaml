@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.ScriptUpdaterView">
+    <!-- Skua.WPF/Views/ScriptUpdaterView.xaml -->
+    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="420">
+        <icons:MaterialIcon Kind="CodeTags" Width="100" Height="100" Margin="0,0,0,24" Foreground="{DynamicResource SkuaPrimaryBrush}" />
+        <TextBlock Classes="h6" FontSize="28" HorizontalAlignment="Center" Margin="0,0,0,8" Text="Skua Scripts Updater" />
+        <TextBlock Classes="subtitle" HorizontalAlignment="Center" Margin="0,0,0,24" TextWrapping="Wrap" Text="{Binding Status}" />
+        <ProgressBar Height="10" Margin="0,0,0,24" IsIndeterminate="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+        <TextBlock HorizontalAlignment="Center" Margin="0,0,0,24" TextWrapping="Wrap" Text="{Binding ProgressStatus}" IsVisible="{Binding IsBusy}" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="16">
+            <Button Width="160" Command="{Binding UpdateScriptsCommand}" Content="Update Scripts" />
+            <Button Width="160" Classes="outlined" Foreground="{DynamicResource SkuaSecondaryBrush}" BorderBrush="{DynamicResource SkuaSecondaryBrush}"
+                    Command="{Binding ResetScriptsCommand}" Content="Reset Scripts" />
+        </StackPanel>
+    </StackPanel>
+</UserControl>

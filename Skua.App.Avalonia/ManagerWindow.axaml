@@ -1,0 +1,21 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Skua.App.Avalonia.ManagerWindow"
+        Width="900" Height="640" MinWidth="560" MinHeight="420"
+        WindowStartupLocation="CenterScreen"
+        Icon="avares://Skua.App.Avalonia/Assets/SkuaIcon.ico"
+        Title="VibeSkua Manager">
+    <!-- Skua.Manager/MainWindow.xaml for VibeSkua: its tabs, each view found by the ViewLocator. -->
+    <TabControl x:Name="Tabs" Margin="4" ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab}">
+        <TabControl.ItemTemplate>
+            <DataTemplate>
+                <TextBlock Text="{Binding Header}" />
+            </DataTemplate>
+        </TabControl.ItemTemplate>
+        <TabControl.ContentTemplate>
+            <DataTemplate>
+                <ContentControl Content="{Binding Content}" />
+            </DataTemplate>
+        </TabControl.ContentTemplate>
+    </TabControl>
+</Window>

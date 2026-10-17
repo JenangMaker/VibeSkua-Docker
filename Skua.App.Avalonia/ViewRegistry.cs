@@ -75,6 +75,12 @@ public static class ViewRegistry
         ViewLocator.Register<GitHubAuthViewModel, GitHubAuthView>();
         ViewLocator.Register<ChangeLogsViewModel, ChangeLogsView>();
         ViewLocator.Register<AboutViewModel, AboutView>();
+
+        // VibeSkua Manager (ManagerWindow)
+        ViewLocator.Register<Skua.Core.ViewModels.Manager.AccountManagerViewModel, AccountManagerView>();
+        ViewLocator.Register<Skua.Core.ViewModels.Manager.SelectGroupDialogViewModel, SelectGroupDialog>();
+        ViewLocator.Register<Skua.Core.ViewModels.Manager.ScriptUpdaterViewModel, ScriptUpdaterView>();
+        ViewLocator.Register<Manager.RunningTabsViewModel, RunningTabsView>();
         // Any other bot control falls back to About, as in DataTemplates.xaml.
         ViewLocator.Register<BotControlViewModelBase, AboutView>();
     }

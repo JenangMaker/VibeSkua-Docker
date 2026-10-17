@@ -8,6 +8,7 @@
 //   Skua.App.Avalonia --script-options SCRIPT OUT [ACCOUNT]   a script's options as JSON, then exit
 
 using Avalonia;
+using Microsoft.Extensions.DependencyInjection;
 using Skua.App.Avalonia;
 using Skua.App.Avalonia.Services;
 using Skua.Core.AppStartup;
@@ -55,7 +56,12 @@ if (OperatingSystem.IsLinux())
 // Tabs, as Skua.App.WPF's TabbedHostWindow: this process draws the tab strip
 // and starts one Skua per tab (--tab-child), each with its own game. On by
 // default; SKUA_TABS=0 runs a single Skua, SKUA_TABS=N opens N tabs.
-App.Mode = args.Contains("--tab-child") ? AppMode.TabChild
+// VibeSkua Manager: "--manager", or an executable named like "VibeSkua Manager.exe"
+// (a copy of this one, as the Windows release ships it).
+bool manager = args.Contains("--manager")
+    || Path.GetFileNameWithoutExtension(Environment.ProcessPath ?? "").Contains("Manager", StringComparison.OrdinalIgnoreCase);
+App.Mode = manager ? AppMode.Manager
+    : args.Contains("--tab-child") ? AppMode.TabChild
     : TabHostWindow.Enabled ? AppMode.TabHost
     : AppMode.Single;
 if (App.Mode == AppMode.TabChild)
@@ -65,10 +71,16 @@ App.Runtime = SkuaRuntime.Create(services =>
 {
     services.AddAvaloniaServices();
     services.AddSkuaMainAppViewModels();
+    if (manager)
+    {
+        services.AddSkuaManagerViewModels();
+        services.AddSingleton<Skua.App.Avalonia.Manager.RunningTabsViewModel>();
+        services.AddSingleton<Skua.Core.Interfaces.IClientLauncher, Skua.App.Avalonia.Manager.HostLauncher>();
+    }
 });
 // The tab host only uses Skua's services for its dialogs (Scheduler, Script
-// Repo); the bot, bridge and API run in the tabs.
-App.StartRuntime = App.Mode != AppMode.TabHost;
+// Repo); the bot, bridge and API run in the tabs. The Manager runs no bot either.
+App.StartRuntime = App.Mode is not (AppMode.TabHost or AppMode.Manager);
 AppBuilder.Configure<App>()
     .UsePlatformDetect()
     .WithInterFont()

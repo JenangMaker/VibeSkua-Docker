@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Skua.App.Avalonia.Views.SelectGroupDialog">
+    <!-- Skua.WPF/UserControls/Dialogs/SelectGroupDialog.xaml -->
+    <StackPanel MinWidth="280">
+        <TextBlock Margin="6" Classes="caption" Text="Select a group" />
+        <ListBox Margin="6" MaxHeight="300" ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding Name}" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <Grid ColumnDefinitions="*,*">
+            <Button Grid.Column="0" Margin="6" HorizontalAlignment="Stretch" Content="Confirm" IsDefault="True" Click="Confirm_Click" />
+            <Button Grid.Column="1" Margin="6" HorizontalAlignment="Stretch" Content="Cancel" IsCancel="True" Click="Cancel_Click" />
+        </Grid>
+    </StackPanel>
+</UserControl>

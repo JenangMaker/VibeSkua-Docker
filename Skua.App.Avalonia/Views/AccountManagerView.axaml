@@ -1,0 +1,354 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:m="clr-namespace:Skua.App.Avalonia.Manager"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.AccountManagerView">
+    <!-- Skua.WPF/Views/AccountManager.xaml for the Avalonia Manager. -->
+    <UserControl.Resources>
+        <m:ServerTextConverter x:Key="ServerText" />
+    </UserControl.Resources>
+    <UserControl.Styles>
+        <Style Selector="Border.account">
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.account.card">
+            <Setter Property="BorderBrush" Value="{DynamicResource SkuaDividerBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SkuaBarBrush}" />
+        </Style>
+        <Style Selector="Border.account:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource SkuaPrimaryBrush}" />
+        </Style>
+    </UserControl.Styles>
+    <Grid Margin="6" RowDefinitions="Auto,*,Auto,Auto">
+
+        <!-- Add account form -->
+        <Border x:Name="AddAccountForm" Grid.Row="0" IsVisible="False" Margin="0,0,0,6" Padding="8"
+                BorderBrush="{DynamicResource SkuaDividerBrush}" BorderThickness="1" CornerRadius="4">
+            <Grid ColumnDefinitions="*,*,*,Auto,Auto">
+                <TextBox Grid.Column="0" Margin="0,0,4,0" Watermark="Username" UseFloatingWatermark="True" Text="{Binding UsernameInput}" />
+                <TextBox x:Name="PasswordBox" Grid.Column="1" Margin="4,0" Watermark="Password" UseFloatingWatermark="True" PasswordChar="*" />
+                <TextBox Grid.Column="2" Margin="4,0" Watermark="Display Name (optional)" UseFloatingWatermark="True" Text="{Binding DisplayNameInput}" />
+                <Button Grid.Column="3" Margin="4,0" Classes="flat" Command="{Binding AddAccountCommand}" ToolTip.Tip="Add Account">
+                    <icons:MaterialIcon Kind="Check" Width="20" Height="20" />
+                </Button>
+                <Button Grid.Column="4" Classes="flat" Click="HideAddAccount_Click" ToolTip.Tip="Cancel">
+                    <icons:MaterialIcon Kind="Close" Width="20" Height="20" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <TabControl Grid.Row="1">
+            <TabItem Header="Accounts">
+                <DockPanel>
+                    <!-- Header -->
+                    <Grid DockPanel.Dock="Top" Margin="0,4,0,6" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto,Auto">
+                        <TextBlock Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center"
+                                   IsVisible="{Binding SelectedAccountQuant, Converter={StaticResource IntToBooleanConverter}}">
+                            <Run Text="Selected: " /><Run Text="{Binding SelectedAccountQuant}" />
+                        </TextBlock>
+                        <Button Grid.Column="1" Margin="0,0,8,0" Classes="flat" Command="{Binding RemoveAccountsCommand}"
+                                IsVisible="{Binding SelectedAccountQuant, Converter={StaticResource IntToBooleanConverter}}">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <icons:MaterialIcon Kind="DeleteOutline" Width="14" Height="14" />
+                                <TextBlock Text="Remove Selected" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Grid.Column="2" Margin="0,0,8,0" Classes="flat" Command="{Binding DeselectAllCommand}"
+                                IsVisible="{Binding SelectedAccountQuant, Converter={StaticResource IntToBooleanConverter}}">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <icons:MaterialIcon Kind="SelectOff" Width="14" Height="14" />
+                                <TextBlock Text="Unselect Selected" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Grid.Column="3" Classes="flat" Command="{Binding MoveSelectedUpCommand}" ToolTip.Tip="Move Selected Up"
+                                IsVisible="{Binding SelectedAccountQuant, Converter={StaticResource EqualToConverter}, ConverterParameter=1}">
+                            <icons:MaterialIcon Kind="ArrowUp" Width="18" Height="18" />
+                        </Button>
+                        <Button Grid.Column="4" Margin="0,0,8,0" Classes="flat" Command="{Binding MoveSelectedDownCommand}" ToolTip.Tip="Move Selected Down"
+                                IsVisible="{Binding SelectedAccountQuant, Converter={StaticResource EqualToConverter}, ConverterParameter=1}">
+                            <icons:MaterialIcon Kind="ArrowDown" Width="18" Height="18" />
+                        </Button>
+                        <Button x:Name="ShowAddAccountButton" Grid.Column="6" Margin="0,0,8,0" Classes="flat" Click="ShowAddAccount_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <icons:MaterialIcon Kind="Plus" Width="14" Height="14" />
+                                <TextBlock Text="Add Account" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <ComboBox x:Name="ColumnsBox" Grid.Column="7" Margin="0,0,8,0" Width="60" ToolTip.Tip="Grid Columns"
+                                  SelectedItem="{Binding Columns}" IsVisible="{Binding ShowGridView}" />
+                        <ToggleButton x:Name="FilterButton" Grid.Column="8" Margin="0,0,8,0" Classes="flat" ToolTip.Tip="Filter by tags"
+                                      IsChecked="{Binding IsFilterPopupOpen}">
+                            <icons:MaterialIcon Kind="FilterOutline" Width="18" Height="18" />
+                        </ToggleButton>
+                        <Popup Grid.Column="8" PlacementTarget="{Binding #FilterButton}" Placement="BottomEdgeAlignedRight"
+                               IsOpen="{Binding IsFilterPopupOpen}" IsLightDismissEnabled="True">
+                            <Border Width="280" MaxHeight="400" Padding="12" Background="{DynamicResource SkuaPaperBrush}"
+                                    BorderBrush="{DynamicResource SkuaDividerBrush}" BorderThickness="1" CornerRadius="4">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Top" Classes="subtitle" Text="Filter by Tags" Margin="0,0,0,8" />
+                                    <TextBox DockPanel.Dock="Top" Margin="0,0,0,8" Watermark="Search tags..." Text="{Binding TagSearchText}" />
+                                    <Button DockPanel.Dock="Bottom" Margin="0,8,0,0" Classes="outlined" HorizontalAlignment="Stretch"
+                                            Command="{Binding ClearTagFiltersCommand}" Content="Clear All" />
+                                    <ScrollViewer MaxHeight="300">
+                                        <ItemsControl ItemsSource="{Binding FilteredTags}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox Margin="0,2" IsChecked="{Binding IsSelected}">
+                                                        <TextBlock>
+                                                            <Run Text="{Binding Name}" /><Run Text=" (" Foreground="Gray" /><Run Text="{Binding Count}" Foreground="Gray" /><Run Text=")" Foreground="Gray" />
+                                                        </TextBlock>
+                                                    </CheckBox>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </Border>
+                        </Popup>
+                        <ToggleButton Grid.Column="9" Margin="0,0,8,0" Classes="flat" ToolTip.Tip="Show Tags" IsChecked="{Binding ShowTags}">
+                            <icons:MaterialIcon Kind="TagOutline" Width="16" Height="16" />
+                        </ToggleButton>
+                        <ToggleButton Grid.Column="10" Classes="flat" ToolTip.Tip="Grid View" IsChecked="{Binding ShowGridView}">
+                            <icons:MaterialIcon Kind="ViewGrid" Width="16" Height="16" />
+                        </ToggleButton>
+                    </Grid>
+
+                    <ScrollViewer Padding="4">
+                        <ScrollViewer.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Start Selected" Command="{Binding StartAccountsCommand}">
+                                    <MenuItem.Icon><icons:MaterialIcon Kind="PlayCircleOutline" /></MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Start Selected With Script" Command="{Binding StartAccountsCommand}" CommandParameter="true">
+                                    <MenuItem.Icon><icons:MaterialIcon Kind="ScriptTextPlayOutline" /></MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Add Tags to Selected" Click="AddTagsToSelected_Click">
+                                    <MenuItem.Icon><icons:MaterialIcon Kind="TagPlus" /></MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Add Selected to Group" Click="AddSelectedToGroup_Click">
+                                    <MenuItem.Icon><icons:MaterialIcon Kind="AccountMultiplePlus" /></MenuItem.Icon>
+                                </MenuItem>
+                                <Separator />
+                                <MenuItem Header="Deselect All" Command="{Binding DeselectAllCommand}">
+                                    <MenuItem.Icon><icons:MaterialIcon Kind="SelectOff" /></MenuItem.Icon>
+                                </MenuItem>
+                            </ContextMenu>
+                        </ScrollViewer.ContextMenu>
+                        <Panel>
+                            <!-- List view -->
+                            <ItemsControl ItemsSource="{Binding FilteredAccounts}" IsVisible="{Binding !ShowGridView}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Classes="account" Padding="8,6" Background="Transparent" BorderThickness="1" Cursor="Hand"
+                                                PointerReleased="Account_PointerReleased">
+                                            <Border.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="Edit Tags" Command="{Binding AddTagsCommand}">
+                                                        <MenuItem.Icon><icons:MaterialIcon Kind="TagEdit" /></MenuItem.Icon>
+                                                    </MenuItem>
+                                                    <MenuItem Header="Add to Group" Command="{Binding AddToGroupCommand}">
+                                                        <MenuItem.Icon><icons:MaterialIcon Kind="AccountMultiplePlus" /></MenuItem.Icon>
+                                                    </MenuItem>
+                                                    <Separator />
+                                                    <MenuItem Header="Start" Command="{Binding StartCommand}">
+                                                        <MenuItem.Icon><icons:MaterialIcon Kind="PlayCircleOutline" /></MenuItem.Icon>
+                                                    </MenuItem>
+                                                    <MenuItem Header="Start With Script" Command="{Binding StartWithScriptCommand}">
+                                                        <MenuItem.Icon><icons:MaterialIcon Kind="ScriptTextPlayOutline" /></MenuItem.Icon>
+                                                    </MenuItem>
+                                                </ContextMenu>
+                                            </Border.ContextMenu>
+                                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                                <CheckBox Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" IsChecked="{Binding UseCheck}"
+                                                          ToolTip.Tip="Select for batch operations" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock FontSize="13" FontWeight="Medium" Text="{Binding DisplayName}" />
+                                                    <ItemsControl Margin="0,3,0,0" ItemsSource="{Binding Tags}"
+                                                                  IsVisible="{Binding $parent[UserControl].DataContext.ShowTags, FallbackValue=False}">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Background="{DynamicResource SkuaPrimaryBrush}" CornerRadius="2" Padding="5,1" Margin="0,0,3,2" Opacity="0.85">
+                                                                    <TextBlock FontSize="10" FontWeight="Medium" Foreground="White" Text="{Binding}" />
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                                <Button Grid.Column="2" Classes="flat" VerticalAlignment="Center" Command="{Binding RemoveCommand}" ToolTip.Tip="Remove Account">
+                                                    <icons:MaterialIcon Kind="DeleteOutline" Width="16" Height="16" />
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- Grid view -->
+                            <ItemsControl ItemsSource="{Binding FilteredAccounts}" IsVisible="{Binding ShowGridView}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="{Binding $parent[UserControl].DataContext.Columns, FallbackValue=3}" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Classes="account card" Margin="0,0,4,4" Padding="12,6" BorderThickness="2" CornerRadius="4" Cursor="Hand"
+                                                PointerReleased="Account_PointerReleased">
+                                            <Border.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="Start" Command="{Binding StartCommand}">
+                                                        <MenuItem.Icon><icons:MaterialIcon Kind="PlayCircleOutline" /></MenuItem.Icon>
+                                                    </MenuItem>
+                                                    <MenuItem Header="Start With Script" Command="{Binding StartWithScriptCommand}">
+                                                        <MenuItem.Icon><icons:MaterialIcon Kind="ScriptTextPlayOutline" /></MenuItem.Icon>
+                                                    </MenuItem>
+                                                    <Separator />
+                                                    <MenuItem Header="Edit Tags" Command="{Binding AddTagsCommand}">
+                                                        <MenuItem.Icon><icons:MaterialIcon Kind="TagEdit" /></MenuItem.Icon>
+                                                    </MenuItem>
+                                                    <MenuItem Header="Add to Group" Command="{Binding AddToGroupCommand}">
+                                                        <MenuItem.Icon><icons:MaterialIcon Kind="AccountMultiplePlus" /></MenuItem.Icon>
+                                                    </MenuItem>
+                                                    <Separator />
+                                                    <MenuItem Header="Remove" Command="{Binding RemoveCommand}">
+                                                        <MenuItem.Icon><icons:MaterialIcon Kind="DeleteOutline" /></MenuItem.Icon>
+                                                    </MenuItem>
+                                                </ContextMenu>
+                                            </Border.ContextMenu>
+                                            <StackPanel>
+                                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                                    <CheckBox Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" IsChecked="{Binding UseCheck}" />
+                                                    <TextBlock Grid.Column="1" FontSize="14" FontWeight="Medium" VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis" Text="{Binding DisplayName}" />
+                                                    <Button Grid.Column="2" Classes="flat" VerticalAlignment="Center" Command="{Binding RemoveCommand}" ToolTip.Tip="Remove Account">
+                                                        <icons:MaterialIcon Kind="DeleteOutline" Width="14" Height="14" />
+                                                    </Button>
+                                                </Grid>
+                                                <ItemsControl Margin="26,6,0,0" ItemsSource="{Binding Tags}"
+                                                              IsVisible="{Binding $parent[UserControl].DataContext.ShowTags, FallbackValue=False}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border Background="{DynamicResource SkuaPrimaryBrush}" CornerRadius="2" Padding="4,1" Margin="0,0,3,2" Opacity="0.85">
+                                                                <TextBlock FontSize="9" FontWeight="Medium" Foreground="White" Text="{Binding}" />
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Panel>
+                    </ScrollViewer>
+                </DockPanel>
+            </TabItem>
+
+            <TabItem Header="Groups">
+                <DockPanel>
+                    <Button DockPanel.Dock="Top" HorizontalAlignment="Right" Margin="0,6" Classes="flat" Click="AddGroup_Click" ToolTip.Tip="Create New Group">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <icons:MaterialIcon Kind="Plus" Width="14" Height="14" />
+                            <TextBlock Text="New Group" FontSize="11" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <ScrollViewer>
+                        <ItemsControl Margin="6,0" ItemsSource="{Binding Groups}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Expander Margin="0,0,0,6" HorizontalAlignment="Stretch" IsExpanded="{Binding IsExpanded}">
+                                        <Expander.Header>
+                                            <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
+                                                <TextBlock Grid.Column="0" FontSize="13" FontWeight="Medium" VerticalAlignment="Center" Text="{Binding Name}" />
+                                                <Button Grid.Column="1" Classes="flat" Command="{Binding StartCommand}" ToolTip.Tip="Start Group">
+                                                    <icons:MaterialIcon Kind="PlayCircleOutline" Width="16" Height="16" />
+                                                </Button>
+                                                <Button Grid.Column="2" Classes="flat" Command="{Binding StartWithScriptCommand}" ToolTip.Tip="Start Group With Script">
+                                                    <icons:MaterialIcon Kind="ScriptTextPlayOutline" Width="16" Height="16" />
+                                                </Button>
+                                                <Button Grid.Column="3" Classes="flat" Opacity="0.7" Command="{Binding RenameCommand}" ToolTip.Tip="Rename Group">
+                                                    <icons:MaterialIcon Kind="PencilOutline" Width="16" Height="16" />
+                                                </Button>
+                                                <Button Grid.Column="4" Classes="flat" Opacity="0.7" Command="{Binding RemoveCommand}" ToolTip.Tip="Remove Group">
+                                                    <icons:MaterialIcon Kind="DeleteOutline" Width="16" Height="16" />
+                                                </Button>
+                                            </Grid>
+                                        </Expander.Header>
+                                        <ItemsControl Margin="0,4" ItemsSource="{Binding Accounts}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Margin="8,0,8,4" Padding="12,6" BorderBrush="{DynamicResource SkuaDividerBrush}" BorderThickness="1" CornerRadius="2">
+                                                        <Grid ColumnDefinitions="*,Auto">
+                                                            <TextBlock Grid.Column="0" FontSize="12" VerticalAlignment="Center" Text="{Binding DisplayName}" />
+                                                            <Button Grid.Column="1" Classes="flat" Opacity="0.6" Click="RemoveFromGroup_Click" ToolTip.Tip="Remove from Group">
+                                                                <icons:MaterialIcon Kind="Close" Width="14" Height="14" />
+                                                            </Button>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Expander>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </TabItem>
+        </TabControl>
+
+        <!-- Server and start -->
+        <Grid Grid.Row="2" Margin="0,6,0,0" ColumnDefinitions="*,Auto">
+            <ComboBox Grid.Column="0" Margin="0,0,6,0" HorizontalAlignment="Stretch" PlaceholderText="Login Server"
+                      ToolTip.Tip="Which server to log in to when launching accounts"
+                      ItemsSource="{Binding ServerList}" SelectedItem="{Binding SelectedServer}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock>
+                            <TextBlock.Text>
+                                <MultiBinding Converter="{StaticResource ServerText}">
+                                    <Binding Path="Name" />
+                                    <Binding Path="Upgrade" />
+                                    <Binding Path="Online" />
+                                    <Binding Path="Ping" />
+                                    <Binding Path="PlayerCount" />
+                                    <Binding Path="MaxPlayers" />
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                <Button Command="{Binding StartAccountsCommand}" Content="Start Selected"
+                        ToolTip.Tip="Open and log in every account with its checkbox marked, as tabs of VibeSkua" />
+                <Button Command="{Binding StartAllAccountsCommand}" Content="Start All" ToolTip.Tip="Open and log in every saved account" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Script -->
+        <Grid Grid.Row="3" Margin="0,6,0,0" ColumnDefinitions="*,Auto,Auto,Auto,Auto">
+            <Border Grid.Column="0" Height="32" BorderBrush="{DynamicResource SkuaDividerBrush}" BorderThickness="1" CornerRadius="4,0,0,4"
+                    ToolTip.Tip="A script to load, and start if Auto-start is on, once each launched account is logged in">
+                <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                           Text="{Binding ScriptPath, TargetNullValue='No script selected', FallbackValue='No script selected'}" />
+            </Border>
+            <Button Grid.Column="1" Height="32" Classes="outlined" Command="{Binding ChangeScriptPathCommand}" ToolTip.Tip="Select a script file">
+                <icons:MaterialIcon Kind="Folder" />
+            </Button>
+            <Button Grid.Column="2" Height="32" Classes="outlined" Command="{Binding OpenGetScriptsCommand}" ToolTip.Tip="Browse and download scripts">
+                <icons:MaterialIcon Kind="Magnify" />
+            </Button>
+            <CheckBox Grid.Column="3" Margin="12,0,0,0" VerticalAlignment="Center" Content="Auto-start" IsChecked="{Binding StartWithScript}"
+                      ToolTip.Tip="Start the script once each launched account is logged in" />
+            <Button Grid.Column="4" Margin="12,0,0,0" Classes="flat" Command="{Binding SaveSetupCommand}" Content="Save Setup"
+                    ToolTip.Tip="Saves the selected accounts, the script and Auto-start" />
+        </Grid>
+    </Grid>
+</UserControl>

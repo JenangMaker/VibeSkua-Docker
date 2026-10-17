@@ -17,6 +17,8 @@ public enum AppMode
     TabHost,
     /// <summary>One tab's Skua, its window inside the tab host's.</summary>
     TabChild,
+    /// <summary>VibeSkua Manager: the account list, launching accounts as tabs (ManagerWindow).</summary>
+    Manager,
 }
 
 public partial class App : Application
@@ -59,6 +61,14 @@ public partial class App : Application
         }).ContinueWith(_ => Dispatcher.UIThread.Post(() =>
         {
             Service<Skua.App.Avalonia.Services.AvaloniaThemeService>().ApplyCurrent();
+            if (Mode == AppMode.Manager)
+            {
+                var manager = new ManagerWindow();
+                desktop.MainWindow = manager;
+                manager.Show();
+                Console.Error.WriteLine("[manager] up");
+                return;
+            }
             if (Mode == AppMode.TabHost)
             {
                 var host = new TabHostWindow();

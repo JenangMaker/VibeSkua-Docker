@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="Skua.App.Avalonia.Views.RunningTabsView">
+    <!-- The Manager's Running tab: VibeSkua's tabs (Manager/RunningTabsViewModel.cs). -->
+    <DockPanel Margin="6">
+        <Grid DockPanel.Dock="Top" Margin="0,0,0,6" ColumnDefinitions="*,Auto,Auto">
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Status}" />
+            <Button Grid.Column="1" Margin="6,0,0,0" Command="{Binding OpenVibeSkuaCommand}" Content="Open VibeSkua"
+                    IsVisible="{Binding !HostRunning}" ToolTip.Tip="Start VibeSkua (its saved accounts open as tabs)" />
+            <Button Grid.Column="2" Margin="6,0,0,0" Classes="flat" Command="{Binding RefreshCommand}" ToolTip.Tip="Refresh">
+                <icons:MaterialIcon Kind="Refresh" Width="18" Height="18" />
+            </Button>
+        </Grid>
+        <ScrollViewer>
+            <ItemsControl ItemsSource="{Binding Tabs}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="0,0,0,4" Padding="10,6" BorderBrush="{DynamicResource SkuaDividerBrush}" BorderThickness="1" CornerRadius="4">
+                            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                                <TextBlock Grid.Column="0" Margin="0,0,12,0" VerticalAlignment="Center" FontWeight="Medium">
+                                    <Run Text="Tab " /><Run Text="{Binding Number}" />
+                                </TextBlock>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock FontSize="13" FontWeight="Medium" Text="{Binding Title}" />
+                                    <TextBlock Classes="caption">
+                                        <Run Text="{Binding Account}" /><Run Text=" - " /><Run Text="{Binding State}" />
+                                    </TextBlock>
+                                </StackPanel>
+                                <Button Grid.Column="2" Classes="flat" Command="{Binding SelectCommand}" ToolTip.Tip="Show this tab in VibeSkua">
+                                    <icons:MaterialIcon Kind="EyeOutline" Width="18" Height="18" />
+                                </Button>
+                                <Button Grid.Column="3" Classes="flat" Command="{Binding RestartCommand}" ToolTip.Tip="Restart this tab's Skua">
+                                    <icons:MaterialIcon Kind="Restart" Width="18" Height="18" />
+                                </Button>
+                                <Button Grid.Column="4" Classes="flat" Command="{Binding CloseCommand}" ToolTip.Tip="Close this tab">
+                                    <icons:MaterialIcon Kind="Close" Width="18" Height="18" />
+                                </Button>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

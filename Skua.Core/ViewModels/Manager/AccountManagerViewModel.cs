@@ -321,6 +321,14 @@ public sealed partial class AccountManagerViewModel : BotControlViewModelBase
 
     private void _LaunchAcc(string username, string password, string displayName = null, bool? withScript = null)
     {
+        // VibeSkua's Avalonia Manager: open the account as a tab instead.
+        if (Ioc.Default.GetService<IClientLauncher>() is { } launcher)
+        {
+            bool useScript = (withScript ?? StartWithScript) && !string.IsNullOrEmpty(ScriptPath);
+            launcher.Launch(username, password, SelectedServer?.Name ?? "Twilly", useScript ? ScriptPath : null, useScript,
+                string.IsNullOrEmpty(displayName) ? username : displayName);
+            return;
+        }
         try
         {
             ProcessStartInfo psi = new(_exePath)
