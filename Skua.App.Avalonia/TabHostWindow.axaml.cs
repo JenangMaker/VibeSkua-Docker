@@ -526,8 +526,9 @@ public partial class TabHostWindow : Window
 
     private ulong ParentOf(ulong window)
     {
+        // On Windows a window that lost its child style counts as not ours, so Poll embeds it again.
         if (OperatingSystem.IsWindows())
-            return (ulong)(long)Win32Embed.ParentOf((IntPtr)(long)window);
+            return Win32Embed.IsEmbeddedIn((IntPtr)(long)window, (IntPtr)(long)_hostXid) ? _hostXid : 0;
         if (_display == IntPtr.Zero || X.XQueryTree(_display, window, out _, out ulong parent, out IntPtr children, out _) == 0)
             return 0;
         if (children != IntPtr.Zero)

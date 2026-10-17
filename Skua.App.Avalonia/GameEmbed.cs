@@ -181,7 +181,7 @@ public sealed class GameEmbed : IDisposable
         if (_window.TryGetPlatformHandle()?.Handle is not { } host || host == IntPtr.Zero)
             return;
         IntPtr game = (IntPtr)(long)id;
-        if (id == _game && (ulong)host == _host && Win32Embed.ParentOf(game) == host)
+        if (id == _game && (ulong)host == _host && Win32Embed.IsEmbeddedIn(game, host))
         {
             _shrunk = HostApi.IsShrunk;
             _placed = default;

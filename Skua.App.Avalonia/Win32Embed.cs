@@ -40,6 +40,15 @@ internal static class Win32Embed
 
     public static IntPtr ParentOf(IntPtr window) => GetAncestor(window, GA_PARENT);
 
+    /// <summary>
+    /// Whether <paramref name="window"/> is still a child of <paramref name="parent"/>, style
+    /// included: Ruffle shows its window once skua.swf has loaded, and winit then rewrites the
+    /// window's style from its own flags. Embedded before that (a slow first start), the game
+    /// kept its parent but lost WS_CHILD, so it sat outside VibeSkua's window.
+    /// </summary>
+    public static bool IsEmbeddedIn(IntPtr window, IntPtr parent) =>
+        ParentOf(window) == parent && (GetWindowLongPtr(window, GWL_STYLE).ToInt64() & WS_CHILD) != 0;
+
     /// <summary>Places a child window in its parent's client area (pixels).</summary>
     public static void Place(IntPtr window, int x, int y, int width, int height) =>
         SetWindowPos(window, IntPtr.Zero, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
