@@ -35,12 +35,12 @@ public sealed class RunningTabsViewModel : ObservableObject
         });
     }
 
-    private DispatcherTimer? _timer;
+    private IDisposable? _timer;
 
     /// <summary>Refreshes every few seconds while the tab is shown.</summary>
     public void SetVisible(bool visible)
     {
-        _timer?.Stop();
+        _timer?.Dispose();
         _timer = null;
         if (!visible)
             return;
