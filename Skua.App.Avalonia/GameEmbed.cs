@@ -50,11 +50,25 @@ public sealed class GameEmbed : IDisposable
     /// <summary>Raised on the UI thread once the game is inside the window.</summary>
     public event Action? Embedded;
 
+    // Windows: SetParent (Win32Embed) instead of X11; the native player only.
+    private static readonly bool Win = OperatingSystem.IsWindows();
+
     public void Start()
     {
-        if (!OperatingSystem.IsLinux() || string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")))
+        if (Win ? !NativeGame.Enabled : !OperatingSystem.IsLinux() || string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")))
         {
             Failed?.Invoke();
+            return;
+        }
+        if (Win)
+        {
+            _area.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == Visual.BoundsProperty)
+                    Place();
+            };
+            AppDomain.CurrentDomain.ProcessExit += (_, _) => Release();
+            _ = Task.Run(Watch);
             return;
         }
         _area.PropertyChanged += (_, e) =>
@@ -109,6 +123,11 @@ public sealed class GameEmbed : IDisposable
 
     private void Embed(ulong xid)
     {
+        if (Win)
+        {
+            EmbedWin32(xid);
+            return;
+        }
         if (_display == IntPtr.Zero)
         {
             _display = X.XOpenDisplay(null);
@@ -157,6 +176,31 @@ public sealed class GameEmbed : IDisposable
             Embedded?.Invoke();
     }
 
+    private void EmbedWin32(ulong id)
+    {
+        if (_window.TryGetPlatformHandle()?.Handle is not { } host || host == IntPtr.Zero)
+            return;
+        IntPtr game = (IntPtr)(long)id;
+        if (id == _game && (ulong)host == _host && Win32Embed.ParentOf(game) == host)
+        {
+            _shrunk = HostApi.IsShrunk;
+            _placed = default;
+            Place();
+            if (!Win32Embed.IsShown(game))
+                Win32Embed.Show(game);
+            return;
+        }
+        Win32Embed.MakeChild(game, host);
+        bool first = _game == 0;
+        _game = id;
+        _host = (ulong)host;
+        _placed = default;
+        Place();
+        Console.WriteLine($"[host] game window 0x{id:x} embedded");
+        if (first)
+            Embedded?.Invoke();
+    }
+
     // The save-set only protects windows inside windows created by the same
     // connection, so it has to be Avalonia's, not ours. Its X11 platform is
     // internal; its Display property is public.
@@ -187,6 +231,13 @@ public sealed class GameEmbed : IDisposable
     {
         lock (_releaseLock)
         {
+            // Not on Windows: the native player ends with this Skua
+            // (NativeGame), so handing its window back would only flash it.
+            if (Win)
+            {
+                _game = 0;
+                return;
+            }
             if (_display == IntPtr.Zero || _game == 0)
                 return;
             ulong game = _game;
@@ -234,7 +285,7 @@ public sealed class GameEmbed : IDisposable
     /// <summary>Keeps the game window over the game area.</summary>
     private void Place()
     {
-        if (_game == 0 || _display == IntPtr.Zero)
+        if (_game == 0 || (!Win && _display == IntPtr.Zero))
             return;
         double scale = _window.RenderScaling;
         Point? origin = _area.TranslatePoint(new Point(0, 0), _window);
@@ -246,6 +297,11 @@ public sealed class GameEmbed : IDisposable
         if (rect == _placed)
             return;
         _placed = rect;
+        if (Win)
+        {
+            Win32Embed.Place((IntPtr)(long)_game, rect.Item1, rect.Item2, rect.Item3, rect.Item4);
+            return;
+        }
         X.XMoveResizeWindow(_display, _game, rect.Item1, rect.Item2, (uint)rect.Item3, (uint)rect.Item4);
         X.XFlush(_display);
     }

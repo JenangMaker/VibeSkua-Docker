@@ -490,6 +490,18 @@ public partial class TabHostWindow : Window
 
     private void Embed(SkuaTab tab, ulong xid)
     {
+        if (OperatingSystem.IsWindows() && _hostXid != 0)
+        {
+            // SetParent, as Skua.App.WPF's tabbed host does (Win32Embed).
+            Win32Embed.MakeChild((IntPtr)(long)xid, (IntPtr)(long)_hostXid);
+            tab.Xid = xid;
+            tab.Placed = default;
+            tab.Grid = null;
+            tab.Throttled = null;
+            Console.WriteLine($"[tabs] tab {tab.Number + 1}: window 0x{xid:x} embedded");
+            Layout();
+            return;
+        }
         if (_display == IntPtr.Zero || _hostXid == 0)
             return;
         // Take it from the window manager (which unmanages it on unmap), then
@@ -514,6 +526,8 @@ public partial class TabHostWindow : Window
 
     private ulong ParentOf(ulong window)
     {
+        if (OperatingSystem.IsWindows())
+            return (ulong)(long)Win32Embed.ParentOf((IntPtr)(long)window);
         if (_display == IntPtr.Zero || X.XQueryTree(_display, window, out _, out ulong parent, out IntPtr children, out _) == 0)
             return 0;
         if (children != IntPtr.Zero)
@@ -528,7 +542,8 @@ public partial class TabHostWindow : Window
     /// </summary>
     private void Layout()
     {
-        if (_display == IntPtr.Zero || _closing)
+        bool win = OperatingSystem.IsWindows();
+        if ((!win && _display == IntPtr.Zero) || _closing)
             return;
         LoadingIndicator.IsVisible = _grid ? Tabs.Any(t => t.Xid == 0) : _selected is null || _selected.Xid == 0;
         double scale = RenderScaling;
@@ -560,10 +575,16 @@ public partial class TabHostWindow : Window
                 SetThrottle(tab, !shown);
                 SetChildGrid(tab, false);
                 if (shown)
-                    X.XRaiseWindow(_display, tab.Xid);
+                {
+                    if (win)
+                        Win32Embed.Raise((IntPtr)(long)tab.Xid);
+                    else
+                        X.XRaiseWindow(_display, tab.Xid);
+                }
             }
         }
-        X.XFlush(_display);
+        if (!win)
+            X.XFlush(_display);
     }
 
     private void Place(SkuaTab tab, int x, int y, int w, int h)
@@ -571,6 +592,11 @@ public partial class TabHostWindow : Window
         if (tab.Placed == (x, y, w, h))
             return;
         tab.Placed = (x, y, w, h);
+        if (OperatingSystem.IsWindows())
+        {
+            Win32Embed.Place((IntPtr)(long)tab.Xid, x, y, w, h);
+            return;
+        }
         X.XMoveResizeWindow(_display, tab.Xid, x, y, (uint)w, (uint)h);
     }
 
