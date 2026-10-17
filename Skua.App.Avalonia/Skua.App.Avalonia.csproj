@@ -14,6 +14,10 @@
     <LangVersion>latest</LangVersion>
     <InvariantGlobalization>true</InvariantGlobalization>
     <ApplicationIcon>Assets\SkuaIcon.ico</ApplicationIcon>
+    <!-- The exe's version info (file description, product), which Windows shows
+         in SmartScreen, Task Manager and file properties. -->
+    <AssemblyTitle>VibeSkua</AssemblyTitle>
+    <Product>VibeSkua</Product>
     <!-- The WPF views bind by name at runtime; keep that rather than
          annotating every template with x:DataType. -->
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>

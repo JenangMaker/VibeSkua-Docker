@@ -123,10 +123,10 @@ jobs:
           cp Skua.AS3/skua/bin/skua.swf out/VibeSkua/
           install -D ruffle/target/x86_64-pc-windows-gnu/release/ruffle_desktop.exe out/VibeSkua/ruffle/ruffle_desktop.exe
           cp docs/windows-client.txt out/VibeSkua/README.txt
-          # The same launcher under the names people start: VibeSkua.exe, and
+          # The launcher only under the names people start: VibeSkua.exe, and
           # VibeSkua Manager.exe (the app opens its Manager when named so).
-          cp out/VibeSkua/Skua.App.Avalonia.exe out/VibeSkua/VibeSkua.exe
           cp out/VibeSkua/Skua.App.Avalonia.exe "out/VibeSkua/VibeSkua Manager.exe"
+          mv out/VibeSkua/Skua.App.Avalonia.exe out/VibeSkua/VibeSkua.exe
           mkdir -p dist
           cd out
           zip -qr "../dist/VibeSkua-windows-${{ steps.ver.outputs.version }}.zip" VibeSkua
