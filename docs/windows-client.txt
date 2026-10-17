@@ -15,8 +15,8 @@ Running it
 
 What to expect
 --------------
-- Each tab's game opens in a window of its own ("Ruffle - skua.swf"); it is
-  not inside VibeSkua's window yet. VibeSkua's window is the menu bar.
+- Each tab's game sits inside its tab, under Skua's menu, as in the Docker
+  desktop; tabs that are not shown keep running, slowed down.
 - The first start downloads the scripts (about 1900) to
   %AppData%\Skua\Scripts, as Skua does.
 - The first script start asks the Data Collection question once, and
