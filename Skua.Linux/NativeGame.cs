@@ -65,6 +65,8 @@ public sealed class NativeGame
     private string? _graphics;
     private bool _software;
     private bool _fellBack;
+    // Filters dropped after a GPU fault with them on (FallBack's first step).
+    private bool _filtersOff;
     private volatile bool _gpuFault;
     private Task _forwarding = Task.CompletedTask;
 
@@ -153,7 +155,20 @@ public sealed class NativeGame
                 await Task.WhenAny(_forwarding, Task.Delay(TimeSpan.FromSeconds(3)));
                 Console.Error.WriteLine($"[game] the player exited ({process.ExitCode})");
                 if (_gpuFault && process.ExitCode != 0)
-                    FallBack();
+                {
+                    // Filters first: their full-size textures are what ran an
+                    // integrated GPU out of memory (wgpu "Out of Memory", 4 tabs
+                    // drawing on a 512 MB AMD iGPU), cheaper to give up than the GPU.
+                    if (FiltersOn() && !_filtersOff)
+                    {
+                        _filtersOff = true;
+                        Console.Error.WriteLine("[game] the GPU failed with filters on; the player now draws without them (RUFFLE_FILTERS off for this tab)");
+                    }
+                    else
+                    {
+                        FallBack();
+                    }
+                }
             }
             catch (Exception e)
             {
@@ -252,7 +267,7 @@ public sealed class NativeGame
         // renderer draws each filtered, cached or blended object into its own
         // full-size texture, and AQW has many. A drawing tab then took 4-36 s a
         // frame (on the server's GPU too) and Skua's calls waited behind them.
-        info.Environment["RUFFLE_FILTERS"] = FiltersSetting;
+        info.Environment["RUFFLE_FILTERS"] = _filtersOff ? "off" : FiltersSetting;
         // The player has no use for the accounts; Skua logs in (NativeSession).
         foreach (string key in info.Environment.Keys.Where(k => k.StartsWith("AQW_PASS", StringComparison.Ordinal)).ToList())
             info.Environment.Remove(key);
