@@ -9,10 +9,8 @@
 #   (x86_64-pc-windows-gnu). The exe needs only DLLs that come with Windows.
 # - Skua: Skua.App.Avalonia published self-contained for win-x64, so no .NET
 #   install is needed.
-# - The zip: the app with skua.swf beside it and the player in ruffle\.
-#
-# Not for the original Skua.Manager yet: it starts Skua.exe with -u/-p/-s,
-# which this client does not take.
+# - The zip: the app (as VibeSkua.exe and VibeSkua Manager.exe) with skua.swf
+#   beside it and the player in ruffle\.
 
 name: Windows release
 
@@ -125,6 +123,10 @@ jobs:
           cp Skua.AS3/skua/bin/skua.swf out/VibeSkua/
           install -D ruffle/target/x86_64-pc-windows-gnu/release/ruffle_desktop.exe out/VibeSkua/ruffle/ruffle_desktop.exe
           cp docs/windows-client.txt out/VibeSkua/README.txt
+          # The same launcher under the names people start: VibeSkua.exe, and
+          # VibeSkua Manager.exe (the app opens its Manager when named so).
+          cp out/VibeSkua/Skua.App.Avalonia.exe out/VibeSkua/VibeSkua.exe
+          cp out/VibeSkua/Skua.App.Avalonia.exe "out/VibeSkua/VibeSkua Manager.exe"
           mkdir -p dist
           cd out
           zip -qr "../dist/VibeSkua-windows-${{ steps.ver.outputs.version }}.zip" VibeSkua
@@ -144,5 +146,5 @@ jobs:
             VibeSkua for Windows, test build: the Avalonia client with each tab's game in
             Ruffle's desktop player (no Flash, no browser), from branch windows at ${{ github.sha }}.
 
-            Extract the zip and run `Skua.App.Avalonia.exe`; see README.txt inside.
-            Not compatible with the original Skua.Manager yet.
+            Extract the zip and run `VibeSkua.exe`, or `VibeSkua Manager.exe` to start
+            saved accounts as tabs; see README.txt inside.
