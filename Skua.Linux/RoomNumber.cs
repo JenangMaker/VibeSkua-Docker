@@ -46,11 +46,12 @@ public static class RoomNumber
                 return;
             Directory.CreateDirectory(ClientFileSources.SkuaOptionsDIR);
             File.WriteAllLines(file, lines);
-            Console.WriteLine($"[host] CoreBots room for {username}: {room} (SKUA_ROOM_NUMBER)");
+            // The tab, not the account: logs get shared.
+            Console.WriteLine($"[host] CoreBots room for tab {SkuaRuntime.Instance + 1}: {room} (SKUA_ROOM_NUMBER)");
         }
         catch (Exception e)
         {
-            Console.Error.WriteLine($"[host] could not set the CoreBots room for {username}: {e.Message}");
+            Console.Error.WriteLine($"[host] could not set the CoreBots room for tab {SkuaRuntime.Instance + 1}: {e.Message}");
         }
     }
 

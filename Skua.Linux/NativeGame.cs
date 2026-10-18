@@ -281,6 +281,10 @@ public sealed class NativeGame
         // The player has no use for the accounts; Skua logs in (NativeSession).
         foreach (string key in info.Environment.Keys.Where(k => k.StartsWith("AQW_PASS", StringComparison.Ordinal)).ToList())
             info.Environment.Remove(key);
+        // Windows: never the player's input log (every key, typed passwords
+        // included, into the log file people send), even when set by hand.
+        if (OperatingSystem.IsWindows())
+            info.Environment.Remove("RUFFLE_INPUT_DEBUG");
 
         var process = Process.Start(info) ?? throw new InvalidOperationException("Process.Start returned null");
         lock (_lock)

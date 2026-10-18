@@ -33,11 +33,12 @@ public sealed class HostLauncher : IClientLauncher
             try
             {
                 await LaunchAsync(username, password, server, script, autoStart);
-                Console.WriteLine($"[manager] {displayName} launched");
+                // No account names in the log (it gets shared); the dialog below may name it.
+                Console.WriteLine($"[manager] an account was launched ({server})");
             }
             catch (Exception e)
             {
-                Console.Error.WriteLine($"[manager] launching {displayName}: {e.Message}");
+                Console.Error.WriteLine($"[manager] launching an account failed: {e.Message}");
                 Dispatcher.UIThread.Post(() => _dialogs.ShowMessageBox($"Could not launch {displayName}: {e.Message}", "Launch"));
             }
             finally

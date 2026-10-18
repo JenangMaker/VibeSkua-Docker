@@ -19,6 +19,10 @@ internal static class TraceApi
 
     public static async Task<object> Collect(HttpListenerRequest request)
     {
+        // Not in the Windows client: a profiling aid for the server's
+        // containers, and it writes traces of the user's process to disk.
+        if (OperatingSystem.IsWindows())
+            return new { error = "not available in this build" };
         int secs = int.TryParse(request.QueryString["secs"], out int s) ? Math.Clamp(s, 5, 300) : 30;
         if (Interlocked.Exchange(ref _running, 1) == 1)
             return new { error = "a trace is already running in this tab" };
