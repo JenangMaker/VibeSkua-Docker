@@ -9,6 +9,7 @@
 
 using Avalonia;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Skua.App.Avalonia;
 using Skua.App.Avalonia.Services;
 using Skua.Core.AppStartup;
@@ -79,6 +80,12 @@ App.Runtime = SkuaRuntime.Create(services =>
         services.AddSkuaManagerViewModels();
         services.AddSingleton<Skua.App.Avalonia.Manager.RunningTabsViewModel>();
         services.AddSingleton<Skua.Core.Interfaces.IClientLauncher, Skua.App.Avalonia.Manager.HostLauncher>();
+        // No client updater: Skua's downloads auqw/Skua releases, which would
+        // replace VibeSkua with the original client. New VibeSkua builds come
+        // from its own releases page.
+        services.RemoveAll<Skua.Core.ViewModels.Manager.AppUpdaterViewModel>();
+        services.RemoveAll<Skua.Core.ViewModels.Manager.ClientUpdatesViewModel>();
+        services.RemoveAll<Skua.Core.Interfaces.IClientUpdateService>();
     }
 });
 // The tab host only uses Skua's services for its dialogs (Scheduler, Script

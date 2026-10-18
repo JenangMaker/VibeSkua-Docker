@@ -22,7 +22,10 @@ VibeSkua (started first if it is not running), logs in, and loads the script
 - Accounts: add, tag, group, start one, the selected ones, a group, or all.
 - Running: VibeSkua's tabs; show, restart or close one.
 - Scripts: update or reset the scripts. Themes, About.
-Not in this Manager: Skua Manager's Updater and Options tabs, and Goals.
+Not in this Manager: Skua Manager's client Updater (it would install the
+original Skua over VibeSkua; get new VibeSkua builds from its releases page),
+its Options tab (the tabs share the Manager's settings, theme included) and
+Goals.
 Accounts it starts are also saved in VibeSkua's accounts file
 (%AppData%\vibeskua\accounts.json), so they open again when VibeSkua starts.
 
@@ -38,6 +41,9 @@ What to expect
   SKUA_SKIP_SCRIPT_OPTIONS=1 starts with the saved options instead.
 - Closing VibeSkua's window ends every tab and its game.
 - The original Skua.Manager cannot launch this client; use VibeSkua Manager.
+- Log: %AppData%\vibeskua\log\vibeskua.log (every tab's and game's lines,
+  timestamped; the run before is vibeskua.1.log, the Manager's manager.log).
+  Send both after a crash or hang.
 
 Settings (environment variables, all optional)
 ----------------------------------------------
