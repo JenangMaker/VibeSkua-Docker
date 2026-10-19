@@ -27,7 +27,8 @@ public static class ApiAuth
         // the LAN on purpose: SKUA_API_PREFIX). (Docker: the manager's and game's pages call these
         // APIs from a browser on purpose; they are reached over the LAN, with
         // SKUA_API_TOKEN where that matters.)
-        if (OperatingSystem.IsWindows() && FromBrowser(request, checkHost: Token is null))
+        // The same for the Linux desktop client.
+        if (SkuaRuntime.DesktopClient && FromBrowser(request, checkHost: Token is null))
             return false;
         if (Token is null)
             return true;

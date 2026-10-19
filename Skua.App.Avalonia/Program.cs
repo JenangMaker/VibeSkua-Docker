@@ -67,8 +67,8 @@ App.Mode = manager ? AppMode.Manager
     : AppMode.Single;
 if (App.Mode == AppMode.TabChild)
     TabHostWindow.WatchHost();
-// Windows: a log file (see LogFile); a tab's lines reach it through the tab host.
-else if (OperatingSystem.IsWindows())
+// The desktop client: a log file (see LogFile); a tab's lines reach it through the tab host.
+else if (SkuaRuntime.DesktopClient)
     LogFile.Install(App.Mode == AppMode.Manager ? "manager" : "vibeskua");
 
 App.Runtime = SkuaRuntime.Create(services =>

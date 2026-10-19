@@ -1,0 +1,64 @@
+VibeSkua for Linux (test build)
+==============================
+
+VibeSkua's Avalonia client with each tab's game in Ruffle's desktop player:
+no Flash Player and no browser. The same client as the Windows zip, built from
+the "windows" branch for x86-64 Linux with glibc 2.31 or newer (Ubuntu 20.04,
+Debian 11, Fedora 32, Mint 20 and later; Arch).
+
+Running it
+----------
+1. Extract the archive anywhere (keep the folder together: skua.swf and the
+   ruffle folder must stay next to the VibeSkua files):
+       tar xzf VibeSkua-linux-*.tar.gz
+2. Run ./VibeSkua, or "./VibeSkua Manager" (below). ./install-desktop-entry.sh
+   adds both to the applications menu (and ./install-desktop-entry.sh --remove
+   takes them out again).
+3. Log in by hand in the game window, start accounts from the Manager, or set
+   them in the environment (see below).
+
+What it needs from the system
+-----------------------------
+- A desktop session with X11 or Wayland. On Wayland the windows open through
+  XWayland (installed with GNOME and KDE): the game is embedded as an X11
+  window, which Wayland itself does not allow.
+- Graphics drivers with Vulkan (Mesa's for Intel and AMD, NVIDIA's own for
+  NVIDIA). Without Vulkan the player uses OpenGL; without a GPU at all (a VM
+  without 3D acceleration) it draws in software, which works but is slow.
+- libicu, fontconfig and ALSA (PipeWire or PulseAudio provide it), which
+  desktop installs have.
+
+What to expect
+--------------
+- Each tab's game sits inside its tab, under Skua's menu; tabs that are not
+  shown keep running, slowed down.
+- The first start downloads the scripts (about 1900) to ~/.config/Skua/Scripts.
+- The first script start asks the Data Collection question once, and
+  CoreBots may restart the first script once while it builds its quest cache.
+- A script with options opens its Options window and waits for Start.
+  SKUA_SKIP_SCRIPT_OPTIONS=1 starts with the saved options instead.
+- Closing VibeSkua's window ends every tab and its game.
+- Accounts the Manager starts are saved in ~/.config/vibeskua/accounts.json
+  (readable by you only), so they open again when VibeSkua starts.
+- Log: ~/.config/vibeskua/log/vibeskua.log (every tab's and game's lines,
+  timestamped; the run before is vibeskua.1.log, the Manager's manager.log).
+  Send both after a crash or hang.
+
+Settings (environment variables, all optional)
+----------------------------------------------
+SKUA_TABS                  number of tabs (0: a single Skua, no tab strip)
+AQW_USER_1, AQW_PASS_1     tab 1's account (_2 for tab 2, ...); logs it in
+AQW_SERVER_1               tab 1's server
+SKUA_SCRIPT_1              script for tab 1 (full path), started after login
+                           with SKUA_SCRIPT_AUTO_START_1=1
+SKUA_SKIP_SCRIPT_OPTIONS   1: do not open a script's Options window
+RUFFLE_QUALITY             low (default), medium, high: anti-aliasing; also
+                           the most the game can raise it to
+RUFFLE_GRAPHICS            the player's graphics API: vulkan or gl (default:
+                           its own choice)
+RUFFLE_FILTERS             on (default here): glows, blurs and blend effects;
+                           off draws faster, as the Docker build does
+
+The control API listens on 127.0.0.1 only: 8791 for tab 1, 8801 for tab 2...
+(GET /status). The same settings as the Docker image apply; see DOCKER.md in
+the repository.

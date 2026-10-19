@@ -51,6 +51,15 @@ public sealed class SkuaRuntime
     public static string Env(string name, string fallback) => EnvRaw(name) ?? fallback;
 
     /// <summary>
+    /// The desktop client (the Windows zip or the Linux tarball), not the Docker
+    /// image: Windows, or a player bundled beside this program
+    /// (ruffle/ruffle_desktop; the image has its own in /opt/ruffle). It runs on
+    /// other people's PCs, so it gets the client's defaults and privacy rules.
+    /// </summary>
+    public static bool DesktopClient { get; } = OperatingSystem.IsWindows()
+        || File.Exists(Path.Combine(AppContext.BaseDirectory, "ruffle", "ruffle_desktop"));
+
+    /// <summary>
     /// Which tab (account) this Skua is, from SKUA_INSTANCE: 0 for the first
     /// or only one. The tab host (Skua.App.Avalonia/TabHost.cs) starts one
     /// Skua per tab and gives each its own ports.

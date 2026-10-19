@@ -1,0 +1,163 @@
+# The Linux client: the Windows client's twin (windows-release.yml), VibeSkua
+# (the Avalonia UI) with each tab's game in Ruffle's desktop player, packed as
+# a portable tar.gz in a draft Gitea release. Run by hand (Run workflow), or by
+# pushing a tag linux-v<version> (e.g. linux-v1.8.5-test1), which is then the
+# release's tag.
+#
+# Built on Debian 11 (glibc 2.31): a Linux program runs where glibc is at
+# least as new as the one it was built against, so this covers Ubuntu 20.04,
+# Debian 11, Fedora 32, Mint 20 and later. The Docker image's player is built
+# on Debian 12, which would leave out Ubuntu 22.04.
+#
+# - Ruffle: the same commit as the Windows client (docker/ruffle-windows.ref,
+#   branch windows-skua on this Gitea). Fontconfig is opened at run time
+#   (fontconfig-dlopen) and FreeType is left out (Debian 11's is older than
+#   the freetype feature takes); the player links only to glibc, ALSA and
+#   libudev, and opens Vulkan, OpenGL and X11 itself.
+# - Skua: Skua.App.Avalonia published self-contained for linux-x64, so no .NET
+#   install is needed. The bundled player (ruffle/ruffle_desktop) is what makes
+#   it the desktop client rather than the Docker build (SkuaRuntime.DesktopClient).
+# - The archive: the app as VibeSkua and VibeSkua Manager (a copy, which opens
+#   the Manager by its name), skua.swf beside it, the player in ruffle/, and a
+#   script that adds both to the applications menu.
+
+name: Linux release
+
+on:
+  push:
+    tags: ["linux-v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (e.g. 1.8.5). Blank = <Version> in Directory.Build.props"
+        required: false
+        default: ""
+      draft:
+        description: "Create as draft"
+        required: false
+        default: "true"
+
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_INCREMENTAL: "0"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    container:
+      image: node:22-bullseye
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: ver
+        run: |
+          set -eu
+          V="${{ inputs.version }}"
+          if [ "${GITHUB_REF#refs/tags/}" != "$GITHUB_REF" ]; then
+            echo "version=${GITHUB_REF_NAME#linux-v}" >> "$GITHUB_OUTPUT"
+            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+            echo "Releasing $GITHUB_REF_NAME"
+            exit 0
+          fi
+          if [ -z "$V" ]; then
+            V=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props | head -1 | tr -d '[:space:]')
+          fi
+          if [ -z "$V" ]; then echo "could not resolve a version"; exit 1; fi
+          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "tag=linux-v$V-$SHA" >> "$GITHUB_OUTPUT"
+          echo "Releasing linux-v$V-$SHA"
+
+      - name: Install toolchains
+        run: |
+          set -eu
+          apt-get update
+          # Java compiles Ruffle's playerglobal ActionScript at build time;
+          # ImageMagick turns the app's .ico into the menu entry's PNG.
+          apt-get install -y --no-install-recommends default-jre-headless \
+            pkg-config libasound2-dev libudev-dev libfontconfig1-dev g++ imagemagick
+          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+          bash /tmp/dotnet-install.sh --channel 10.0 --install-dir "$HOME/.dotnet" --no-path
+          echo "$HOME/.dotnet" >> "$GITHUB_PATH"
+          echo "DOTNET_ROOT=$HOME/.dotnet" >> "$GITHUB_ENV"
+
+      - name: Fetch Ruffle
+        run: |
+          set -eu
+          ref="$(tr -d ' \r\n' < docker/ruffle-windows.ref)"
+          git init -q ruffle
+          git -C ruffle fetch -q --depth 1 https://gitea.jenangmaker.cloud/jenangmaker/ruffle.git "$ref"
+          git -C ruffle checkout -q FETCH_HEAD
+          git -C ruffle log --oneline -1
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ruffle/target
+          key: linux-ruffle-${{ hashFiles('ruffle/Cargo.lock') }}
+
+      - name: Build Ruffle for Linux
+        run: |
+          set -eu
+          cd ruffle
+          cargo build --release -p ruffle_desktop --no-default-features \
+            --features software_video,external_video,lzma,fontconfig-dlopen
+          ls -la target/release/ruffle_desktop
+          echo "Linked libraries:"; ldd target/release/ruffle_desktop
+          echo "Newest glibc symbol: $(objdump -T target/release/ruffle_desktop | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tail -1)"
+
+      - name: Publish Skua for Linux
+        run: |
+          set -eu
+          dotnet publish Skua.App.Avalonia/Skua.App.Avalonia.csproj -c Release -r linux-x64 \
+            --self-contained true -p:WarningLevel=0 -o out/VibeSkua
+          test -f out/VibeSkua/Skua.App.Avalonia
+
+      - name: Package tar.gz
+        run: |
+          set -eu
+          cp Skua.AS3/skua/bin/skua.swf out/VibeSkua/
+          install -D -m 755 ruffle/target/release/ruffle_desktop out/VibeSkua/ruffle/ruffle_desktop
+          cp docs/linux-client.txt out/VibeSkua/README.txt
+          install -m 755 docs/linux-install-desktop-entry.sh out/VibeSkua/install-desktop-entry.sh
+          # The .ico's largest picture as the menu entry's icon.
+          mkdir -p /tmp/icon
+          convert Skua.App.Avalonia/Assets/SkuaIcon.ico /tmp/icon/i.png
+          cp "$(ls -S /tmp/icon/*.png | head -1)" out/VibeSkua/vibeskua.png
+          # The launcher only under the names people start: VibeSkua, and
+          # VibeSkua Manager (the app opens its Manager when named so).
+          cp out/VibeSkua/Skua.App.Avalonia "out/VibeSkua/VibeSkua Manager"
+          mv out/VibeSkua/Skua.App.Avalonia out/VibeSkua/VibeSkua
+          chmod 755 out/VibeSkua/VibeSkua "out/VibeSkua/VibeSkua Manager"
+          mkdir -p dist
+          tar -C out -czf "dist/VibeSkua-linux-x64-${{ steps.ver.outputs.version }}.tar.gz" VibeSkua
+          ls -la dist
+
+      - name: Publish Gitea release
+        uses: https://gitea.com/actions/gitea-release-action@main
+        with:
+          token: ${{ secrets.GITEA_TOKEN }}
+          tag_name: ${{ steps.ver.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          title: VibeSkua for Linux ${{ steps.ver.outputs.version }} (test)
+          draft: ${{ inputs.draft || 'true' }}
+          files: dist/*
+          body: |
+            VibeSkua for Linux (x86-64, glibc 2.31+), test build: the Avalonia client with each
+            tab's game in Ruffle's desktop player (no Flash, no browser), from branch windows
+            at ${{ github.sha }}.
+
+            `tar xzf` the archive and run `./VibeSkua`, or `./VibeSkua Manager` to start saved
+            accounts as tabs; `./install-desktop-entry.sh` adds both to the applications menu.
+            See README.txt inside.

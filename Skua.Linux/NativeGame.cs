@@ -50,11 +50,11 @@ public sealed class NativeGame
         return v.Equals("on", StringComparison.OrdinalIgnoreCase) || v == "1" || v.Equals("true", StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>RUFFLE_FILTERS, else on on Windows and off elsewhere.</summary>
-    private static string FiltersSetting => SkuaRuntime.Env("RUFFLE_FILTERS", OperatingSystem.IsWindows() ? "on" : "off");
+    /// <summary>RUFFLE_FILTERS, else on in the desktop client and off in Docker.</summary>
+    private static string FiltersSetting => SkuaRuntime.Env("RUFFLE_FILTERS", SkuaRuntime.DesktopClient ? "on" : "off");
 
-    // On Windows always: there is no Electron page there.
-    public static bool Enabled => OperatingSystem.IsWindows()
+    // In the desktop client always: there is no Electron page there.
+    public static bool Enabled => SkuaRuntime.DesktopClient
         || SkuaRuntime.EnvRaw("SKUA_GAME") is { } g && g.Equals("native", StringComparison.OrdinalIgnoreCase);
 
     private readonly string _bridgeUrl;
@@ -132,8 +132,8 @@ public sealed class NativeGame
 
     private async Task Keep()
     {
-        string bin = SkuaRuntime.Env("SKUA_RUFFLE_BIN", OperatingSystem.IsWindows()
-            ? Path.Combine(AppContext.BaseDirectory, "ruffle", "ruffle_desktop.exe")
+        string bin = SkuaRuntime.Env("SKUA_RUFFLE_BIN", SkuaRuntime.DesktopClient
+            ? Path.Combine(AppContext.BaseDirectory, "ruffle", OperatingSystem.IsWindows() ? "ruffle_desktop.exe" : "ruffle_desktop")
             : "/opt/ruffle/ruffle_desktop");
         string swf = SkuaRuntime.Env("SKUA_SWF", Path.Combine(AppContext.BaseDirectory, "skua.swf"));
         var delay = TimeSpan.FromSeconds(2);
@@ -203,9 +203,10 @@ public sealed class NativeGame
         // ("Acquiring a texture failed"), every build back to the first. Mesa's
         // OpenGL driver splits the work into smaller batches and drew it
         // without a fault, so filters on start on gl.
-        // Not on Windows: that was the server's Intel iGPU under Mesa; on
-        // Windows the player's own choice (Vulkan or DirectX 12) suits best.
-        return FiltersOn() && !OperatingSystem.IsWindows() ? "gl" : null;
+        // Not in the desktop client: that was the server's Intel iGPU under
+        // Mesa; on a PC the player's own choice (Vulkan, or DirectX 12 on
+        // Windows) suits best, and Keep still falls back if the GPU fails.
+        return FiltersOn() && !SkuaRuntime.DesktopClient ? "gl" : null;
     }
 
     /// <summary>The player died of a GPU fault: one step down, as Selkies
@@ -281,10 +282,15 @@ public sealed class NativeGame
         // The player has no use for the accounts; Skua logs in (NativeSession).
         foreach (string key in info.Environment.Keys.Where(k => k.StartsWith("AQW_PASS", StringComparison.Ordinal)).ToList())
             info.Environment.Remove(key);
-        // Windows: never the player's input log (every key, typed passwords
-        // included, into the log file people send), even when set by hand.
-        if (OperatingSystem.IsWindows())
+        // Desktop client: never the player's input log (every key, typed
+        // passwords included, into the log file people send), even when set by hand.
+        if (SkuaRuntime.DesktopClient)
             info.Environment.Remove("RUFFLE_INPUT_DEBUG");
+        // Linux: the game window is embedded as an X11 window (GameEmbed), so
+        // the player must open one through XWayland even on a Wayland desktop,
+        // where winit would otherwise make a Wayland window nothing can embed.
+        if (OperatingSystem.IsLinux())
+            info.Environment.Remove("WAYLAND_DISPLAY");
 
         var process = Process.Start(info) ?? throw new InvalidOperationException("Process.Start returned null");
         lock (_lock)
