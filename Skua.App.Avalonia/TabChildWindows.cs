@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Avalonia;
 using Avalonia.Controls;
 using Skua.Linux;
 
@@ -47,8 +48,39 @@ internal static class TabChildWindows
         }
     }
 
+    /// <summary>
+    /// The middle of the tab host's window, in screen pixels: a tab's windows
+    /// open centred on that window's monitor. Avalonia places a window not yet
+    /// shown on the primary one, which with two monitors need not be the one
+    /// VibeSkua is on (and was a screen the VM's console did not show).
+    /// </summary>
+    public static PixelPoint? HostCentre()
+    {
+        if (!OperatingSystem.IsLinux() || App.Mode != AppMode.TabChild || HostXid == 0)
+            return null;
+        try
+        {
+            lock (Lock)
+            {
+                if (_display == IntPtr.Zero)
+                    _display = XOpenDisplay(null);
+                if (_display == IntPtr.Zero
+                    || XGetGeometry(_display, HostXid, out ulong root, out _, out _, out uint width, out uint height, out _, out _) == 0
+                    || !XTranslateCoordinates(_display, HostXid, root, 0, 0, out int x, out int y, out _))
+                    return null;
+                return new PixelPoint(x + (int)width / 2, y + (int)height / 2);
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private const string Lib = "libX11.so.6";
     [DllImport(Lib)] private static extern IntPtr XOpenDisplay(string? name);
     [DllImport(Lib)] private static extern int XSetTransientForHint(IntPtr display, ulong window, ulong parent);
     [DllImport(Lib)] private static extern int XFlush(IntPtr display);
+    [DllImport(Lib)] private static extern int XGetGeometry(IntPtr display, ulong drawable, out ulong root, out int x, out int y, out uint width, out uint height, out uint border, out uint depth);
+    [DllImport(Lib)] private static extern bool XTranslateCoordinates(IntPtr display, ulong src, ulong dest, int srcX, int srcY, out int destX, out int destY, out ulong child);
 }
