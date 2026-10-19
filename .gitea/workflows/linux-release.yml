@@ -78,7 +78,10 @@ jobs:
       - name: Install toolchains
         run: |
           set -eu
-          apt-get update
+          # Debian 11 has reached its end of life: deb.debian.org no longer
+          # serves its security updates (404), archive.debian.org keeps all of it.
+          sed -i 's#deb\.debian\.org#archive.debian.org#g' /etc/apt/sources.list $(ls /etc/apt/sources.list.d/* 2>/dev/null || true)
+          apt-get -o Acquire::Check-Valid-Until=false update
           # Java compiles Ruffle's playerglobal ActionScript at build time;
           # ImageMagick turns the app's .ico into the menu entry's PNG.
           apt-get install -y --no-install-recommends default-jre-headless \
