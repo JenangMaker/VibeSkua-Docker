@@ -450,9 +450,21 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
     }
 
     // With no script given, starts the loaded one (SKUA_SCRIPT, /script/load,
-    // or picked in the Script Loader).
+    // or picked in the Script Loader). ?when=login: loads it now (stopping a
+    // running one) and starts it once logged in, as SKUA_SCRIPT does.
     private async Task<object> StartFromRequest(HttpListenerRequest request)
     {
+        if (request.QueryString["when"] == "login")
+        {
+            if (await ScriptFromRequest(request) is not { } script)
+                return new { error = "give ?path=<file> or the script source as the body" };
+            var manager = services.GetRequiredService<IScriptManager>();
+            if (manager.ScriptRunning)
+                await manager.StopScript();
+            return await LoadAndStartWhenLoggedIn(script, start: true) is { } loadError
+                ? new { error = loadError }
+                : new { queued = manager.LoadedScript };
+        }
         // ?queue=1: a queue entry with its own options, written just before
         // (ApplyScriptOptions); any other start opens the options window again.
         if (request.QueryString["queue"] is not "1")
@@ -498,6 +510,43 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
         // on the UI thread when there is one.
         services.GetRequiredService<IDispatcherService>().Invoke(() =>
             StrongReferenceMessenger.Default.Send(new LoadScriptMessage(file), (int)MessageChannels.ScriptStatus));
+        return null;
+    }
+
+    /// <summary>
+    /// Loads a script and, with <paramref name="start"/>, starts it once the
+    /// game is connected and logged in (in the background); returns why the
+    /// load failed, if it did.
+    /// </summary>
+    public async Task<string?> LoadAndStartWhenLoggedIn(string file, bool start)
+    {
+        if (await LoadScriptFile(file) is { } loadError)
+            return loadError;
+        string loaded = services.GetRequiredService<IScriptManager>().LoadedScript;
+        Console.WriteLine($"[host] loaded {loaded}" + (start ? "; starting it once logged in" : " (not started: start it from Skua)"));
+        if (!start)
+            return null;
+        _ = Task.Run(async () =>
+        {
+            var bridge = services.GetRequiredService<RuffleBridge>();
+            var bot = services.GetRequiredService<IScriptInterface>();
+            while (!(bridge.IsConnected && bot.Player.LoggedIn))
+                await Task.Delay(2000);
+            // Not while a sync (this tab's, or the first tab's for the
+            // others) may still change the scripts it compiles from: its
+            // question unanswered, or its download running.
+            if (!await ScriptSync.WaitUntilQuietAsync(TimeSpan.FromMinutes(15),
+                    reason => Console.WriteLine($"[host] logged in; waiting for {reason} before starting {loaded}")))
+                Console.Error.WriteLine("[host] the script sync is still running after 15 minutes; starting anyway");
+            // Something else loaded or started a script meanwhile: theirs wins.
+            var manager = services.GetRequiredService<IScriptManager>();
+            if (manager.LoadedScript != loaded || manager.ScriptRunning)
+                return;
+            RoomNumber.Apply(bot.Player.Username);   // before CoreBots reads its options
+            Console.WriteLine($"[host] logged in; starting {loaded}");
+            if (await StartLoadedAsync() is { } error)
+                Console.Error.WriteLine($"[host] script failed to start: {error}");
+        });
         return null;
     }
 

@@ -494,6 +494,7 @@ public partial class TabHostWindow
         var old = AccountStore.Get(n);
         if (old is null && string.IsNullOrEmpty(input.Pass))
             return new ApiError(400, "pass is required for a new account");
+        bool once = SkuaRuntime.DesktopClient;
 
         var saved = AccountStore.Put(new AccountStore.Account
         {
@@ -501,11 +502,12 @@ public partial class TabHostWindow
             User = input.User.Trim(),
             Pass = input.Pass,
             Server = NullIfBlank(input.Server),
-            Script = NullIfBlank(input.Script),
-            AutoStart = input.AutoStart,
+            // Desktop client: the script is for this launch only (see StartProcess).
+            Script = once ? null : NullIfBlank(input.Script),
+            AutoStart = once ? null : input.AutoStart,
         });
         bool login = old is null || old.User != saved.User || old.Pass != saved.Pass || old.Server != saved.Server;
-        bool scriptChanged = old is not null && (old.Script != saved.Script || old.AutoStart != saved.AutoStart);
+        bool scriptChanged = !once && old is not null && (old.Script != saved.Script || old.AutoStart != saved.AutoStart);
         Console.WriteLine($"[tabs] tab {n}: account {(old is null ? "added" : "changed")} from the host API");
 
         // Apply it: open its tab, or restart the open one when the login
@@ -527,7 +529,47 @@ public partial class TabHostWindow
             await RestartTab(tab, game: true);
             return "restarted";
         });
+        if (once && NullIfBlank(input.Script) is { } script && await OnUi(() => TabByNumber(number)) is { } opened)
+        {
+            _ = Task.Run(() => SendLaunchScript(opened, script, input.AutoStart ?? true));
+            applied += $"; {Path.GetFileName(script)} sent to the tab";
+        }
         return new { tab = n, user = saved.User, applied };
+    }
+
+    /// <summary>
+    /// The Manager's script for one launch: loaded in the tab, and started once
+    /// logged in. The tab's Skua may still be starting (or restarting for the
+    /// new login), so its API is tried for up to 90 s.
+    /// </summary>
+    private async Task SendLaunchScript(SkuaTab tab, string script, bool start)
+    {
+        string path = start ? $"/script/start?when=login&path={Q(script)}" : $"/script/load?path={Q(script)}";
+        var until = DateTime.UtcNow.AddSeconds(90);
+        // A restart stops the old Skua first; give it the moment to go.
+        await Task.Delay(TimeSpan.FromSeconds(2));
+        while (!tab.Closed)
+        {
+            try
+            {
+                using var reply = await _pass.PostAsync(tab.Api + path, new ByteArrayContent([]));
+                string text = await reply.Content.ReadAsStringAsync();
+                if (text.Contains("\"error\""))
+                    Console.Error.WriteLine($"[tabs] tab {tab.Number + 1}: the Manager's script: {text.ReplaceLineEndings(" ")}");
+                else
+                    Console.WriteLine($"[tabs] tab {tab.Number + 1}: {(start ? "starting" : "loaded")} {Path.GetFileName(script)} from the Manager{(start ? " once logged in" : "")}");
+                return;
+            }
+            catch (HttpRequestException e)
+            {
+                if (DateTime.UtcNow > until)
+                {
+                    Console.Error.WriteLine($"[tabs] tab {tab.Number + 1}: could not give it the Manager's script: {e.Message}");
+                    return;
+                }
+                await Task.Delay(TimeSpan.FromSeconds(2));
+            }
+        }
     }
 
     private async Task<object> DeleteAccount(string number)

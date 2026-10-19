@@ -194,27 +194,8 @@ public sealed class SkuaRuntime
             _ = Task.Run(async () =>
             {
                 // Loading may wait for the script sync to fetch it.
-                if (await Api.LoadScriptFile(toLoad) is { } loadError)
-                {
+                if (await Api.LoadAndStartWhenLoggedIn(toLoad, autoStart) is { } loadError)
                     Console.Error.WriteLine($"[host] could not load {toLoad}: {loadError}");
-                    return;
-                }
-                Console.WriteLine($"[host] loaded {toLoad}" + (autoStart ? "; starting it once logged in" : " (SKUA_SCRIPT_AUTO_START is off: start it from Skua)"));
-                if (!autoStart)
-                    return;
-                var bot = provider.GetRequiredService<IScriptInterface>();
-                while (!(Bridge.IsConnected && bot.Player.LoggedIn))
-                    await Task.Delay(2000);
-                // Not while a sync (this tab's, or the first tab's for the
-                // others) may still change the scripts it compiles from: its
-                // question unanswered, or its download running.
-                if (!await ScriptSync.WaitUntilQuietAsync(TimeSpan.FromMinutes(15),
-                        reason => Console.WriteLine($"[host] logged in; waiting for {reason} before starting {toLoad}")))
-                    Console.Error.WriteLine("[host] the script sync is still running after 15 minutes; starting anyway");
-                RoomNumber.Apply(bot.Player.Username);   // before CoreBots reads its options
-                Console.WriteLine($"[host] logged in; starting {toLoad}");
-                if (await Api.StartLoadedAsync() is { } error)
-                    Console.Error.WriteLine($"[host] script failed to start: {error}");
             });
         }
     }

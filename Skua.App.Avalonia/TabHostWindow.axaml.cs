@@ -262,7 +262,11 @@ public partial class TabHostWindow : Window
         // SKUA_SCRIPT_AUTO_START_N, else SKUA_SCRIPT_AUTO_START, says so.
         // Between the two: what the accounts file gives this tab's account,
         // then (SKUA_RESUME_SCRIPTS) the script it had before a restart.
-        var account = AccountStore.InEnvironment(n + 1) ? null : AccountStore.Get(n + 1);
+        // Desktop client: none from the accounts file. The Manager's "Start with
+        // script" is for that launch only, as in Skua's Manager (PutAccount
+        // sends it to the tab), so a script stopped or closed stays stopped;
+        // accounts files of older builds may still name one.
+        var account = AccountStore.InEnvironment(n + 1) || SkuaRuntime.DesktopClient ? null : AccountStore.Get(n + 1);
         string? script = SkuaRuntime.EnvRaw($"SKUA_SCRIPT_{n + 1}") ?? NullIfBlank(account?.Script);
         string? autoStart = SkuaRuntime.EnvRaw($"SKUA_SCRIPT_AUTO_START_{n + 1}")
             ?? (account?.AutoStart is bool on ? (on ? "1" : "0") : null);
