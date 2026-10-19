@@ -430,7 +430,35 @@ public partial class ScriptRepoViewModel : BotControlViewModelBase
             DownloadCommand.Cancel();
         else if (DeleteCommand.IsRunning)
             DeleteCommand.Cancel();
-        else
-            ProgressReportMessage = string.Empty;
+        else if (UpdateDatesCommand.IsRunning)
+            UpdateDatesCommand.Cancel();
+        // The bar closes either way: a cancelled task's last message stayed up.
+        ProgressReportMessage = string.Empty;
+    }
+
+    // A finished task's message goes after a few seconds, as the snackbar's
+    // queue did in WPF; the bar stays while a task runs.
+    partial void OnProgressReportMessageChanged(string value) => HideMessageLater();
+
+    partial void OnIsBusyChanged(bool value) => HideMessageLater();
+
+    private void HideMessageLater()
+    {
+        string shown = ProgressReportMessage;
+        if (string.IsNullOrEmpty(shown))
+            return;
+        var context = SynchronizationContext.Current;
+        _ = Task.Delay(TimeSpan.FromSeconds(6)).ContinueWith(_ =>
+        {
+            void Hide()
+            {
+                if (!IsBusy && ProgressReportMessage == shown)
+                    ProgressReportMessage = string.Empty;
+            }
+            if (context is null)
+                Hide();
+            else
+                context.Post(_ => Hide(), null);
+        });
     }
 }
