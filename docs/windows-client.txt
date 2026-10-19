@@ -27,7 +27,9 @@ original Skua over VibeSkua; get new VibeSkua builds from its releases page),
 its Options tab (the tabs share the Manager's settings, theme included) and
 Goals.
 Accounts it starts are also saved in VibeSkua's accounts file
-(%AppData%\vibeskua\accounts.json), so they open again when VibeSkua starts.
+(%AppData%\vibeskua\accounts.json), so they open again when VibeSkua starts;
+their script is not: it is for that start only, as in Skua Manager, so a
+script you stopped or whose window you closed stays stopped.
 
 What to expect
 --------------

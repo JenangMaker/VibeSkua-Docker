@@ -42,7 +42,9 @@ What to expect
   SKUA_SKIP_SCRIPT_OPTIONS=1 starts with the saved options instead.
 - Closing VibeSkua's window ends every tab and its game.
 - Accounts the Manager starts are saved in ~/.config/vibeskua/accounts.json
-  (readable by you only), so they open again when VibeSkua starts.
+  (readable by you only), so they open again when VibeSkua starts; their
+  script is not: it is for that start only, as in Skua Manager, so a script
+  you stopped or whose window you closed stays stopped.
 - Log: ~/.config/vibeskua/log/vibeskua.log (every tab's and game's lines,
   timestamped; the run before is vibeskua.1.log, the Manager's manager.log).
   Send both after a crash or hang.
