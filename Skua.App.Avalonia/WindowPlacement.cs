@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 
 namespace Skua.App.Avalonia;
@@ -35,8 +36,13 @@ public static class WindowPlacement
 
     public static void Centred(Window window) => Apply(window, w =>
     {
-        // A tab's window: on the monitor VibeSkua's window is on (TabChildWindows).
+        // On the monitor of the window it belongs to: a tab's, VibeSkua's
+        // (TabChildWindows); any other, this process's main window's (the
+        // Manager's, the tab host's). Not yet shown, a window is on the
+        // primary monitor, which need not be the one in use.
         if (((TabChildWindows.HostCentre() is { } host ? w.Screens.ScreenFromPoint(host) : null)
+                ?? (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { IsVisible: true } main } && main != w
+                    ? w.Screens.ScreenFromWindow(main) : null)
                 ?? w.Screens.ScreenFromWindow(w) ?? w.Screens.Primary) is not { } screen)
             return;
         var area = screen.WorkingArea;
