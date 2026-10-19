@@ -71,6 +71,8 @@ if (OperatingSystem.IsLinux())
 // (a copy of this one, as the Windows release ships it).
 bool manager = args.Contains("--manager")
     || Path.GetFileNameWithoutExtension(Environment.ProcessPath ?? "").Contains("Manager", StringComparison.OrdinalIgnoreCase);
+if (manager)
+    HeadlessSettingsService.Role = Skua.Core.Models.AppRole.Manager;
 App.Mode = manager ? AppMode.Manager
     : args.Contains("--tab-child") ? AppMode.TabChild
     : TabHostWindow.Enabled ? AppMode.TabHost

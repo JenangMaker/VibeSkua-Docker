@@ -546,6 +546,22 @@ public class UnifiedSettingsService
             string tempFile = ClientFileSources.SkuaSettingsDIR + ".tmp";
 
             JsonSerializerOptions options = GetJsonOptions();
+            // The Manager and each client hold their own copy and save it
+            // whole: keep the other role's section as it is on disk, or a
+            // client started earlier wipes what the Manager saved since
+            // (its accounts).
+            try
+            {
+                if (File.Exists(ClientFileSources.SkuaSettingsDIR)
+                    && JsonSerializer.Deserialize<SettingsRoot>(File.ReadAllText(ClientFileSources.SkuaSettingsDIR), options) is { } disk)
+                {
+                    if (_currentRole == AppRole.Client && disk.Manager is not null)
+                        _root.Manager = disk.Manager;
+                    else if (_currentRole == AppRole.Manager && disk.Client is not null)
+                        _root.Client = disk.Client;
+                }
+            }
+            catch (Exception) { }
             string json = JsonSerializer.Serialize(_root, options);
             File.WriteAllText(tempFile, json);
 

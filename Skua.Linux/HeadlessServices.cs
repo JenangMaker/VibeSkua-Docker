@@ -32,7 +32,14 @@ public sealed class HeadlessSettingsService : ISettingsService
 {
     private readonly UnifiedSettingsService _unified = new();
 
-    public HeadlessSettingsService() => _unified.Initialize(AppRole.Client);
+    /// <summary>
+    /// Manager in VibeSkua Manager: set before the service is created. The
+    /// settings keep each role's own section, and Set ignores the other
+    /// role's keys, so a Manager started as Client never saved its accounts.
+    /// </summary>
+    public static AppRole Role { get; set; } = AppRole.Client;
+
+    public HeadlessSettingsService() => _unified.Initialize(Role);
 
     public T? Get<T>(string key) => _unified.Get<T>(key);
     public T Get<T>(string key, T defaultValue) => _unified.Get(key, defaultValue);
