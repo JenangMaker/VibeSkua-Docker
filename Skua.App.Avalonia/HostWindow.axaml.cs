@@ -14,6 +14,7 @@ public partial class HostWindow : Window
     {
         InitializeComponent();
         WindowPlacement.Centred(this);
+        TabChildWindows.Attach(this);
         DataContextChanged += (_, _) => ApplySize();
     }
 

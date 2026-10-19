@@ -252,6 +252,9 @@ public partial class TabHostWindow : Window
         psi.ArgumentList.Add("--tab-child");
         psi.Environment["SKUA_INSTANCE"] = n.ToString();
         psi.Environment["SKUA_TAB_HOST_PID"] = Environment.ProcessId.ToString();
+        // Its windows stay above this one (TabChildWindows).
+        if (OperatingSystem.IsLinux() && _hostXid != 0)
+            psi.Environment["SKUA_TAB_HOST_XID"] = _hostXid.ToString();
         psi.Environment["SKUA_BRIDGE_PREFIX"] = PrefixFor("SKUA_BRIDGE_PREFIX", "http://127.0.0.1:8790/", n);
         psi.Environment["SKUA_API_PREFIX"] = PrefixFor("SKUA_API_PREFIX", "http://127.0.0.1:8791/", n);
         // One sync (the first tab's) is enough: they share the Scripts folder.

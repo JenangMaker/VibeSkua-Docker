@@ -14,6 +14,7 @@ public partial class HostDialog : Window
     {
         InitializeComponent();
         WindowPlacement.Centred(this);
+        TabChildWindows.Attach(this);
     }
 
     public bool? Result { get; private set; }

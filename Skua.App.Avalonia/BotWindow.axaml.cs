@@ -11,6 +11,7 @@ public partial class BotWindow : Window
     {
         InitializeComponent();
         WindowPlacement.Centred(this);
+        TabChildWindows.Attach(this);
         DataContextChanged += (_, _) =>
         {
             Filter();
