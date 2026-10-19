@@ -76,9 +76,13 @@ public sealed class NativeGame
 
     // What the player logs when its GPU fails: a lost device (the kernel reset
     // a hung GPU; "Acquiring a texture failed" is how that shows when the next
-    // frame starts), a wgpu error, or no usable graphics at all.
+    // frame starts), a wgpu error, or no usable graphics at all. "GUI
+    // controller should be created": the graphics did not start, as when Mesa's
+    // software Vulkan (a VM without 3D) offers less than the player asks for
+    // ("Limit 'max_color_attachments' value 4 is better than allowed 2"),
+    // where OpenGL still works.
     private static readonly System.Text.RegularExpressions.Regex GpuFault = new(
-        @"Acquiring a texture failed|[Dd]evice ?[Ll]ost|wgpu error|No compatible graphics backends",
+        @"Acquiring a texture failed|[Dd]evice ?[Ll]ost|wgpu error|No compatible graphics backends|GUI controller should be created",
         System.Text.RegularExpressions.RegexOptions.Compiled);
 
     public NativeGame(string bridgePrefix)

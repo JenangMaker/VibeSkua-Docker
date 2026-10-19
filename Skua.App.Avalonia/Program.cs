@@ -15,6 +15,16 @@ using Skua.App.Avalonia.Services;
 using Skua.Core.AppStartup;
 using Skua.Linux;
 
+// Linux: .NET gives an empty ApplicationData path when ~/.config (or
+// $XDG_CONFIG_HOME) does not exist yet, as in a fresh account, and Skua's
+// files then went into whatever folder the app was started from. Before
+// anything reads that path.
+if (OperatingSystem.IsLinux()
+    && Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData, Environment.SpecialFolderOption.DoNotVerify) is { Length: > 0 } config)
+{
+    try { Directory.CreateDirectory(config); } catch { }
+}
+
 if (args.Contains("--headless"))
 {
     var headless = SkuaRuntime.Create();

@@ -11,9 +11,11 @@
 #
 # - Ruffle: the same commit as the Windows client (docker/ruffle-windows.ref,
 #   branch windows-skua on this Gitea). Fontconfig is opened at run time
-#   (fontconfig-dlopen) and FreeType is left out (Debian 11's is older than
-#   the freetype feature takes); the player links only to glibc, ALSA and
-#   libudev, and opens Vulkan, OpenGL and X11 itself.
+#   (fontconfig-dlopen), FreeType is left out (Debian 11's is older than the
+#   freetype feature takes), and TLS is rustls with its own root certificates
+#   (OpenSSL's library is libssl.so.1.1 on some distributions and .so.3 on
+#   others, so a player linked to one fails on the rest). The player links
+#   only to glibc, ALSA and libudev, and opens Vulkan, OpenGL and X11 itself.
 # - Skua: Skua.App.Avalonia published self-contained for linux-x64, so no .NET
 #   install is needed. The bundled player (ruffle/ruffle_desktop) is what makes
 #   it the desktop client rather than the Docker build (SkuaRuntime.DesktopClient).
@@ -112,9 +114,10 @@ jobs:
           set -eu
           cd ruffle
           cargo build --release -p ruffle_desktop --no-default-features \
-            --features software_video,external_video,lzma,fontconfig-dlopen
+            --features software_video,external_video,lzma,fontconfig-dlopen,rustls-tls
           ls -la target/release/ruffle_desktop
           echo "Linked libraries:"; ldd target/release/ruffle_desktop
+          if ldd target/release/ruffle_desktop | grep -q libssl; then echo "linked to OpenSSL"; exit 1; fi
           echo "Newest glibc symbol: $(objdump -T target/release/ruffle_desktop | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tail -1)"
 
       - name: Publish Skua for Linux
