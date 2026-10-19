@@ -35,7 +35,9 @@ public static class WindowPlacement
 
     public static void Centred(Window window) => Apply(window, w =>
     {
-        if ((w.Screens.ScreenFromWindow(w) ?? w.Screens.Primary) is not { } screen)
+        // A tab's window: on the monitor VibeSkua's window is on (TabChildWindows).
+        if (((TabChildWindows.HostCentre() is { } host ? w.Screens.ScreenFromPoint(host) : null)
+                ?? w.Screens.ScreenFromWindow(w) ?? w.Screens.Primary) is not { } screen)
             return;
         var area = screen.WorkingArea;
         double scale = screen.Scaling;
