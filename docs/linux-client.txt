@@ -3,8 +3,8 @@ VibeSkua for Linux (test build)
 
 VibeSkua's Avalonia client with each tab's game in Ruffle's desktop player:
 no Flash Player and no browser. The same client as the Windows zip, built from
-the "windows" branch for x86-64 Linux with glibc 2.31 or newer (Ubuntu 20.04,
-Debian 11, Fedora 32, Mint 20 and later; Arch).
+the "windows" branch for x86-64 Linux with glibc 2.35 or newer (Ubuntu 22.04,
+Debian 12, Fedora 35, Mint 21 and later; Arch).
 
 Running it
 ----------
@@ -14,6 +14,9 @@ Running it
 2. Run ./VibeSkua, or "./VibeSkua Manager" (below). ./install-desktop-entry.sh
    adds both to the applications menu (and ./install-desktop-entry.sh --remove
    takes them out again).
+   Or the AppImage, one file instead of the folder: chmod +x it and run it.
+   Run it with --manager, or name the file with "Manager" in it (a copy, or a
+   link), for the Manager. It needs no libfuse2.
 3. Log in by hand in the game window, start accounts from the Manager, or set
    them in the environment (see below).
 

@@ -82,8 +82,16 @@ public sealed class NativeGame
     // ("Limit 'max_color_attachments' value 4 is better than allowed 2"),
     // where OpenGL still works.
     private static readonly System.Text.RegularExpressions.Regex GpuFault = new(
-        @"Acquiring a texture failed|[Dd]evice ?[Ll]ost|wgpu error|No compatible graphics backends|GUI controller should be created",
+        @"Acquiring a texture failed|[Dd]evice ?[Ll]ost|wgpu error|Invalid surface|No compatible graphics backends|GUI controller should be created",
         System.Text.RegularExpressions.RegexOptions.Compiled);
+    // Of those, the ones where the graphics never started: filters are not
+    // drawn yet then, so dropping them cannot help and Keep goes straight to
+    // the next graphics. "Invalid surface": Vulkan cannot draw into the window,
+    // as on a VM's virtual display with the GPU passed through for compute only.
+    private static readonly System.Text.RegularExpressions.Regex StartFault = new(
+        @"Invalid surface|No compatible graphics backends|GUI controller should be created",
+        System.Text.RegularExpressions.RegexOptions.Compiled);
+    private volatile bool _startFault;
 
     public NativeGame(string bridgePrefix)
     {
@@ -154,7 +162,7 @@ public sealed class NativeGame
                 continue;
             }
             var started = DateTime.UtcNow;
-            _gpuFault = false;
+            _gpuFault = _startFault = false;
             try
             {
                 using var process = Launch(bin, swf);
@@ -167,7 +175,7 @@ public sealed class NativeGame
                     // Filters first: their full-size textures are what ran an
                     // integrated GPU out of memory (wgpu "Out of Memory", 4 tabs
                     // drawing on a 512 MB AMD iGPU), cheaper to give up than the GPU.
-                    if (FiltersOn() && !_filtersOff)
+                    if (FiltersOn() && !_filtersOff && !_startFault)
                     {
                         _filtersOff = true;
                         Console.Error.WriteLine("[game] the GPU failed with filters on; the player now draws without them (RUFFLE_FILTERS off for this tab)");
@@ -339,6 +347,8 @@ public sealed class NativeGame
             string line = Noise.Replace(raw, "");
             if (GpuFault.IsMatch(line))
                 _gpuFault = true;
+            if (StartFault.IsMatch(line))
+                _startFault = true;
             if (line == last)
             {
                 repeats++;

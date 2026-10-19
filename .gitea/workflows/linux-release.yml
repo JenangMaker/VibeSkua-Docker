@@ -1,18 +1,19 @@
 # The Linux client: the Windows client's twin (windows-release.yml), VibeSkua
 # (the Avalonia UI) with each tab's game in Ruffle's desktop player, packed as
-# a portable tar.gz in a draft Gitea release. Run by hand (Run workflow), or by
+# a portable tar.gz and an AppImage in a draft Gitea release. Run by hand (Run workflow), or by
 # pushing a tag linux-v<version> (e.g. linux-v1.8.5-test1), which is then the
 # release's tag.
 #
-# Built on Debian 11 (glibc 2.31): a Linux program runs where glibc is at
-# least as new as the one it was built against, so this covers Ubuntu 20.04,
-# Debian 11, Fedora 32, Mint 20 and later. The Docker image's player is built
-# on Debian 12, which would leave out Ubuntu 22.04.
+# Built on Debian 12: a Linux program runs where glibc is at least as new as
+# the newest glibc function it uses. Debian 12 has glibc 2.36, but the player
+# only asks for 2.34 or older, and the build fails if that ever passes 2.35
+# (Ubuntu 22.04), so this covers Ubuntu 22.04, Debian 12, Fedora 35, Mint 21
+# and later. (Debian 11 has reached its end of life.)
 #
 # - Ruffle: the same commit as the Windows client (docker/ruffle-windows.ref,
 #   branch windows-skua on this Gitea). Fontconfig is opened at run time
-#   (fontconfig-dlopen), FreeType is left out (Debian 11's is older than the
-#   freetype feature takes), and TLS is rustls with its own root certificates
+#   (fontconfig-dlopen), FreeType is left out (one library fewer that could
+#   differ between distributions), and TLS is rustls with its own root certificates
 #   (OpenSSL's library is libssl.so.1.1 on some distributions and .so.3 on
 #   others, so a player linked to one fails on the rest). The player links
 #   only to glibc, ALSA and libudev, and opens Vulkan, OpenGL and X11 itself.
@@ -22,6 +23,10 @@
 # - The archive: the app as VibeSkua and VibeSkua Manager (a copy, which opens
 #   the Manager by its name), skua.swf beside it, the player in ruffle/, and a
 #   script that adds both to the applications menu.
+# - The AppImage: the same folder as one file to download and run
+#   (docs/linux-AppRun.sh starts it; "--manager", or "Manager" in the file's
+#   name, opens the Manager). Its runtime needs no libfuse2, which Ubuntu 22.04
+#   and later do not install.
 
 name: Linux release
 
@@ -49,7 +54,7 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     container:
-      image: node:22-bullseye
+      image: node:22-bookworm
 
     steps:
       - name: Checkout
@@ -78,14 +83,12 @@ jobs:
       - name: Install toolchains
         run: |
           set -eu
-          # Debian 11 has reached its end of life: deb.debian.org no longer
-          # serves its security updates (404), archive.debian.org keeps all of it.
-          sed -i 's#deb\.debian\.org#archive.debian.org#g' /etc/apt/sources.list $(ls /etc/apt/sources.list.d/* 2>/dev/null || true)
-          apt-get -o Acquire::Check-Valid-Until=false update
+          apt-get update
           # Java compiles Ruffle's playerglobal ActionScript at build time;
-          # ImageMagick turns the app's .ico into the menu entry's PNG.
+          # ImageMagick turns the app's .ico into the menu entry's PNG; file
+          # is used by appimagetool.
           apt-get install -y --no-install-recommends default-jre-headless \
-            pkg-config libasound2-dev libudev-dev libfontconfig1-dev g++ imagemagick
+            pkg-config libasound2-dev libudev-dev libfontconfig1-dev g++ imagemagick file
           curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
@@ -121,7 +124,12 @@ jobs:
           ls -la target/release/ruffle_desktop
           echo "Linked libraries:"; ldd target/release/ruffle_desktop
           if ldd target/release/ruffle_desktop | grep -q libssl; then echo "linked to OpenSSL"; exit 1; fi
-          echo "Newest glibc symbol: $(objdump -T target/release/ruffle_desktop | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tail -1)"
+          newest="$(objdump -T target/release/ruffle_desktop | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tail -1)"
+          echo "Newest glibc symbol: $newest"
+          # Ubuntu 22.04's glibc is 2.35: nothing newer, or the player no longer starts there.
+          if [ "$(printf '%s\nGLIBC_2.35\n' "$newest" | sort -V | tail -1)" != "GLIBC_2.35" ]; then
+            echo "the player needs $newest, newer than Ubuntu 22.04's GLIBC_2.35"; exit 1
+          fi
 
       - name: Publish Skua for Linux
         run: |
@@ -148,6 +156,27 @@ jobs:
           chmod 755 out/VibeSkua/VibeSkua "out/VibeSkua/VibeSkua Manager"
           mkdir -p dist
           tar -C out -czf "dist/VibeSkua-linux-x64-${{ steps.ver.outputs.version }}.tar.gz" VibeSkua
+
+      - name: Package AppImage
+        run: |
+          set -eu
+          app=/tmp/VibeSkua.AppDir
+          mkdir -p "$app"
+          cp -a out/VibeSkua "$app/VibeSkua"
+          rm -f "$app/VibeSkua/VibeSkua Manager" "$app/VibeSkua/install-desktop-entry.sh"
+          install -m 755 docs/linux-AppRun.sh "$app/AppRun"
+          cp out/VibeSkua/vibeskua.png "$app/vibeskua.png"
+          ln -s vibeskua.png "$app/.DirIcon"
+          printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=VibeSkua' \
+            'Comment=AQW bot client' 'Exec=VibeSkua' 'Icon=vibeskua' 'Categories=Game;' \
+            'Terminal=false' 'Actions=Manager;' '' '[Desktop Action Manager]' \
+            'Name=VibeSkua Manager' 'Exec=VibeSkua --manager' > "$app/vibeskua.desktop"
+          curl -sSfL -o /tmp/appimagetool \
+            https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+          chmod 755 /tmp/appimagetool
+          # No FUSE in the build container: the tool runs from its extracted self.
+          APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 /tmp/appimagetool --no-appstream "$app" \
+            "dist/VibeSkua-linux-x64-${{ steps.ver.outputs.version }}.AppImage"
           ls -la dist
 
       - name: Publish Gitea release
@@ -160,10 +189,13 @@ jobs:
           draft: ${{ inputs.draft || 'true' }}
           files: dist/*
           body: |
-            VibeSkua for Linux (x86-64, glibc 2.31+), test build: the Avalonia client with each
+            VibeSkua for Linux (x86-64; Ubuntu 22.04, Debian 12, Fedora 35 or newer), test build: the Avalonia client with each
             tab's game in Ruffle's desktop player (no Flash, no browser), from branch windows
             at ${{ github.sha }}.
 
             `tar xzf` the archive and run `./VibeSkua`, or `./VibeSkua Manager` to start saved
             accounts as tabs; `./install-desktop-entry.sh` adds both to the applications menu.
             See README.txt inside.
+
+            Or the AppImage: `chmod +x` it and run it; `--manager` (or "Manager" in its file
+            name) opens the Manager.
