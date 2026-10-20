@@ -44,6 +44,9 @@ One card per tab:
   is on).
 - **Map, room, level and class, gold, AC, script** (the room needs VibeSkua 1.3.0 or
   newer; it reads "hidden" with Streamer mode on), and HP / MP bars.
+- **Running:** how long the running script has run (h:mm:ss, ticking), from
+  its last start: a restart, or the next script of a queue, starts it at 0 again.
+  Hover for the start time. Needs a VibeSkua newer than 2.1.0.
 - **Inventory:** slots used and free ("144/161 (17 free)"), amber with 5 or
   fewer free (drops and quest items need room) and red when full. Needs a
   VibeSkua newer than 1.3.0.

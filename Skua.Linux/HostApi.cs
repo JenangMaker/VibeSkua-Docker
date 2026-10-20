@@ -31,7 +31,13 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
         _listener.Start();
         _ = Task.Run(Loop);   // off any caller's synchronization context
         WatchHeadless();
+        // When the running script started, for the manager's elapsed time.
+        var status = StrongReferenceMessenger.Default;
+        status.Register<HostApi, ScriptStartedMessage, int>(this, (int)MessageChannels.ScriptStatus, (r, _) => r._scriptStartedAt = DateTime.UtcNow);
+        status.Register<HostApi, ScriptStoppedMessage, int>(this, (int)MessageChannels.ScriptStatus, (r, _) => r._scriptStartedAt = null);
     }
+
+    private DateTime? _scriptStartedAt;
 
     private async Task Loop()
     {
@@ -163,7 +169,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
             quests = read.Quests,
             equipment = read.Equipment,
             throttle = detail ? new { hidden = IsShrunk, headless = IsHeadless } : null,
-            script = new { running = manager.ScriptRunning, loaded = manager.LoadedScript },
+            script = new { running = manager.ScriptRunning, loaded = manager.LoadedScript, startedAt = manager.ScriptRunning ? _scriptStartedAt : null },
             // Message boxes open in this tab, waiting for an answer (POST /dialog/answer).
             dialogs = PendingDialogs.List().Select(d => new { id = d.Id, title = d.Title, message = d.Message, buttons = d.Buttons, at = d.At }),
             scripts = new

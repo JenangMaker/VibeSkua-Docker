@@ -5,6 +5,18 @@
 
 const $ = sel => document.querySelector(sel);
 const POLL_MS = 4000;
+
+// A script's running time as h:mm:ss (days as "2d 3:04:05").
+function fmtElapsed(ms) {
+  const t = Math.max(0, Math.floor(ms / 1000));
+  const d = Math.floor(t / 86400), hh = Math.floor(t / 3600) % 24, mm = Math.floor(t / 60) % 60, ss = t % 60;
+  const p = n => String(n).padStart(2, '0');
+  return `${d ? `${d}d ` : ''}${hh}:${p(mm)}:${p(ss)}`;
+}
+function tickElapsed(el) {
+  el.textContent = el.dataset.start ? fmtElapsed(Date.now() - Number(el.dataset.start)) : '-';
+}
+setInterval(() => document.querySelectorAll('dd[data-start]').forEach(tickElapsed), 1000);
 const OPTIONS = [
   ['LagKiller', 'Lag Killer'], ['HidePlayers', 'Hide Players'], ['DisableFX', 'Disable FX'],
   ['SkipCutscenes', 'Skip Cutscenes'], ['InfiniteRange', 'Infinite Range'], ['Magnetise', 'Magnetise'],
@@ -437,7 +449,7 @@ function makeCard(n) {
       r.pill = h('span', { class: 'pill' }),
       r.shown = h('span', { class: 'shown-badge', text: 'Shown', title: 'This tab is the one shown on the VibeSkua desktop', hidden: true }),
       r.dialogBadge = h('button', { type: 'button', class: 'dialog-badge', hidden: true, onclick: () => openMsgbox(n) }, 'Waiting for you')),
-    h('dl', { class: 'kv' }, field('map', 'Map'), field('room', 'Room'), field('level', 'Level'), field('gold', 'Gold'), field('coins', 'AC'), field('bag', 'Inventory'), field('script', 'Script')),
+    h('dl', { class: 'kv' }, field('map', 'Map'), field('room', 'Room'), field('level', 'Level'), field('gold', 'Gold'), field('coins', 'AC'), field('bag', 'Inventory'), field('script', 'Script'), field('elapsed', 'Running')),
     h('div', { class: 'bars' }, bar('hp', 'HP'), bar('mp', 'MP')),
     r.fight = h('div', { class: 'fight' },
       h('div', { class: 'fight-head' }, h('span', { class: 'muted', text: 'Target' }), r.targetName = h('b'), r.targetPct = h('span', { class: 'muted' })),
@@ -529,6 +541,13 @@ function updateCard(card, tab, status) {
   r.bag.title = bag ? `${free > 0 ? free : 0} inventory slot${free === 1 ? '' : 's'} free` : '';
   r.script.textContent = script?.loaded ? `${scriptName(script.loaded)}${script.running ? ' (running)' : ' (loaded)'}` : 'none';
   r.script.title = script?.loaded || '';
+  // How long the running script has run (script.startedAt: VibeSkua 2.2.0+),
+  // ticked every second by tickElapsed between polls.
+  const started = script?.running && script.startedAt ? Date.parse(script.startedAt) : NaN;
+  if (Number.isNaN(started)) delete r.elapsed.dataset.start;
+  else r.elapsed.dataset.start = String(started);
+  r.elapsed.title = Number.isNaN(started) ? '' : `Started ${new Date(started).toLocaleString()}`;
+  tickElapsed(r.elapsed);
   // Its queue (VibeSkua with script queues): where it is, and whether it plays.
   const qs = tab.queue;
   r.queueBtn.textContent = !qs ? 'Queue...' : qs.finished ? `Queue (${qs.count}, finished)...`
