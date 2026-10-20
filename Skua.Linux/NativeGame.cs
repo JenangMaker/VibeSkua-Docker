@@ -170,6 +170,12 @@ public sealed class NativeGame
                 // Its last lines (the panic) may still be on their way.
                 await Task.WhenAny(_forwarding, Task.Delay(TimeSpan.FromSeconds(3)));
                 Console.Error.WriteLine($"[game] the player exited ({process.ExitCode})");
+                // A crash in its first seconds is the graphics not starting too,
+                // though it logs nothing: on Windows a GPU driver's access
+                // violation while Vulkan starts (an issue's log: -1073741819,
+                // 0.1 s after "Using preferred backend Vulkan", every start).
+                if (!_gpuFault && Crashed(process.ExitCode) && DateTime.UtcNow - started < TimeSpan.FromSeconds(10))
+                    _gpuFault = _startFault = true;
                 if (_gpuFault && process.ExitCode != 0)
                 {
                     // Filters first: their full-size textures are what ran an
@@ -233,11 +239,20 @@ public sealed class NativeGame
         }
         if (_graphics is not null && _graphics.Equals("gl", StringComparison.OrdinalIgnoreCase))
             _software = true;
+        // Windows: DirectX 12 before OpenGL, its own GPU path and the better one there.
+        else if (OperatingSystem.IsWindows() && !"dx12".Equals(_graphics, StringComparison.OrdinalIgnoreCase))
+            _graphics = "dx12";
         else
             _graphics = "gl";
         _fellBack = true;
-        Console.Error.WriteLine($"[game] the GPU failed on {from}; the player now draws with {(_software ? "gl in software (llvmpipe, slower)" : "gl")}");
+        Console.Error.WriteLine($"[game] the GPU failed on {from}; the player now draws with {(_software ? "gl in software (llvmpipe, slower)" : _graphics)}");
     }
+
+    /// <summary>Died of a crash, not an exit or our Kill: an NTSTATUS error
+    /// (0xC...) on Windows, SIGABRT or SIGSEGV elsewhere.</summary>
+    private static bool Crashed(int code) => OperatingSystem.IsWindows()
+        ? ((uint)code & 0xF0000000) == 0xC0000000
+        : code is 134 or 139;
 
     private Process Launch(string bin, string swf)
     {
