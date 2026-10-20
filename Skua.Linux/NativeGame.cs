@@ -15,11 +15,13 @@ namespace Skua.Linux;
 ///   SKUA_GAME          native: this mode (anything else: the Electron page)
 ///   SKUA_RUFFLE_BIN    the player       (/opt/ruffle/ruffle_desktop)
 ///   SKUA_SWF           skua.swf         (next to Skua's own files)
-///   RUFFLE_QUALITY     low, medium, high... (low); also the most the game
-///                      can raise it to (RUFFLE_MAX_QUALITY, below)
+///   RUFFLE_QUALITY     low, medium, high... (low): the quality the player
+///                      starts with; the game then sets its own (its Quality
+///                      option)
 ///   RUFFLE_MAX_QUALITY the highest anti-aliasing the game may set with
-///                      stage.quality (default: RUFFLE_QUALITY; Windows
-///                      player only)
+///                      stage.quality (default: none, the game's option
+///                      rules; low while drawing in software; the desktop
+///                      client's player only)
 ///   RUFFLE_GRAPHICS    vulkan, gl...    (the player's default; gl when
 ///                      RUFFLE_FILTERS is on, see InitialGraphics). If the GPU
 ///                      fails while the player draws, it is started again one
@@ -289,11 +291,16 @@ public sealed class NativeGame
         info.ArgumentList.Add(swf);
 
         info.Environment["SKUA_BRIDGE_URL"] = _bridgeUrl;
-        // AQW sets stage.quality HIGH (4x anti-aliasing) whatever the player
-        // started with; with filters on that made each blended object's pass
+        // AQW sets stage.quality from its Quality option (HIGH, 4x anti-aliasing,
+        // unless changed); with filters on that made each blended object's pass
         // 4x and resolved the whole stage at every break (Battleon: 108-118 ms
-        // of an integrated GPU a frame, ~15 ms capped at low).
-        info.Environment["RUFFLE_MAX_QUALITY"] = SkuaRuntime.Env("RUFFLE_MAX_QUALITY", quality);
+        // of an integrated GPU a frame, ~15 ms capped at low). No cap by
+        // default, though: hidden tabs draw nothing (TabThrottle) and Headless
+        // ones 1 frame a second, so only a shown tab pays for it, and a cap
+        // made its text blurry whatever the player chose (issue #1). In
+        // software (llvmpipe) every sample is CPU time: low there.
+        if ((SkuaRuntime.EnvRaw("RUFFLE_MAX_QUALITY") ?? (_software ? "low" : null)) is { } maxQuality)
+            info.Environment["RUFFLE_MAX_QUALITY"] = maxQuality;
         // So the player ends with this Skua on Windows too, where it cannot
         // tell from its parent (the bridge's parent_watch).
         info.Environment["SKUA_PARENT_PID"] = Environment.ProcessId.ToString();
