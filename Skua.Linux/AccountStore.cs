@@ -105,6 +105,16 @@ public static class AccountStore
         }
     }
 
+    /// <summary>Removes every account in the file (not the environment's).</summary>
+    public static void Clear()
+    {
+        lock (Lock)
+        {
+            if (Load().Count > 0)
+                Save([]);
+        }
+    }
+
     // Written whole to a temporary file, then renamed over: a reader (main.js)
     // never sees half a file.
     private static void Save(List<Account> accounts)

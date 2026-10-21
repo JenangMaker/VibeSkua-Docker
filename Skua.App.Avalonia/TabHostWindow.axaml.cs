@@ -120,6 +120,12 @@ public partial class TabHostWindow : Window
             // Linux only: on Windows the games stay in windows of their own for now.
             _display = OperatingSystem.IsLinux() ? X.XOpenDisplay(null) : IntPtr.Zero;
             _hostXid = TryGetPlatformHandle()?.Handle is { } h ? (ulong)h : 0;
+            // Desktop client: an account the Manager starts is for that run
+            // only, as Skua's Manager opens just what was clicked. The file
+            // kept every account ever started, and each start of VibeSkua
+            // opened (and logged in) all of them.
+            if (SkuaRuntime.DesktopClient)
+                AccountStore.Clear();
             foreach (int n in InitialTabs)
                 AddTab(n);
             if (Tabs.Count > 0)
