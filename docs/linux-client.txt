@@ -70,6 +70,11 @@ RUFFLE_GRAPHICS            the player's graphics API: vulkan or gl (default:
                            its own choice)
 RUFFLE_FILTERS             on (default here): glows, blurs and blend effects;
                            off draws faster, as the Docker build does
+RUFFLE_MOUSE_MOVE_MS       mouse moves reach the game at most every this many
+                           ms, the last position kept and always sent before
+                           a click, scroll or key (default 16; 0: every move,
+                           which cost about a third of the frame rate in a
+                           busy room while the mouse moved)
 
 The control API listens on 127.0.0.1 only: 8791 for tab 1, 8801 for tab 2...
 (GET /status). The same settings as the Docker image apply; see DOCKER.md in

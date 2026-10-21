@@ -71,6 +71,11 @@ RUFFLE_IDLE_PICK_MS        how often the player checks what is under a resting
                            mouse, in ms (default 100; 0: after every update,
                            which halves the frame rate with the pointer over
                            the game)
+RUFFLE_MOUSE_MOVE_MS       mouse moves reach the game at most every this many
+                           ms, the last position kept and always sent before
+                           a click, scroll or key (default 16; 0: every move,
+                           which cost about a third of the frame rate in a
+                           busy room while the mouse moved)
 RUFFLE_GPU_MEMORY          low (default): the player takes GPU memory in small
                            blocks (about 130 MB a player at login instead
                            of 290 MB); performance: wgpu's own large blocks
