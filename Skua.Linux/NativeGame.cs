@@ -32,6 +32,10 @@ namespace Skua.Linux;
 ///                      software (llvmpipe), for as long as this Skua runs
 ///   RUFFLE_ARGS        more player switches, space separated
 ///   RUFFLE_MAX_FPS     a starting cap on pictures drawn a second (1-60)
+///   RUFFLE_CHILD_WINDOW on (Windows): the player creates its window inside
+///                      VibeSkua's from the start (SKUA_PARENT_HWND) instead
+///                      of being moved into it afterwards (off by default,
+///                      being measured)
 ///   RUFFLE_PRESENT     auto (default), immediate, mailbox or fifo: how the
 ///                      player presents frames (passed on as it is)
 ///   RUFFLE_FILTERS     on to draw filters (glows, blurs), bitmap caches and
@@ -110,6 +114,15 @@ public sealed class NativeGame
 
     public static NativeGame? Current { get; private set; }
 
+    /// <summary>RUFFLE_CHILD_WINDOW (Windows): the player starts as a child of
+    /// VibeSkua's window, so it is started once that window is open.</summary>
+    public static bool ChildWindow => OperatingSystem.IsWindows()
+        && SkuaRuntime.EnvRaw("RUFFLE_CHILD_WINDOW") is "on" or "1" or "true";
+
+    /// <summary>The window the player draws inside (GameEmbed sets it when
+    /// VibeSkua's window opens), for ChildWindow.</summary>
+    public static readonly TaskCompletionSource<long> ParentWindow = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     /// <summary>The player's process id, while it runs.</summary>
     public int? Pid
     {
@@ -155,6 +168,10 @@ public sealed class NativeGame
         string swf = SkuaRuntime.Env("SKUA_SWF", Path.Combine(AppContext.BaseDirectory, "skua.swf"));
         var delay = TimeSpan.FromSeconds(2);
         _graphics = InitialGraphics();
+        // Without the window (none opened in time) it starts as a top-level
+        // window, embedded the usual way.
+        if (ChildWindow)
+            await Task.WhenAny(ParentWindow.Task, Task.Delay(TimeSpan.FromSeconds(30)));
         while (true)
         {
             lock (_lock)
@@ -294,6 +311,8 @@ public sealed class NativeGame
         info.ArgumentList.Add(swf);
 
         info.Environment["SKUA_BRIDGE_URL"] = _bridgeUrl;
+        if (ChildWindow && ParentWindow.Task.IsCompletedSuccessfully)
+            info.Environment["SKUA_PARENT_HWND"] = ParentWindow.Task.Result.ToString();
         // AQW sets stage.quality from its Quality option (HIGH, 4x anti-aliasing,
         // unless changed); with filters on that made each blended object's pass
         // 4x and resolved the whole stage at every break (Battleon: 108-118 ms

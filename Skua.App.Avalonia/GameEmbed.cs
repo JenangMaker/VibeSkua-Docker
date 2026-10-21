@@ -62,6 +62,9 @@ public sealed class GameEmbed : IDisposable
         }
         if (Win)
         {
+            // The player may wait for this to create its window inside ours.
+            if (_window.TryGetPlatformHandle()?.Handle is { } handle && handle != IntPtr.Zero)
+                NativeGame.ParentWindow.TrySetResult((long)handle);
             _area.PropertyChanged += (_, e) =>
             {
                 if (e.Property == Visual.BoundsProperty)
