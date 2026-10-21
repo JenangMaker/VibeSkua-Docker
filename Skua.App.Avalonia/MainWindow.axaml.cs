@@ -172,23 +172,55 @@ public partial class MainWindow : Window
         }
     }
 
+    private int _statusBusy;
+
+    // The status line's values are calls to the game, each waiting for its
+    // answer (up to the bridge's CallTimeout), so they are read on a pool
+    // thread. On the UI thread, every half second, that wait froze the window,
+    // and on Windows the embedded game with it: a click in the game makes
+    // Windows send this window messages and wait for them (focus, the click
+    // notice), while this thread waited for the game. Neither answered: "the
+    // game window froze together with VibeSkua".
     private void UpdateStatus()
     {
         if (App.Runtime is not { } runtime)
             return;
-        var bridge = runtime.Bridge;
-        if (!bridge.IsConnected)
+        if (!runtime.Bridge.IsConnected)
         {
             StatusText.Text = "Waiting for the game page to connect...";
             return;
         }
+        if (Interlocked.Exchange(ref _statusBusy, 1) == 1)
+            return;
+        _ = Task.Run(() =>
+        {
+            string? text = null;
+            try
+            {
+                text = ReadStatus();
+            }
+            catch (Exception)
+            {
+                // A call that timed out: keep the last line until the next try.
+            }
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (text is not null)
+                    StatusText.Text = text;
+                Volatile.Write(ref _statusBusy, 0);
+            });
+        });
+    }
+
+    private static string ReadStatus()
+    {
         var bot = App.Service<IScriptInterface>();
         var scripts = App.Service<IScriptManager>();
         string script = scripts.ScriptRunning ? $"running {Path.GetFileNameWithoutExtension(scripts.LoadedScript)}" : "no script running";
         string name = bot.Options.StreamerMode
             ? $"Player {Skua.Linux.SkuaRuntime.Instance + 1}"   // matches the tab header
             : bot.Player.Username;
-        StatusText.Text = bot.Player.LoggedIn
+        return bot.Player.LoggedIn
             ? $"{name} in {bot.Map.Name} ({bot.Player.Cell}) - HP {bot.Player.Health}/{bot.Player.MaxHealth} - {script}"
             : $"Connected, not logged in - {script}";
     }
