@@ -29,7 +29,10 @@ namespace Skua.Linux;
 ///                      RUFFLE_FILTERS is on, see InitialGraphics). If the GPU
 ///                      fails while the player draws, it is started again one
 ///                      step down: Vulkan (or the default) -> gl -> gl in
-///                      software (llvmpipe), for as long as this Skua runs
+///                      software (llvmpipe), for as long as this Skua runs.
+///                      Windows desktop client: dx12 on Intel-only graphics,
+///                      and after Vulkan crashed while starting (kept in
+///                      %AppData%ibeskua\graphics.txt)
 ///   RUFFLE_ARGS        more player switches, space separated
 ///   RUFFLE_MAX_FPS     a starting cap on pictures drawn a second (1-60)
 ///   RUFFLE_PRESENT     auto (default), immediate, mailbox or fifo: how the
@@ -229,7 +232,91 @@ public sealed class NativeGame
         // Not in the desktop client: that was the server's Intel iGPU under
         // Mesa; on a PC the player's own choice (Vulkan, or DirectX 12 on
         // Windows) suits best, and Keep still falls back if the GPU fails.
+        if (SkuaRuntime.DesktopClient && OperatingSystem.IsWindows())
+        {
+            if (RememberedGraphics() is { } remembered)
+            {
+                Console.Error.WriteLine($"[game] drawing with {remembered}: Vulkan crashed while starting here before ({RememberFile})");
+                return remembered;
+            }
+            if (IntelGraphicsOnly() is { } intel)
+            {
+                Console.Error.WriteLine($"[game] drawing with dx12 on {intel} (Intel graphics: its Vulkan driver crashed at start on an HD 520)");
+                return "dx12";
+            }
+        }
         return FiltersOn() && !SkuaRuntime.DesktopClient ? "gl" : null;
+    }
+
+    // The graphics the player falls back to on Windows, kept across starts:
+    // the Vulkan driver of an Intel HD 520 crashed every start (GitHub issue
+    // #2), which cost a crash and a 4 s wait each time. Delete the file to
+    // try the default again.
+    private static string RememberFile => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "vibeskua", "graphics.txt");
+
+    private static string? RememberedGraphics()
+    {
+        try
+        {
+            string? first = File.Exists(RememberFile) ? File.ReadLines(RememberFile).FirstOrDefault()?.Trim() : null;
+            return first is "dx12" or "gl" ? first : null;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    private static void RememberGraphics(string graphics)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(RememberFile)!);
+            File.WriteAllText(RememberFile, $"{graphics}{Environment.NewLine}Vulkan crashed while the player started, {DateTime.Now:yyyy-MM-dd HH:mm}. Delete this file to try it again.{Environment.NewLine}");
+            Console.Error.WriteLine($"[game] {graphics} kept for the next starts ({RememberFile})");
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine($"[game] could not keep {graphics} for the next starts: {e.Message}");
+        }
+    }
+
+    /// <summary>The name of the PC's Intel graphics when no other GPU (NVIDIA,
+    /// AMD) is installed, as Mugetsu starts on DirectX 12 there. From the
+    /// display adapters' driver entries in the registry.</summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static string? IntelGraphicsOnly()
+    {
+        try
+        {
+            using var display = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+                @"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}");
+            if (display is null)
+                return null;
+            string? intel = null;
+            foreach (string name in display.GetSubKeyNames())
+            {
+                if (!name.All(char.IsAsciiDigit))
+                    continue;
+                using var adapter = display.OpenSubKey(name);
+                string desc = adapter?.GetValue("DriverDesc") as string ?? "";
+                string provider = adapter?.GetValue("ProviderName") as string ?? "";
+                string both = desc + " " + provider;
+                if (both.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase)
+                    || both.Contains("AMD", StringComparison.OrdinalIgnoreCase)
+                    || both.Contains("Radeon", StringComparison.OrdinalIgnoreCase)
+                    || both.Contains("ATI ", StringComparison.OrdinalIgnoreCase))
+                    return null;
+                if (both.Contains("Intel", StringComparison.OrdinalIgnoreCase))
+                    intel ??= desc;
+            }
+            return intel;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     /// <summary>The player died of a GPU fault: one step down, as Selkies
@@ -246,7 +333,12 @@ public sealed class NativeGame
             _software = true;
         // Windows: DirectX 12 before OpenGL, its own GPU path and the better one there.
         else if (OperatingSystem.IsWindows() && !"dx12".Equals(_graphics, StringComparison.OrdinalIgnoreCase))
+        {
             _graphics = "dx12";
+            // Vulkan crashed while starting: next time start on dx12 straight away.
+            if (_startFault && SkuaRuntime.DesktopClient)
+                RememberGraphics("dx12");
+        }
         else
             _graphics = "gl";
         _fellBack = true;
