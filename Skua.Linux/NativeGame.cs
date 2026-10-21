@@ -20,8 +20,11 @@ namespace Skua.Linux;
 ///                      option)
 ///   RUFFLE_MAX_QUALITY the highest anti-aliasing the game may set with
 ///                      stage.quality (default: none, the game's option
-///                      rules; low while drawing in software; the desktop
-///                      client's player only)
+///                      rules; low while drawing in software with
+///                      multisampling; the desktop client's player only)
+///   RUFFLE_EDGE_AA     on (the desktop client's default): edges smoothed
+///                      with a soft border instead of multisampling; off:
+///                      multisampling (desktop client's player only)
 ///   RUFFLE_GRAPHICS    vulkan, gl...    (the player's default; gl when
 ///                      RUFFLE_FILTERS is on, see InitialGraphics). If the GPU
 ///                      fails while the player draws, it is started again one
@@ -298,8 +301,18 @@ public sealed class NativeGame
         // default, though: hidden tabs draw nothing (TabThrottle) and Headless
         // ones 1 frame a second, so only a shown tab pays for it, and a cap
         // made its text blurry whatever the player chose (issue #1). In
-        // software (llvmpipe) every sample is CPU time: low there.
-        if ((SkuaRuntime.EnvRaw("RUFFLE_MAX_QUALITY") ?? (_software ? "low" : null)) is { } maxQuality)
+        // software (llvmpipe) every sample is CPU time: low there, unless
+        // edges are smoothed without samples (below).
+        //
+        // The desktop client's player smooths edges with a soft border along
+        // each one instead (RUFFLE_EDGE_AA), the way Flash Player drew them:
+        // Medium and High look smooth while each pixel is still drawn once, as
+        // at Low. RUFFLE_EDGE_AA=off brings back multisampling. The Docker
+        // image's player has no such option.
+        bool edgeAa = SkuaRuntime.DesktopClient && SkuaRuntime.EnvRaw("RUFFLE_EDGE_AA") is null or "on";
+        if (SkuaRuntime.DesktopClient && SkuaRuntime.EnvRaw("RUFFLE_EDGE_AA") is null)
+            info.Environment["RUFFLE_EDGE_AA"] = "on";
+        if ((SkuaRuntime.EnvRaw("RUFFLE_MAX_QUALITY") ?? (_software && !edgeAa ? "low" : null)) is { } maxQuality)
             info.Environment["RUFFLE_MAX_QUALITY"] = maxQuality;
         // So the player ends with this Skua on Windows too, where it cannot
         // tell from its parent (the bridge's parent_watch).

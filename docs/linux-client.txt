@@ -61,7 +61,11 @@ RUFFLE_QUALITY             low (default), medium, high: the anti-aliasing the
                            game starts with; then its own Quality option rules
 RUFFLE_MAX_QUALITY         the most the game's Quality option can raise it to
                            (default: no limit; low when the player falls back
-                           to drawing in software)
+                           to drawing in software with RUFFLE_EDGE_AA=off)
+RUFFLE_EDGE_AA             on (default): smooth edges with a soft border
+                           along each one, as Flash Player did, instead of
+                           drawing everything 2-4 times over (multisampling);
+                           off: multisampling
 RUFFLE_GRAPHICS            the player's graphics API: vulkan or gl (default:
                            its own choice)
 RUFFLE_FILTERS             on (default here): glows, blurs and blend effects;
