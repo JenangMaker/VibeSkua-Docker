@@ -145,16 +145,37 @@ public sealed class RuffleBridge : IDisposable
             {
                 return;
             }
-
-            string? origin = ctx.Request.Headers["Origin"];
-            if (!ctx.Request.IsWebSocketRequest || (origin is not null && !_allowedOrigins.Contains(origin)))
+            catch (Exception e)
             {
-                ctx.Response.StatusCode = ctx.Request.IsWebSocketRequest ? 403 : 400;
-                ctx.Response.Close();
+                if (!_listener.IsListening)
+                    return;
+                Console.Error.WriteLine($"[bridge] accepting a connection failed: {e.Message}");
                 continue;
             }
 
-            var socket = (await ctx.AcceptWebSocketAsync(null).ConfigureAwait(false)).WebSocket;
+            // A failure here ended the loop (it runs unobserved), and no page
+            // could connect again: a player that crashed while connecting (a
+            // GPU driver failing as it starts, then the fallback's player)
+            // left Skua waiting for the game for good.
+            WebSocket socket;
+            try
+            {
+                string? origin = ctx.Request.Headers["Origin"];
+                if (!ctx.Request.IsWebSocketRequest || (origin is not null && !_allowedOrigins.Contains(origin)))
+                {
+                    ctx.Response.StatusCode = ctx.Request.IsWebSocketRequest ? 403 : 400;
+                    ctx.Response.Close();
+                    continue;
+                }
+
+                socket = (await ctx.AcceptWebSocketAsync(null).ConfigureAwait(false)).WebSocket;
+            }
+            catch (Exception e) when (!_cts.IsCancellationRequested)
+            {
+                Console.Error.WriteLine($"[bridge] a page's connection failed while opening: {e.Message}");
+                try { ctx.Response.Abort(); } catch { }
+                continue;
+            }
             var previous = Interlocked.Exchange(ref _socket, socket);
             if (previous is not null)
             {
