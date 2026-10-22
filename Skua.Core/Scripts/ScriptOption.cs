@@ -30,7 +30,6 @@ public partial class ScriptOption : ObservableRecipient, IScriptOption, IOptionD
         GetOptions();
         OptionDictionary = GenerateDictionary().ToImmutableDictionary();
         StrongReferenceMessenger.Default.Register<ScriptOption, ScriptStoppedMessage, int>(this, (int)MessageChannels.ScriptStatus, ScriptStopped);
-        StrongReferenceMessenger.Default.Register<ScriptOption, MapChangedMessage, int>(this, (int)MessageChannels.GameEvents, MapChanged);
         _isInitializing = false;
     }
 
@@ -43,26 +42,6 @@ public partial class ScriptOption : ObservableRecipient, IScriptOption, IOptionD
         recipient.AggroAllMonsters = false;
         recipient.AggroMonsters = false;
         recipient.SkipCutscenes = false;
-    }
-
-    private void MapChanged(ScriptOption recipient, MapChangedMessage message)
-    {
-        if (recipient.StreamerMode)
-        {
-            Task.Run(async () => 
-            {
-                await Task.Delay(1000); // Give the Flash map UI time to load the string
-                var rawMapName = (recipient._lazyFlash.Value.GetGameObject("world.strMapName") ?? "").Trim('"');
-                if (!string.IsNullOrEmpty(rawMapName))
-                {
-                    var cleanMapName = rawMapName.Length > 1 
-                        ? char.ToUpper(rawMapName[0]) + rawMapName.Substring(1).ToLower() 
-                        : rawMapName.ToUpper();
-                    
-                    recipient._lazyFlash.Value.Call("setGameObject", "ui.mcInterface.areaList.title.t1.text", cleanMapName);
-                }
-            });
-        }
     }
 
     private readonly Lazy<IFlashUtil> _lazyFlash;
@@ -235,17 +214,21 @@ public partial class ScriptOption : ObservableRecipient, IScriptOption, IOptionD
                         var flash = _lazyFlash.Value;
                         if (flash == null) return;
                         
-                        // One call (skua.swf streamerMode) instead of eight or nine:
-                        // names and portraits say VibeSkuaUser/Hidden, the real name
-                        // labels and the chat log stay hidden (the game writes them
-                        // back, in a fight several times a second), and the area
-                        // title shows the bare map name. Visuals only: never objData,
-                        // which breaks shops and inventory. Not the chat entry box
-                        // (te): hiding it took its focus away right after a click.
+                        // skua.swf streamerMode masks inside the game, on every frame
+                        // just before it is drawn: names and portraits say
+                        // VibeSkuaUser/Hidden, the real name labels and the chat log
+                        // stay hidden, and the area title shows the bare map name
+                        // (the game writes them back on every map or room change).
+                        // Masked from here every half second instead, the room
+                        // number showed for up to half a second after a map change.
+                        // This call only arms it again after the game reloads.
+                        // Visuals only: never objData, which breaks shops and
+                        // inventory. Not the chat entry box (te): hiding it took its
+                        // focus away right after a click.
                         flash.Call("streamerMode", "VibeSkuaUser", "Hidden");
                     }
                     catch { }
-                    await System.Threading.Tasks.Task.Delay(500, _streamerModeCts.Token);
+                    await System.Threading.Tasks.Task.Delay(2000, _streamerModeCts.Token);
                 }
             }, _streamerModeCts.Token);
         }
@@ -264,6 +247,9 @@ public partial class ScriptOption : ObservableRecipient, IScriptOption, IOptionD
                 var flash = _lazyFlash.Value;
                 if (flash != null)
                 {
+                    // Stop masking inside the game first, or it hides these again.
+                    flash.Call("streamerModeOff");
+
                     // Restore Chat
                     flash.Call("setGameObject", "world.rootClass.ui.mcInterface.t1.visible", true);
                     flash.Call("setGameObject", "world.rootClass.ui.mcInterface.te.visible", true);

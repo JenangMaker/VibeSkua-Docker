@@ -1,11 +1,21 @@
 package skua.api {
 import flash.display.DisplayObject;
+import flash.display.Stage;
+import flash.events.Event;
 import flash.events.TimerEvent;
 import flash.utils.Timer;
 
 import skua.Main;
 
 public class World {
+    // Streamer mode while on: the name and guild it shows (see streamerMode).
+    private static var _streamerName:String = null;
+    private static var _streamerGuild:String = null;
+    // The stage its hook listens on: the game's. Main takes itself off the
+    // stage when the game has loaded and puts the game there, so its own
+    // stage is null from then on.
+    private static var _streamerStage:Stage = null;
+
     private static var _fxStore:Object = {};
     private static var _fxLastOpt:Boolean = false;
 
@@ -297,30 +307,95 @@ public class World {
     }
 
     /**
-     * Streamer mode's half-second pass in one call (it was eight or nine):
-     * the name tag, guild and portraits say name/guild, the real name labels
-     * and the chat log stay hidden (the game writes them back), and the area
-     * title shows the bare map name. Each set fails on its own, as the
-     * separate calls did.
+     * Streamer mode on, with the name and guild to show. From then on the
+     * masking runs on every frame just before it is drawn (Event.RENDER,
+     * asked for each frame with stage.invalidate()), after the frame's
+     * scripts and server messages: the game writes the real name and the
+     * "map-room" title back when it changes map or room, and Skua's
+     * half-second pass from outside left them on screen until it came (the
+     * room number for 216-513 ms after a map change). Skua still calls this
+     * now and then, which arms it again after the game is reloaded.
      */
     public static function streamerMode(name:String, guild:String):void {
+        _streamerName = name;
+        _streamerGuild = guild;
+        if (_streamerStage == null) {
+            var stage:Stage = null;
+            try { stage = Main.instance.game.stage; } catch (e:*) {}
+            if (stage != null) {
+                _streamerStage = stage;
+                stage.addEventListener(Event.ENTER_FRAME, streamerFrame);
+                stage.addEventListener(Event.RENDER, streamerRender);
+            }
+        }
+        maskStreamer();
+    }
+
+    /** Streamer mode off: no more masking (Skua puts the real labels back). */
+    public static function streamerModeOff():void {
+        _streamerName = _streamerGuild = null;
+        if (_streamerStage != null) {
+            _streamerStage.removeEventListener(Event.ENTER_FRAME, streamerFrame);
+            _streamerStage.removeEventListener(Event.RENDER, streamerRender);
+            _streamerStage = null;
+        }
+    }
+
+    private static function streamerFrame(e:Event):void {
+        if (_streamerStage != null)
+            _streamerStage.invalidate();
+    }
+
+    private static function streamerRender(e:Event):void {
+        if (_streamerName != null)
+            maskStreamer();
+    }
+
+    /**
+     * Streamer mode, after the game handled a server message (Main): server
+     * messages are handled between frames, and the player may draw a picture
+     * there (after a mouse move) without a render event before it.
+     */
+    public static function streamerAfterMessage():void {
+        if (_streamerName != null)
+            maskStreamer();
+    }
+
+    /**
+     * The name tag, guild and portraits say the streamer name/guild, the real
+     * name labels and the chat log stay hidden, and the area title shows the
+     * bare map name. Each part fails on its own, and only writes what differs:
+     * setting a text field's text lays it out again even when it is the same,
+     * and this runs every frame.
+     */
+    private static function maskStreamer():void {
         var game:* = Main.instance.game;
-        try { game.world.myAvatar.pMC.pname.ti.text = name; } catch (e:*) {}
-        try { game.world.myAvatar.pMC.pname.tg.text = guild; } catch (e:*) {}
-        try { game.world.rootClass.ui.mcPortrait.strName.text = name; } catch (e:*) {}
-        try { game.world.rootClass.ui.mcPortraitTarget.strName.text = guild; } catch (e:*) {}
-        try { game.world.myAvatar.pMC.pname.ti.visible = false; } catch (e:*) {}
-        try { game.world.rootClass.ui.mcPortrait.strName.visible = false; } catch (e:*) {}
-        try { game.world.rootClass.ui.mcInterface.t1.visible = false; } catch (e:*) {}
+        try { setText(game.world.myAvatar.pMC.pname.ti, _streamerName); } catch (e:*) {}
+        try { setText(game.world.myAvatar.pMC.pname.tg, _streamerGuild); } catch (e:*) {}
+        try { setText(game.world.rootClass.ui.mcPortrait.strName, _streamerName); } catch (e:*) {}
+        try { setText(game.world.rootClass.ui.mcPortraitTarget.strName, _streamerGuild); } catch (e:*) {}
+        try { hide(game.world.myAvatar.pMC.pname.ti); } catch (e:*) {}
+        try { hide(game.world.rootClass.ui.mcPortrait.strName); } catch (e:*) {}
+        try { hide(game.world.rootClass.ui.mcInterface.t1); } catch (e:*) {}
         try {
             var map:* = game.world.strMapName;
             if (map is String && map.length > 0) {
-                game.ui.mcInterface.areaList.title.t1.text = map.charAt(0).toUpperCase() + map.substr(1).toLowerCase();
+                setText(game.ui.mcInterface.areaList.title.t1, map.charAt(0).toUpperCase() + map.substr(1).toLowerCase());
                 // A house map titles itself "<owner>'s House".
                 if (map.toLowerCase() == "house")
-                    game.world.map.txtHouse.text = "House";
+                    setText(game.world.map.txtHouse, "House");
             }
         } catch (e:*) {}
+    }
+
+    private static function setText(field:*, text:String):void {
+        if (field != null && field.text != text)
+            field.text = text;
+    }
+
+    private static function hide(item:*):void {
+        if (item != null && item.visible)
+            item.visible = false;
     }
 }
 }
