@@ -331,7 +331,12 @@ public class World {
         maskStreamer();
     }
 
-    /** Streamer mode off: no more masking (Skua puts the real labels back). */
+    /**
+     * Streamer mode off: no more masking (Skua puts the real labels back),
+     * and the area title as the game writes it ("1 player in yulgar-7314",
+     * "9 player(s) in battleon-1"), which otherwise kept the bare map name
+     * until the next room change.
+     */
     public static function streamerModeOff():void {
         _streamerName = _streamerGuild = null;
         if (_streamerStage != null) {
@@ -339,6 +344,13 @@ public class World {
             _streamerStage.removeEventListener(Event.RENDER, streamerRender);
             _streamerStage = null;
         }
+        try {
+            var world:* = Main.instance.game.world;
+            var players:int = world.areaUsers.length;
+            if (world.strAreaName is String && world.strAreaName.length > 0)
+                Main.instance.game.ui.mcInterface.areaList.title.t1.text =
+                    (players == 1 ? "1 player" : players + " player(s)") + " in " + world.strAreaName;
+        } catch (e:*) {}
     }
 
     private static function streamerFrame(e:Event):void {
@@ -373,7 +385,14 @@ public class World {
         try { setText(game.world.myAvatar.pMC.pname.ti, _streamerName); } catch (e:*) {}
         try { setText(game.world.myAvatar.pMC.pname.tg, _streamerGuild); } catch (e:*) {}
         try { setText(game.world.rootClass.ui.mcPortrait.strName, _streamerName); } catch (e:*) {}
-        try { setText(game.world.rootClass.ui.mcPortraitTarget.strName, _streamerGuild); } catch (e:*) {}
+        // The target's portrait only for a player (yourself: the streamer name;
+        // another player: the guild text). A monster keeps its own name.
+        try {
+            var target:* = game.world.myAvatar.target;
+            if (target != null && !(target.objData != null && target.objData.strMonName))
+                setText(game.world.rootClass.ui.mcPortraitTarget.strName,
+                    target == game.world.myAvatar ? _streamerName : _streamerGuild);
+        } catch (e:*) {}
         try { hide(game.world.myAvatar.pMC.pname.ti); } catch (e:*) {}
         try { hide(game.world.rootClass.ui.mcPortrait.strName); } catch (e:*) {}
         try { hide(game.world.rootClass.ui.mcInterface.t1); } catch (e:*) {}
