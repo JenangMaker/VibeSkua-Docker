@@ -1,5 +1,6 @@
 package skua.api {
 import flash.display.DisplayObject;
+import flash.display.Stage;
 import flash.events.Event;
 import flash.events.TimerEvent;
 import flash.utils.Timer;
@@ -10,6 +11,10 @@ public class World {
     // Streamer mode while on: the name and guild it shows (see streamerMode).
     private static var _streamerName:String = null;
     private static var _streamerGuild:String = null;
+    // The stage its hook listens on: the game's. Main takes itself off the
+    // stage when the game has loaded and puts the game there, so its own
+    // stage is null from then on.
+    private static var _streamerStage:Stage = null;
 
     private static var _fxStore:Object = {};
     private static var _fxLastOpt:Boolean = false;
@@ -312,12 +317,16 @@ public class World {
      * now and then, which arms it again after the game is reloaded.
      */
     public static function streamerMode(name:String, guild:String):void {
-        var armed:Boolean = _streamerName != null;
         _streamerName = name;
         _streamerGuild = guild;
-        if (!armed) {
-            Main.instance.addEventListener(Event.ENTER_FRAME, streamerFrame);
-            Main.instance.addEventListener(Event.RENDER, streamerRender);
+        if (_streamerStage == null) {
+            var stage:Stage = null;
+            try { stage = Main.instance.game.stage; } catch (e:*) {}
+            if (stage != null) {
+                _streamerStage = stage;
+                stage.addEventListener(Event.ENTER_FRAME, streamerFrame);
+                stage.addEventListener(Event.RENDER, streamerRender);
+            }
         }
         maskStreamer();
     }
@@ -325,16 +334,29 @@ public class World {
     /** Streamer mode off: no more masking (Skua puts the real labels back). */
     public static function streamerModeOff():void {
         _streamerName = _streamerGuild = null;
-        Main.instance.removeEventListener(Event.ENTER_FRAME, streamerFrame);
-        Main.instance.removeEventListener(Event.RENDER, streamerRender);
+        if (_streamerStage != null) {
+            _streamerStage.removeEventListener(Event.ENTER_FRAME, streamerFrame);
+            _streamerStage.removeEventListener(Event.RENDER, streamerRender);
+            _streamerStage = null;
+        }
     }
 
     private static function streamerFrame(e:Event):void {
-        if (Main.instance.stage != null)
-            Main.instance.stage.invalidate();
+        if (_streamerStage != null)
+            _streamerStage.invalidate();
     }
 
     private static function streamerRender(e:Event):void {
+        if (_streamerName != null)
+            maskStreamer();
+    }
+
+    /**
+     * Streamer mode, after the game handled a server message (Main): server
+     * messages are handled between frames, and the player may draw a picture
+     * there (after a mouse move) without a render event before it.
+     */
+    public static function streamerAfterMessage():void {
         if (_streamerName != null)
             maskStreamer();
     }
