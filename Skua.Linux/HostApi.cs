@@ -248,12 +248,15 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
             // The inventory, read once (the class, quests and equipment all
             // use it): it is the biggest read, ~150 items.
             var items = detail && loggedIn ? bot.Inventory.Items : null;
+            // Application Options > Show Username in Title: the tab header too
+            bool showName = services.GetService<ISettingsService>()?.Get<bool>("ShowUsernameInTitle") ?? true;
             game = !detail || !loggedIn
                 ? new
                 {
                     loggedIn,
                     player = player.Username,
                     streamer = bot.Options.StreamerMode,
+                    showName,
                     map = bot.Map.Name,
                     room,
                     cell = player.Cell,
@@ -264,6 +267,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                     loggedIn,
                     player = player.Username,
                     streamer = bot.Options.StreamerMode,
+                    showName,
                     map = bot.Map.Name,
                     room,
                     cell = player.Cell,

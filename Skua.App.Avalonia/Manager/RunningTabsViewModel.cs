@@ -64,7 +64,9 @@ public sealed class RunningTabsViewModel : ObservableObject
                 Status = "VibeSkua is not running. Start an account in the Accounts tab, or open VibeSkua.";
                 return;
             }
-            var list = (await HostClient.Get("/tabs")).EnumerateArray().Select(t => new RunningTab(this, t)).ToList();
+            var tabs = (await HostClient.Get("/tabs")).EnumerateArray().ToList();
+            // VibeSkua keeps at least one tab (it answers 409 to closing the last)
+            var list = tabs.Select(t => new RunningTab(this, t, canClose: tabs.Count > 1)).ToList();
             HostRunning = true;
             Tabs.Clear();
             foreach (var tab in list)
@@ -83,21 +85,26 @@ public sealed class RunningTabsViewModel : ObservableObject
 
     internal async Task Act(int tab, string action)
     {
+        string? error = null;
         try
         {
             await HostClient.Send(HttpMethod.Post, $"/tabs/{tab}/{action}");
         }
         catch (Exception e)
         {
-            Status = $"Tab {tab}: {e.Message}";
+            error = $"Tab {tab}: {e.Message}";
         }
         await Refresh();
+        // After the refresh, which writes the tab count over it: an error shown
+        // only until then was never seen, and the button seemed to do nothing.
+        if (error is not null)
+            Status = error;
     }
 }
 
 public sealed class RunningTab
 {
-    public RunningTab(RunningTabsViewModel owner, JsonElement t)
+    public RunningTab(RunningTabsViewModel owner, JsonElement t, bool canClose)
     {
         static string? Str(JsonElement e, string name) => e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
         Number = t.GetProperty("tab").GetInt32();
@@ -112,7 +119,8 @@ public sealed class RunningTab
         State = (LoggedIn ? "logged in" : "not logged in") + (queue is null ? "" : $", queue {queue}") + (cpu is { } p ? $", Skua {p:0.#}% CPU" : "");
         SelectCommand = new AsyncRelayCommand(() => owner.Act(Number, "select"));
         RestartCommand = new AsyncRelayCommand(() => owner.Act(Number, "restart"));
-        CloseCommand = new AsyncRelayCommand(() => owner.Act(Number, "close"));
+        CloseCommand = new AsyncRelayCommand(() => owner.Act(Number, "close"), () => canClose);
+        CloseTip = canClose ? "Close this tab" : "The last tab can't be closed: close VibeSkua instead";
     }
 
     public int Number { get; }
@@ -124,4 +132,5 @@ public sealed class RunningTab
     public IAsyncRelayCommand SelectCommand { get; }
     public IAsyncRelayCommand RestartCommand { get; }
     public IAsyncRelayCommand CloseCommand { get; }
+    public string CloseTip { get; }
 }

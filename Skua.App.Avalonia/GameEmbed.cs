@@ -282,6 +282,23 @@ public sealed class GameEmbed : IDisposable
         Place();
     }
 
+    /// <summary>
+    /// In Grid View, fit the game window to AQW's 960x550 stage and center it
+    /// in the game area. skua.swf aligns the stage to the top, so a cell taller
+    /// than the game had all its spare room in a black band under it.
+    /// </summary>
+    public void SetFitted(bool fitted)
+    {
+        if (_fitted == fitted)
+            return;
+        _fitted = fitted;
+        _placed = default;
+        Place();
+    }
+
+    private bool _fitted;
+    private const double StageAspect = 960.0 / 550.0;
+
     /// <summary>Keeps the game window over the game area.</summary>
     private void Place()
     {
@@ -291,9 +308,17 @@ public sealed class GameEmbed : IDisposable
         Point? origin = _area.TranslatePoint(new Point(0, 0), _window);
         if (origin is not { } o)
             return;
-        var rect = ((int)(o.X * scale), (int)(o.Y * scale),
-                    _shrunk ? 1 : Math.Max(1, (int)(_area.Bounds.Width * scale)),
-                    _shrunk ? 1 : Math.Max(1, (int)(_area.Bounds.Height * scale)));
+        double x = o.X, y = o.Y, w = _area.Bounds.Width, h = _area.Bounds.Height;
+        if (_fitted && w > 0 && h > 0)
+        {
+            double fw = Math.Min(w, h * StageAspect), fh = fw / StageAspect;
+            x += (w - fw) / 2;
+            y += (h - fh) / 2;
+            (w, h) = (fw, fh);
+        }
+        var rect = ((int)(x * scale), (int)(y * scale),
+                    _shrunk ? 1 : Math.Max(1, (int)(w * scale)),
+                    _shrunk ? 1 : Math.Max(1, (int)(h * scale)));
         if (rect == _placed)
             return;
         _placed = rect;

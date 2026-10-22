@@ -107,6 +107,7 @@ public partial class MainWindow : Window
         _grid = on;
         MenuBar.IsVisible = !on;
         StatusBar.IsVisible = !on;
+        _embed?.SetFitted(on);
         UpdateDashboard();
     }
 

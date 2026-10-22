@@ -473,8 +473,11 @@ public partial class TabHostWindow : Window
                 ScriptResume.NotPlaying(tab.Number + 1);
             ScriptLibrary.NoteRunning(tab.Number + 1, loaded, running);
             QueueTick(tab, loggedIn, loaded, running);
-            // Streamer Mode (the game option) hides the name in the tab header too
-            bool streamer = game.ValueKind == JsonValueKind.Object && game.TryGetProperty("streamer", out var s) && s.ValueKind == JsonValueKind.True;
+            // Streamer Mode (the game option) and Show Username in Title off
+            // (Application Options) hide the name in the tab header too
+            bool streamer = game.ValueKind == JsonValueKind.Object
+                && (game.TryGetProperty("streamer", out var s) && s.ValueKind == JsonValueKind.True
+                    || game.TryGetProperty("showName", out var n) && n.ValueKind == JsonValueKind.False);
             tab.Title = string.IsNullOrWhiteSpace(player) ? $"Skua {tab.Number + 1}"
                 : streamer ? $"Player {tab.Number + 1}"
                 : player!;

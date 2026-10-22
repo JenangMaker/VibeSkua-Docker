@@ -12,6 +12,14 @@ public class UnifiedSettingsService
     private readonly string _managerSettingsFile;
     private readonly object _lock = new();
     private SettingsRoot _root = SettingsRoot.CreateDefaults();
+
+    // Every VibeSkua tab is its own process with its own copy of the settings,
+    // saved whole: a tab's change was undone by the next save of another tab
+    // still holding the old copy. Each copy now follows the file: it is read
+    // again when the file changed since (checked at most once a second on
+    // reads, always before a change).
+    private DateTime _fileStamp;
+    private long _checkedAt;
     private AppRole _currentRole;
     private bool _initialized = false;
     private readonly Mutex _fileMutex;
@@ -95,6 +103,7 @@ public class UnifiedSettingsService
     {
         lock (_lock)
         {
+            RefreshNow();
             try
             {
                 PropertyInfo? clientProp = FindPropertyByJsonName(_root.Client.GetType(), key);
@@ -132,6 +141,10 @@ public class UnifiedSettingsService
         {
             try
             {
+                // Held to the save: no other process saves between the read and it
+                _fileMutex.WaitOne();
+                if (_initialized)
+                    ReloadIfChanged();
                 PropertyInfo? sharedProp = FindPropertyByJsonName(_root.Shared.GetType(), key);
                 if (sharedProp != null)
                 {
@@ -154,22 +167,69 @@ public class UnifiedSettingsService
             {
                 Console.WriteLine($"Error setting value for key '{key}': {ex.Message}");
             }
+            finally
+            {
+                _fileMutex.ReleaseMutex();
+            }
+        }
+    }
+
+    private void RefreshNow()
+    {
+        if (_initialized && Environment.TickCount64 - _checkedAt > 1000)
+            ReloadIfChanged();
+    }
+
+    private void ReloadIfChanged()
+    {
+        _checkedAt = Environment.TickCount64;
+        try
+        {
+            if (!File.Exists(ClientFileSources.SkuaSettingsDIR)
+                || File.GetLastWriteTimeUtc(ClientFileSources.SkuaSettingsDIR) == _fileStamp)
+                return;
+            _fileMutex.WaitOne();
+            try
+            {
+                LoadSettings();
+                EnsureRoleDefaults();
+            }
+            finally
+            {
+                _fileMutex.ReleaseMutex();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error reloading settings: {ex.Message}");
         }
     }
 
     public SharedSettings GetShared()
     {
-        return _root.Shared;
+        lock (_lock)
+        {
+            RefreshNow();
+            return _root.Shared;
+        }
     }
 
     public ClientSettings GetClient()
     {
-        return _root.Client;
+        lock (_lock)
+        {
+            RefreshNow();
+            return _root.Client;
+        }
     }
 
     public ManagerSettings GetManager()
     {
-        return _root.Manager;
+        lock (_lock)
+        {
+            RefreshNow();
+            return _root.Manager;
+        }
     }
 
     private bool MigrateOldSettings()
@@ -502,6 +562,7 @@ public class UnifiedSettingsService
         {
             if (File.Exists(ClientFileSources.SkuaSettingsDIR))
             {
+                _fileStamp = File.GetLastWriteTimeUtc(ClientFileSources.SkuaSettingsDIR);
                 string json = File.ReadAllText(ClientFileSources.SkuaSettingsDIR);
                 JsonSerializerOptions options = GetJsonOptions();
                 SettingsRoot? loaded = JsonSerializer.Deserialize<SettingsRoot>(json, options);
@@ -571,6 +632,7 @@ public class UnifiedSettingsService
             }
 
             File.Move(tempFile, ClientFileSources.SkuaSettingsDIR, overwrite: true);
+            _fileStamp = File.GetLastWriteTimeUtc(ClientFileSources.SkuaSettingsDIR);
         }
         catch (Exception ex)
         {
