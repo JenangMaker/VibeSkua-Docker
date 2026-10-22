@@ -20,6 +20,7 @@ import flash.utils.Timer;
 import flash.utils.getQualifiedClassName;
 
 import skua.api.Auras;
+import skua.api.World;
 import skua.module.ModalMC;
 import skua.module.Modules;
 import skua.util.SFSEvent;
@@ -149,6 +150,9 @@ public class Main extends MovieClip {
     public function onExtensionResponse(packet:*):void {
         this.repairItemIds(packet);
         this.external.call('pext', JSON.stringify(packet));
+        // After the game's own handler (registered first): a room change
+        // writes the real room into the title here, between two frames.
+        World.streamerAfterMessage();
     }
 
     // The game adds an item that is new to the inventory as the server sent it
