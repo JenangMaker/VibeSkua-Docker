@@ -3,6 +3,7 @@ using System.Text.Json;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Skua.Core.Interfaces;
 
 namespace Skua.App.Avalonia.Manager;
 
@@ -23,8 +24,11 @@ public sealed class RunningTabsViewModel : ObservableObject
     public IAsyncRelayCommand RefreshCommand { get; }
     public IAsyncRelayCommand OpenVibeSkuaCommand { get; }
 
-    public RunningTabsViewModel()
+    private readonly IDialogService _dialogs;
+
+    public RunningTabsViewModel(IDialogService dialogs)
     {
+        _dialogs = dialogs;
         RefreshCommand = new AsyncRelayCommand(Refresh);
         OpenVibeSkuaCommand = new AsyncRelayCommand(async () =>
         {
@@ -65,8 +69,7 @@ public sealed class RunningTabsViewModel : ObservableObject
                 return;
             }
             var tabs = (await HostClient.Get("/tabs")).EnumerateArray().ToList();
-            // VibeSkua keeps at least one tab (it answers 409 to closing the last)
-            var list = tabs.Select(t => new RunningTab(this, t, canClose: tabs.Count > 1)).ToList();
+            var list = tabs.Select(t => new RunningTab(this, t, last: tabs.Count == 1)).ToList();
             HostRunning = true;
             Tabs.Clear();
             foreach (var tab in list)
@@ -81,6 +84,14 @@ public sealed class RunningTabsViewModel : ObservableObject
         {
             _refreshing = false;
         }
+    }
+
+    /// <summary>The last tab: closing it closes VibeSkua, so ask first.</summary>
+    internal async Task CloseLast(int tab)
+    {
+        if (_dialogs.ShowMessageBox("This is VibeSkua's last tab. Closing it closes VibeSkua. Close VibeSkua?", "Close Tab", true) != true)
+            return;
+        await Act(tab, "close?app=1");
     }
 
     internal async Task Act(int tab, string action)
@@ -104,7 +115,7 @@ public sealed class RunningTabsViewModel : ObservableObject
 
 public sealed class RunningTab
 {
-    public RunningTab(RunningTabsViewModel owner, JsonElement t, bool canClose)
+    public RunningTab(RunningTabsViewModel owner, JsonElement t, bool last)
     {
         static string? Str(JsonElement e, string name) => e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
         Number = t.GetProperty("tab").GetInt32();
@@ -119,8 +130,8 @@ public sealed class RunningTab
         State = (LoggedIn ? "logged in" : "not logged in") + (queue is null ? "" : $", queue {queue}") + (cpu is { } p ? $", Skua {p:0.#}% CPU" : "");
         SelectCommand = new AsyncRelayCommand(() => owner.Act(Number, "select"));
         RestartCommand = new AsyncRelayCommand(() => owner.Act(Number, "restart"));
-        CloseCommand = new AsyncRelayCommand(() => owner.Act(Number, "close"), () => canClose);
-        CloseTip = canClose ? "Close this tab" : "The last tab can't be closed: close VibeSkua instead";
+        CloseCommand = new AsyncRelayCommand(() => last ? owner.CloseLast(Number) : owner.Act(Number, "close"));
+        CloseTip = last ? "Close this tab and VibeSkua" : "Close this tab";
     }
 
     public int Number { get; }

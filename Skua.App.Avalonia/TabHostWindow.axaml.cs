@@ -179,7 +179,13 @@ public partial class TabHostWindow : Window
     {
         if (Tabs.Count == 1)
         {
-            App.Service<IDialogService>().ShowMessageBox("This is the last tab; close VibeSkua instead.", "Close Tab");
+            if (!SkuaRuntime.DesktopClient)
+            {
+                App.Service<IDialogService>().ShowMessageBox("This is the last tab; close VibeSkua instead.", "Close Tab");
+                return;
+            }
+            if (App.Service<IDialogService>().ShowMessageBox("This is the last tab. Close VibeSkua?", "Close Tab", true) == true)
+                Close();
             return;
         }
         await CloseTabAsync(tab);

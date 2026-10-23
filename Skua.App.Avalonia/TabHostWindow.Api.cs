@@ -20,7 +20,7 @@ namespace Skua.App.Avalonia;
 ///   GET    /status                     this host: version, uptime, tabs
 ///   GET    /tabs                       each tab: account, logged in, its Skua's and page's CPU and memory
 ///   POST   /tabs[?tab=N]               open a tab (N, else the first free number)
-///   POST   /tabs/N/close
+///   POST   /tabs/N/close[?app=1]      app=1: on the last tab, close VibeSkua (desktop client only)
 ///   POST   /tabs/N/restart[?game=1]    restart its Skua; game=1 also reloads its game page
 ///   POST   /tabs/N/select              show it on the desktop
 ///   POST   /grid?on=1|0                Grid View
@@ -115,7 +115,7 @@ public partial class TabHostWindow
                 ("GET", ["status"]) => HostStatus(),
                 ("GET", ["tabs"]) => await OnUi(TabList),
                 ("POST", ["tabs"]) => await OnUi(() => OpenTab(Q("tab"))),
-                ("POST", ["tabs", var t, "close"]) => await OnUi(() => WithTab(t, CloseFromApi)),
+                ("POST", ["tabs", var t, "close"]) => await OnUi(() => WithTab(t, tab => CloseFromApi(tab, Q("app") is "1" or "true"))),
                 ("POST", ["tabs", var t, "restart"]) => await OnUi(() => WithTab(t, tab => RestartTab(tab, Q("game") is "1" or "true"))),
                 ("POST", ["tabs", var t, "select"]) => await OnUi(() => WithTab(t, tab => { Select(tab); return Task.FromResult<object>(new { selected = tab.Number + 1 }); })),
                 ("POST", ["grid"]) => await OnUi(() => { SetGrid(Q("on") is "1" or "true"); return new { grid = _grid }; }),
@@ -229,10 +229,20 @@ public partial class TabHostWindow
         return new { opened = tab.Number + 1 };
     }
 
-    private async Task<object> CloseFromApi(SkuaTab tab)
+    private async Task<object> CloseFromApi(SkuaTab tab, bool app)
     {
         if (Tabs.Count(t => !t.Closed) == 1)
-            return new ApiError(409, "this is the last tab");
+        {
+            // The Manager asks first, then closes the app as upstream 2.x
+            // closes it with its last tab. Never in Docker: the stack's
+            // VibeSkua would stop.
+            if (!app || !SkuaRuntime.DesktopClient)
+                return new ApiError(409, "this is the last tab");
+            Console.WriteLine($"[tabs] closing VibeSkua with its last tab (tab {tab.Number + 1}) from the host API");
+            // After the reply has gone out
+            DispatcherTimer.RunOnce(Close, TimeSpan.FromMilliseconds(300));
+            return new { closed = tab.Number + 1, app = true };
+        }
         await CloseTabAsync(tab);
         return new { closed = tab.Number + 1 };
     }
