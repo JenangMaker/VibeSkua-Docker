@@ -17,6 +17,7 @@ namespace Skua.Shared.Avalonia.Controls.Options;
 /// A dropdown for long lists that filters as you type: any part of a name matches, case ignored.
 /// Only a name from the list is ever taken: <see cref="Value"/> changes on a pick (click, Enter,
 /// or typing a full name), and leaving the box with other text puts the picked name back.
+/// Arrowing through the list picks nothing until Enter; Escape keeps the earlier pick.
 /// Enter with no row highlighted takes the first match.
 /// </summary>
 public class SearchComboBox : AutoCompleteBox
@@ -48,7 +49,10 @@ public class SearchComboBox : AutoCompleteBox
         AddHandler(PointerReleasedEvent, (_, e) =>
         {
             if (e.Source is Visual v && _textBox is not null && (v == _textBox || _textBox.IsVisualAncestorOf(v)))
+            {
+                _letGo++;
                 Open();
+            }
         }, RoutingStrategies.Bubble, handledEventsToo: true);
     }
 
@@ -74,14 +78,24 @@ public class SearchComboBox : AutoCompleteBox
     /// <summary>
     /// Done with the box: drop focus so the pick shows plainly, not as selected text. A little later,
     /// not at once: after a row is clicked, AutoCompleteBox focuses its text field again once the
-    /// list has closed, and that would take the focus straight back.
+    /// list has closed, and that would take the focus straight back. The user clicking or tabbing
+    /// into the box in the meantime cancels it (<see cref="_letGo"/>).
     /// </summary>
-    private void LetGo() => DispatcherTimer.RunOnce(() =>
+    private void LetGo()
     {
-        _textBox?.ClearSelection();
-        if (IsKeyboardFocusWithin)
-            TopLevel.GetTopLevel(this)?.FocusManager?.ClearFocus();
-    }, TimeSpan.FromMilliseconds(120));
+        int call = ++_letGo;
+        DispatcherTimer.RunOnce(() =>
+        {
+            if (call != _letGo)
+                return;
+            _textBox?.ClearSelection();
+            if (IsKeyboardFocusWithin)
+                TopLevel.GetTopLevel(this)?.FocusManager?.ClearFocus();
+        }, TimeSpan.FromMilliseconds(120));
+    }
+
+    // Counts LetGo calls and user interactions: a pending LetGo only runs if nothing came after it.
+    private int _letGo;
 
     // A row clicked (or Enter in the list) commits, even the row already picked, which changes no
     // selection; AutoCompleteBox closes the list first, so this lets go itself.
@@ -116,8 +130,9 @@ public class SearchComboBox : AutoCompleteBox
             if (!IsKeyboardFocusWithin)
                 ShowValue();
         }
-        else if (change.Property == SelectedItemProperty && change.NewValue is string picked && Has(picked) is { } name)
+        else if (change.Property == SelectedItemProperty && !_arrowing && change.NewValue is string picked && Has(picked) is { } name)
         {
+            // A row arrowed to is only highlighted: Enter takes it, Escape must leave the earlier pick.
             Value = name;
             if (IsDropDownOpen)
                 _picked = true;
@@ -146,12 +161,15 @@ public class SearchComboBox : AutoCompleteBox
     {
         base.OnGotFocus(e);
         _repairs = 0;
-        // Focus coming back from the list right after a pick: let it go again rather than select the text.
-        if (JustPicked)
+        // Focus coming back from the list right after a pick (AutoCompleteBox focuses its text field
+        // in code): let it go again rather than select the text. The user clicking or tabbing in
+        // starts a new search instead.
+        if (JustPicked && e.NavigationMethod == NavigationMethod.Unspecified)
         {
             LetGo();
             return;
         }
+        _letGo++;
         Dispatcher.UIThread.Post(() => _textBox?.SelectAll());
         Open();
     }
@@ -181,10 +199,22 @@ public class SearchComboBox : AutoCompleteBox
             e.Handled = true;
             return;
         }
+        _letGo++;
         if (e.Key == Key.Escape)
             ShowValue();
-        base.OnKeyDown(e);
+        // The list's selection follows the arrow keys inside this call.
+        _arrowing = e.Key is Key.Up or Key.Down or Key.PageUp or Key.PageDown;
+        try
+        {
+            base.OnKeyDown(e);
+        }
+        finally
+        {
+            _arrowing = false;
+        }
     }
+
+    private bool _arrowing;
 
     private void ShowValue() => Dispatcher.UIThread.Post(() =>
     {
@@ -199,9 +229,13 @@ public class SearchComboBox : AutoCompleteBox
             IsDropDownOpen = true;
     }
 
-    /// <summary>The list's spelling of a name typed in full (case ignored), or null.</summary>
+    /// <summary>
+    /// The list's spelling of a name typed in full, or null. Case is ignored, except that an exact
+    /// match wins (enums can have names that differ only in case).
+    /// </summary>
     private string? Has(string? text) =>
-        string.IsNullOrEmpty(text) ? null : Names().FirstOrDefault(n => string.Equals(n, text, StringComparison.OrdinalIgnoreCase));
+        string.IsNullOrEmpty(text) ? null
+            : Names().FirstOrDefault(n => n == text) ?? Names().FirstOrDefault(n => string.Equals(n, text, StringComparison.OrdinalIgnoreCase));
 
     private string? FirstMatch(string? text) =>
         string.IsNullOrEmpty(text) ? null : Names().FirstOrDefault(n => n.Contains(text, StringComparison.OrdinalIgnoreCase));
