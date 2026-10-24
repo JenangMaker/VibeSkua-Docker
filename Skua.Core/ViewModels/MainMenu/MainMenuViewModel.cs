@@ -19,6 +19,10 @@ public partial class MainMenuViewModel : ObservableRecipient
         _windowService = windowService;
 
         _plugins = new(new[] { new MainMenuItemViewModel("View Plugins", new RelayCommand(ShowPlugins)) });
+        // Plugins load before the menu is made: their buttons were sent to no one.
+        if (CommunityToolkit.Mvvm.DependencyInjection.Ioc.Default.GetService<IPluginHelper>() is Plugins.PluginHelper helper)
+            foreach (MainMenuItemViewModel button in helper.Buttons)
+                _plugins.Add(button);
 
         MainMenuItems = new(mainMenuItems);
     }

@@ -1,4 +1,5 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.DependencyInjection;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Skua.Core.Interfaces;
@@ -53,7 +54,14 @@ public partial class PluginsViewModel : BotControlViewModelBase
         if (string.IsNullOrEmpty(file))
             return;
 
-        PluginManager.Load(file);
+        if (PluginManager.Load(file) is { } e)
+        {
+            string why = Skua.Core.Plugins.PluginManager.Describe(e);
+            Console.Error.WriteLine($"[plugins] {Path.GetFileName(file)} not loaded: {why}");
+            Ioc.Default.GetService<IDialogService>()?.ShowMessageBox($"{Path.GetFileName(file)} could not be loaded:\n{why}", "Plugins");
+        }
+        else
+            Console.Error.WriteLine($"[plugins] {Path.GetFileName(file)} loaded");
     }
 
     private void PluginUnLoaded(PluginsViewModel recipient, PluginUnloadedMessage message)
