@@ -89,8 +89,10 @@ public class SearchComboBox : AutoCompleteBox
             if (call != _letGo)
                 return;
             _textBox?.ClearSelection();
-            if (IsKeyboardFocusWithin)
-                TopLevel.GetTopLevel(this)?.FocusManager?.ClearFocus();
+            // Only this box's own focus: never a control the user moved on to.
+            IFocusManager? focus = TopLevel.GetTopLevel(this)?.FocusManager;
+            if (focus?.GetFocusedElement() is Visual focused && (focused == this || this.IsVisualAncestorOf(focused)))
+                focus.ClearFocus();
         }, TimeSpan.FromMilliseconds(120));
     }
 
@@ -179,6 +181,8 @@ public class SearchComboBox : AutoCompleteBox
         base.OnLostFocus(e);
         if (IsKeyboardFocusWithin)
             return;
+        // Focus went elsewhere: a pending LetGo has nothing left to let go of.
+        _letGo++;
         if (Has(Text) is { } name)
             Value = name;
         ShowValue();
