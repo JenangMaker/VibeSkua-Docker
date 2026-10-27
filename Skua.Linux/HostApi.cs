@@ -210,7 +210,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
             combat = read.Combat,
             quests = read.Quests,
             equipment = read.Equipment,
-            throttle = detail ? new { hidden = IsShrunk, headless = IsHeadless } : null,
+            throttle = detail ? new { hidden = IsShrunk, headless = IsHeadless, jumpBoosts = Interlocked.Read(ref _jumpBoosts), jumpBoostMs = Interlocked.Read(ref _jumpBoostMs), jumpBoostsCapped = Interlocked.Read(ref _jumpBoostsCapped) } : null,
             script = new { running = manager.ScriptRunning, loaded = manager.LoadedScript, startedAt = manager.ScriptRunning ? _scriptStartedAt : null },
             // Message boxes open in this tab, waiting for an answer (POST /dialog/answer).
             dialogs = PendingDialogs.List().Select(d => new { id = d.Id, title = d.Title, message = d.Message, buttons = d.Buttons, at = d.At }),

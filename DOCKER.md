@@ -290,7 +290,9 @@ and runs at full speed; switch drawing back on when you want to look.
 - Tabs you are not looking at run at 2 frames per second and are not drawn
   at all, so neither their page nor the GPU process spends anything on them;
   switching to a tab (or Grid View) puts it back. Map changes, moving and
-  fighting are not slowed by this. `SKUA_HIDDEN_FPS` changes the rate;
+  fighting are not slowed by this: after each jump to another cell, and in
+  cutscene cells, the game runs at full speed until the cell is ready (about
+  0.1 s), so a script can attack right away. `SKUA_HIDDEN_FPS` changes the rate;
   `SKUA_HIDDEN_DRAW: "1"` keeps drawing them (at 1x1, as before).
 - **Headless Mode** (Army Control > Misc Options, or its hotkey) does the
   same for a tab you *are* looking at: 1 frame per second, game not drawn,

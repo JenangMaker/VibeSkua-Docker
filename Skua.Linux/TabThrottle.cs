@@ -169,7 +169,7 @@ public sealed partial class HostApi
         }
         if (target > 0)
         {
-            ApplyFrameRate(_cutscene is null ? target : FullFps());
+            ApplyFrameRate(ThrottledFps());
             PauseDrawing(true, headless);
         }
         else if (restore)
@@ -198,7 +198,7 @@ public sealed partial class HostApi
             bool changed = SetCutscene(CutsceneCell());
             if (changed || tick % 3 == 0)
             {
-                ApplyFrameRate(_cutscene is null ? _throttleFps : FullFps());
+                ApplyFrameRate(ThrottledFps());
                 PauseDrawing(true, IsHeadless);
                 ClearDropToasts();
             }
@@ -227,10 +227,59 @@ public sealed partial class HostApi
                 string? cell = IsCutscene(message.Cell) ? message.Cell : null;
                 // Raised on the bridge's thread: the game call must not wait on it.
                 if (host.SetCutscene(cell))
-                    _ = Task.Run(() => host.ApplyFrameRate(cell is null ? host._throttleFps : host.FullFps()));
+                    _ = Task.Run(() => host.ApplyFrameRate(host.ThrottledFps()));
+                if (cell is null)
+                    _ = Task.Run(() => host.BoostJump(message.Cell));
             });
 
     private static bool IsCutscene(string? cell) => cell?.StartsWith("Cut", StringComparison.OrdinalIgnoreCase) == true;
+
+    /// <summary>The frame rate a throttled tab runs at now: full speed in a cutscene cell or just after a jump.</summary>
+    private int ThrottledFps() => _cutscene is not null || _jumpBoost is not null ? FullFps() : _throttleFps;
+
+    // After a jump the game makes the new cell's monster sprites on its next
+    // frames, and Skua's attack skips a monster without one. At 1 fps that took
+    // 0.5-0.7 s after the cell changed, and CoreBots' KillMonster without an
+    // item attacks once and gives up 0.5 s later: a story kill was skipped, its
+    // quest item never came, and the script relogged forever. From the jump's
+    // packet until the cell's monsters all have sprites (2 s at most) the game
+    // runs at full speed; drawing stays paused. At 30 fps that took 30-120 ms;
+    // full speed cost a headless tab ~17% CPU against ~4% at 1 fps, so a tab
+    // jumping every 5 s spends about 0.4% more. Only live monsters are waited
+    // for: a dead one may never get its sprite back, which kept the boost on
+    // for the whole 2 s.
+    private object? _jumpBoost;
+    private long _jumpBoosts, _jumpBoostMs, _jumpBoostsCapped;
+
+    private async Task BoostJump(string cell)
+    {
+        var mine = new object();
+        Interlocked.Exchange(ref _jumpBoost, mine);
+        ApplyFrameRate(FullFps());
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            var bot = Get<IScriptInterface>();
+            int want = bot.Monsters.MapMonsters.Count(m => m.Alive && string.Equals(m.Cell, cell, StringComparison.OrdinalIgnoreCase));
+            while (clock.ElapsedMilliseconds < 2000 && Volatile.Read(ref _jumpBoost) == mine)
+            {
+                await Task.Delay(50);
+                if (string.Equals(bot.Player.Cell, cell, StringComparison.OrdinalIgnoreCase)
+                    && (want == 0 || bot.Monsters.CurrentAvailableMonsters.Count(m => m.Alive) >= want))
+                    break;
+            }
+        }
+        catch { }
+        // A later jump took over: it ends the boost.
+        if (Interlocked.CompareExchange(ref _jumpBoost, null, mine) != mine)
+            return;
+        Interlocked.Increment(ref _jumpBoosts);
+        Interlocked.Add(ref _jumpBoostMs, clock.ElapsedMilliseconds);
+        if (clock.ElapsedMilliseconds >= 2000)
+            Interlocked.Increment(ref _jumpBoostsCapped);
+        if (_throttleLoop is not null)
+            ApplyFrameRate(ThrottledFps());
+    }
 
     /// <summary>Records the cutscene cell the player is in (null: none); true if that changed.</summary>
     private bool SetCutscene(string? cell)
