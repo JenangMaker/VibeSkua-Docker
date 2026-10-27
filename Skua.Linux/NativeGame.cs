@@ -83,11 +83,8 @@ public sealed class NativeGame
     /// <summary>Gives the X11 window the player should be a sub-window of, or
     /// 0 if none. On Linux, set by GameEmbed as soon as our Avalonia window
     /// has an X11 handle, so Launch spawns the player with SKUA_PARENT_XID
-    /// and Ruffle creates its window as our child from the start. GNOME's
-    /// Mutter (XWayland) does not re-route keyboard events after a
-    /// cross-client XReparentWindow, so the fallback reparent path leaves
-    /// the game unable to receive keys there; parent-at-creation side-steps
-    /// that whole surface takeover. See GameEmbed for the fallback.</summary>
+    /// and Ruffle creates its window as our child from the start, instead of
+    /// a top-level that GameEmbed then reparents (still the fallback).</summary>
     public static Func<ulong>? HostXidProvider { get; set; }
 
     /// <summary>The player's process id, while it runs.</summary>
@@ -257,9 +254,7 @@ public sealed class NativeGame
 
         info.Environment["SKUA_BRIDGE_URL"] = _bridgeUrl;
         // Linux: make the player an X11 sub-window of our host from the start
-        // (see HostXidProvider; Ruffle reads SKUA_PARENT_XID in app.rs). Keeps
-        // keyboard input working on GNOME/Wayland, where XReparentWindow
-        // afterwards does not re-route keystrokes to the embedded surface.
+        // (see HostXidProvider; Ruffle reads SKUA_PARENT_XID in app.rs).
         if (OperatingSystem.IsLinux() && HostXidProvider?.Invoke() is { } parentXid && parentXid != 0)
             info.Environment["SKUA_PARENT_XID"] = "0x" + parentXid.ToString("x");
         info.Environment["RUST_LOG"] = SkuaRuntime.Env("RUFFLE_LOG", "warn,ruffle_core::avm2=off,ruffle_desktop::gui::controller=info");
