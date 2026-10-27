@@ -154,6 +154,7 @@ public sealed partial class HostApi
             {
                 var loop = _throttleLoop = new CancellationTokenSource();
                 _ = Task.Run(() => KeepThrottled(loop.Token));
+                _ = Task.Run(() => WatchCell(loop.Token));
             }
             else if (target == 0 && _throttleLoop is not null)
             {
@@ -220,17 +221,49 @@ public sealed partial class HostApi
 
     private void WatchCutscenes() =>
         StrongReferenceMessenger.Default.Register<HostApi, CellChangedMessage, int>(this, (int)MessageChannels.GameEvents,
-            (host, message) =>
+            // Raised on the bridge's thread: OnCell's game calls run on others.
+            (host, message) => host.OnCell(message.Cell));
+
+    // The cell event above comes from the game's outgoing moveToCell packet,
+    // which skua.swf only sees through SmartFox debug messages: on the native
+    // player none came (0 jump boosts on 7 tabs in an hour). So the cell is
+    // also read here, 10 times a second while the tab is throttled; a change
+    // starts the same cutscene or jump handling. The game sets world.strFrame
+    // when the jump starts, before the new cell's first frame.
+    private string? _watchedCell;
+
+    private async Task WatchCell(CancellationToken token)
+    {
+        while (!token.IsCancellationRequested)
+        {
+            try { await Task.Delay(100, token); }
+            catch (OperationCanceledException) { break; }
+            try
             {
-                if (host._throttleLoop is null)
-                    return;
-                string? cell = IsCutscene(message.Cell) ? message.Cell : null;
-                // Raised on the bridge's thread: the game call must not wait on it.
-                if (host.SetCutscene(cell))
-                    _ = Task.Run(() => host.ApplyFrameRate(host.ThrottledFps()));
-                if (cell is null)
-                    _ = Task.Run(() => host.BoostJump(message.Cell));
-            });
+                if (!Get<Skua.Ruffle.RuffleBridge>().IsConnected)
+                    continue;
+                var player = Get<IScriptInterface>().Player;
+                string cell = player.LoggedIn ? player.Cell : "";
+                string? old = Interlocked.Exchange(ref _watchedCell, cell);
+                if (old is null || string.Equals(old, cell, StringComparison.OrdinalIgnoreCase) || cell.Length == 0)
+                    continue;
+                OnCell(cell);
+            }
+            catch { }
+        }
+        _watchedCell = null;
+    }
+
+    private void OnCell(string cell)
+    {
+        if (_throttleLoop is null)
+            return;
+        string? cutscene = IsCutscene(cell) ? cell : null;
+        if (SetCutscene(cutscene))
+            _ = Task.Run(() => ApplyFrameRate(ThrottledFps()));
+        if (cutscene is null && !string.Equals(Volatile.Read(ref _boostCell), cell, StringComparison.OrdinalIgnoreCase))
+            _ = Task.Run(() => BoostJump(cell));
+    }
 
     private static bool IsCutscene(string? cell) => cell?.StartsWith("Cut", StringComparison.OrdinalIgnoreCase) == true;
 
@@ -249,11 +282,13 @@ public sealed partial class HostApi
     // for: a dead one may never get its sprite back, which kept the boost on
     // for the whole 2 s.
     private object? _jumpBoost;
+    private string? _boostCell;   // the cell the running boost is for: the packet and the cell watch both see a jump
     private long _jumpBoosts, _jumpBoostMs, _jumpBoostsCapped;
 
     private async Task BoostJump(string cell)
     {
         var mine = new object();
+        Volatile.Write(ref _boostCell, cell);
         Interlocked.Exchange(ref _jumpBoost, mine);
         ApplyFrameRate(FullFps());
         var clock = System.Diagnostics.Stopwatch.StartNew();
@@ -273,6 +308,7 @@ public sealed partial class HostApi
         // A later jump took over: it ends the boost.
         if (Interlocked.CompareExchange(ref _jumpBoost, null, mine) != mine)
             return;
+        Volatile.Write(ref _boostCell, null);
         Interlocked.Increment(ref _jumpBoosts);
         Interlocked.Add(ref _jumpBoostMs, clock.ElapsedMilliseconds);
         if (clock.ElapsedMilliseconds >= 2000)
