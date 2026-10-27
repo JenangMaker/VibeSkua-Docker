@@ -113,6 +113,13 @@ public sealed class NativeGame
 
     public static NativeGame? Current { get; private set; }
 
+    /// <summary>Gives the X11 window the player should be a sub-window of, or
+    /// 0 if none. On Linux, set by GameEmbed as soon as our Avalonia window
+    /// has an X11 handle, so Launch spawns the player with SKUA_PARENT_XID
+    /// and Ruffle creates its window as our child from the start, instead of
+    /// a top-level that GameEmbed then reparents (still the fallback).</summary>
+    public static Func<ulong>? HostXidProvider { get; set; }
+
     /// <summary>The player's process id, while it runs.</summary>
     public int? Pid
     {
@@ -158,6 +165,22 @@ public sealed class NativeGame
         string swf = SkuaRuntime.Env("SKUA_SWF", Path.Combine(AppContext.BaseDirectory, "skua.swf"));
         var delay = TimeSpan.FromSeconds(2);
         _graphics = InitialGraphics();
+        // Give the Avalonia host window a moment to come up and register its
+        // XID before the first launch, so the player starts as a sub-window of
+        // ours (SKUA_PARENT_XID) and not as a top-level we XReparent later.
+        // GameEmbed sets HostXidProvider from MainWindow.Opened, which may run
+        // after we get here, so poll for the provider itself to appear too.
+        // Fallback: launch without and let GameEmbed reparent, as before.
+        if (OperatingSystem.IsLinux())
+        {
+            DateTime wait = DateTime.UtcNow.AddSeconds(5);
+            while (DateTime.UtcNow < wait)
+            {
+                if (HostXidProvider?.Invoke() is { } x && x != 0)
+                    break;
+                await Task.Delay(50);
+            }
+        }
         while (true)
         {
             lock (_lock)
@@ -409,6 +432,10 @@ public sealed class NativeGame
         // So the player ends with this Skua on Windows too, where it cannot
         // tell from its parent (the bridge's parent_watch).
         info.Environment["SKUA_PARENT_PID"] = Environment.ProcessId.ToString();
+        // Linux: make the player an X11 sub-window of our host from the start
+        // (see HostXidProvider; Ruffle reads SKUA_PARENT_XID in app.rs).
+        if (OperatingSystem.IsLinux() && HostXidProvider?.Invoke() is { } parentXid && parentXid != 0)
+            info.Environment["SKUA_PARENT_XID"] = "0x" + parentXid.ToString("x");
         info.Environment["RUST_LOG"] = SkuaRuntime.Env("RUFFLE_LOG", "warn,ruffle_core::avm2=off,ruffle_desktop::gui::controller=info");
         info.Environment["NO_COLOR"] = "1";
         if (_software)

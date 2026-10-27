@@ -76,6 +76,21 @@ public sealed class GameEmbed : IDisposable
             if (e.Property == Visual.BoundsProperty)
                 Place();
         };
+        // Tell NativeGame which X11 window the player should be a sub-window of
+        // (SKUA_PARENT_XID in NativeGame.Launch), so it is our child from the
+        // start instead of a top-level we reparent. The Avalonia handle is
+        // created on first show, which may be after this runs, so the provider
+        // polls each call rather than caching.
+        NativeGame.HostXidProvider = () =>
+            _window.TryGetPlatformHandle()?.Handle is { } h && h != IntPtr.Zero ? (ulong)h : 0;
+        // Keyboard, native player: nothing here moves X focus onto the game. The
+        // window manager keeps focus on our managed top-level, and X delivers
+        // keys to the game window while the pointer is in it (the focus window
+        // is its ancestor); the player's winit takes them without FocusIn (its
+        // vendored copy). Forcing focus onto the game, as FocusLoop does, made
+        // GNOME/Mutter drop keyboard focus altogether: nothing could be typed in
+        // the game. The Electron game still needs FocusLoop.
+        bool native = NativeGame.Enabled;
         // Hand the game back before anything tears Skua's window down: on the
         // stop signal itself (Avalonia's shutdown on ProcessExit destroys the
         // window, and the game with it, before a ProcessExit handler of ours).
@@ -83,7 +98,8 @@ public sealed class GameEmbed : IDisposable
             _signals.Add(System.Runtime.InteropServices.PosixSignalRegistration.Create(signal, _ => Release()));
         AppDomain.CurrentDomain.ProcessExit += (_, _) => Release();
         _ = Task.Run(Watch);
-        _ = Task.Run(FocusLoop);
+        if (!native)
+            _ = Task.Run(FocusLoop);
     }
 
     // Find the game window and keep it embedded: Electron can recreate it,
@@ -137,7 +153,8 @@ public sealed class GameEmbed : IDisposable
         if (_window.TryGetPlatformHandle()?.Handle is not { } handle || handle == IntPtr.Zero)
             return;
         ulong host = (ulong)handle;
-        if (xid == _game && host == _host && ParentOf(xid) == host)
+        ulong currentParent = ParentOf(xid);
+        if (xid == _game && host == _host && currentParent == host)
         {
             // Still ours; put it back if something (main.js's own placement
             // right after start) moved it, at the size the throttle wants.
@@ -156,17 +173,36 @@ public sealed class GameEmbed : IDisposable
             return;
         }
 
+        bool first = _game == 0;
+        if (currentParent == host)
+        {
+            // Ruffle started as our sub-window (SKUA_PARENT_XID): no window
+            // manager sees it and no reparent is needed; just size it.
+            AddToAvaloniaSaveSet(xid);
+            X.XFlush(_display);
+            _game = xid;
+            _host = host;
+            _placed = default;
+            Place();
+            Console.WriteLine($"[host] game window 0x{xid:x} embedded (sub-window)");
+            if (first)
+                Embedded?.Invoke();
+            return;
+        }
+
         // Take it from the window manager (which unmanages it on unmap), then
-        // make it a child of ours.
+        // make it a child of ours. Fallback for Ruffle builds without
+        // SKUA_PARENT_XID or when the host handle was not ready in time.
         X.XUnmapWindow(_display, xid);
         X.XSync(_display, false);
         Thread.Sleep(150);
         X.XReparentWindow(_display, xid, host, 0, 0);
         AddToAvaloniaSaveSet(xid);
-        X.XSelectInput(_display, xid, X.EnterWindowMask | X.LeaveWindowMask | (FocusDebug ? X.FocusChangeMask : 0));
+        // Enter/leave for FocusLoop, which runs for the Electron game only.
+        if (!NativeGame.Enabled)
+            X.XSelectInput(_display, xid, X.EnterWindowMask | X.LeaveWindowMask | (FocusDebug ? X.FocusChangeMask : 0));
         X.XMapWindow(_display, xid);
         X.XSync(_display, false);
-        bool first = _game == 0;
         _game = xid;
         _host = host;
         _placed = default;
