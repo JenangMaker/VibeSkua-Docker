@@ -308,6 +308,9 @@ dialog::backdrop { background: rgba(10, 12, 20, .45); }
 .dlg { padding: 22px; }
 dialog:has(.wide) { width: min(820px, calc(100vw - 32px)); }
 .dlg h2 { margin: 0 0 6px; font-size: 17px; }
+/* The title moves its dialog (app.js); touch-action keeps a finger drag from scrolling the page. */
+.drag-handle { cursor: move; user-select: none; touch-action: none; }
+.drag-handle :is(button, input, select, textarea, label) { cursor: auto; }
 .dlg-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 
 .script-list { list-style: none; margin: 10px 0 0; padding: 0; max-height: 300px; overflow: auto; overscroll-behavior: contain; border: 1px solid var(--border); border-radius: 8px; }

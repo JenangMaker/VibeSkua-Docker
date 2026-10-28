@@ -2452,6 +2452,41 @@ for (const dlg of document.querySelectorAll('dialog:not([data-keep-open])')) {
   });
 }
 
+// Dialogs move by their title (the log window by its header bar), so what is
+// behind one can be read while it is open. The offset is a translate on the
+// dialog the browser centered; the title stays at least partly on screen, and
+// closing puts the dialog back in the middle. Buttons, fields and lists in the
+// header keep working: a press on them does not start a drag.
+for (const dlg of document.querySelectorAll('dialog')) {
+  const handle = dlg.querySelector('.log-head') || dlg.querySelector('h2');
+  if (!handle) continue;
+  handle.classList.add('drag-handle');
+  let dx = 0, dy = 0, drag = null;
+  const place = () => { dlg.style.translate = dx || dy ? `${dx}px ${dy}px` : ''; };
+  handle.addEventListener('pointerdown', e => {
+    if (e.button !== 0 || e.target.closest('button, input, select, textarea, a, label')) return;
+    drag = { x: e.clientX - dx, y: e.clientY - dy, id: e.pointerId };
+    handle.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  handle.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    let nx = e.clientX - drag.x, ny = e.clientY - drag.y;
+    // Keep 40 px of the title inside the window, whichever way it went.
+    const r = handle.getBoundingClientRect(), keep = 40;
+    const left = r.left + (nx - dx), top = r.top + (ny - dy);
+    if (left > innerWidth - keep) nx -= left - (innerWidth - keep);
+    if (left + r.width < keep) nx += keep - (left + r.width);
+    if (top < 0) ny -= top;
+    if (top > innerHeight - keep) ny -= top - (innerHeight - keep);
+    dx = nx; dy = ny; place();
+  });
+  const end = e => { if (drag && e.pointerId === drag.id) drag = null; };
+  handle.addEventListener('pointerup', end);
+  handle.addEventListener('pointercancel', end);
+  dlg.addEventListener('close', () => { dx = dy = 0; drag = null; place(); });
+}
+
 // Enter in the search box searches now rather than submitting the dialog.
 $('#script-search').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); clearTimeout(searchTimer); searchScripts(); }

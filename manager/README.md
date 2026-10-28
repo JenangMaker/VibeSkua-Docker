@@ -201,6 +201,9 @@ tab, which hides the names in the game and on the VibeSkua desktop.
 
 ### Tips
 
+- **Moving a dialog:** drag it by its title (the log window by its top bar) to
+  see what is behind it. It opens in the middle again next time.
+
 - **Timing-heavy scripts** (some Ultras, such as Ultra Speaker) need every tab
   to answer fast. Keep all tabs in Headless Mode while they run, and don't
   keep one open on the desktop: the tab on screen spends its time drawing, and
