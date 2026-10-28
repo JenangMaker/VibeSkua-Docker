@@ -54,11 +54,23 @@ public class PluginManager : IPluginManager
             inner = inner.InnerException;
         if (inner is ReflectionTypeLoadException types && types.LoaderExceptions.FirstOrDefault(x => x is not null) is { } first)
             inner = first;
+        // A WPF plugin wants Skua 1.x's WPF UI library. Our interface is
+        // Avalonia, so there is no Skua.WPF to give it: say that, instead of a
+        // bare "could not load file or assembly".
+        if (inner is FileNotFoundException or FileLoadException && NamesWpf(inner.Message))
+            return "This plugin needs Skua 1.x's WPF window library (Skua.WPF). VibeSkua's interface is not WPF, "
+                + "so plugins with their own WPF windows can't run here. Plugins without their own windows can.";
         string message = inner.Message;
         if (inner is MissingMethodException or MissingFieldException or TypeLoadException or FileNotFoundException or FileLoadException)
             message += " (the plugin was built for another Skua version or client)";
         return message;
     }
+
+    private static bool NamesWpf(string message) =>
+        message.Contains("Skua.WPF", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("PresentationFramework", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("PresentationCore", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("WindowsBase", StringComparison.OrdinalIgnoreCase);
 
     public Exception? Load(string path)
     {
