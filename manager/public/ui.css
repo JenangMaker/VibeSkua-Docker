@@ -51,7 +51,7 @@ body {
 h2 {
   font: 600 19px/1.2 var(--display);
   letter-spacing: -.01em;
-  margin: 24px 0 10px;
+  margin: var(--spacing-6) 0 var(--spacing-3);
 }
 
 code, .mono, .card-num, .usage, .res-summary, .bar > span, .script-list li small.path, .msgbox-text, .log {
@@ -148,7 +148,7 @@ label {
   border: 1px solid var(--border);
   border-top: 3px solid var(--accent);
   border-radius: 2px;
-  padding: 34px;
+  padding: var(--spacing-7);
   box-shadow: var(--shadow);
 }
 .login-card h1 {
@@ -183,8 +183,8 @@ label {
 .topbar {
   grid-column: 1 / -1;
   grid-row: 1;
-  gap: 18px;
-  padding: 12px 24px;
+  gap: var(--spacing-4);
+  padding: var(--spacing-3) var(--spacing-6);
   background: var(--panel);
   border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
@@ -235,8 +235,8 @@ label {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 3px;
-  padding: 20px 12px;
+  gap: var(--spacing-1);
+  padding: var(--spacing-5) var(--spacing-3);
   background: var(--panel);
   border-right: 1px solid var(--border);
   border-bottom: 0;
@@ -307,14 +307,14 @@ label {
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 26px 32px 56px;
+  padding: var(--spacing-6) var(--spacing-7) var(--spacing-10);
 }
 
 /* ---- the army strip reads as a command line, not a toolbar ---- */
 .army {
   gap: 8px;
-  margin-bottom: 20px;
-  padding-bottom: 14px;
+  margin-bottom: var(--spacing-5);
+  padding-bottom: var(--spacing-3);
   border-bottom: 1px solid var(--border);
 }
 .army-label {
@@ -347,13 +347,13 @@ label {
 /* ---- bot cards: file cards from a field ledger ---- */
 .cards {
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 18px;
+  gap: var(--spacing-4);
 }
 .card {
   border-radius: 2px;
   border-top: 3px solid color-mix(in srgb, var(--accent) 70%, var(--border));
-  padding: 18px 18px 14px;
-  gap: 12px;
+  padding: var(--spacing-4) var(--spacing-4) var(--spacing-3);
+  gap: var(--spacing-3);
   box-shadow: var(--shadow);
 }
 .card.selected {
@@ -367,7 +367,7 @@ label {
   background: color-mix(in srgb, var(--accent) 7%, var(--panel));
 }
 .card-head {
-  padding-bottom: 10px;
+  padding-bottom: var(--spacing-3);
   border-bottom: 1px solid var(--border);
   gap: 10px;
 }
@@ -408,8 +408,8 @@ label {
 }
 .kv {
   grid-template-columns: 78px 1fr;
-  gap: 5px 12px;
-  padding: 2px 0;
+  gap: var(--spacing-1) var(--spacing-3);
+  padding: var(--spacing-1) 0;
 }
 .kv dt {
   color: var(--muted);
@@ -474,7 +474,7 @@ label {
   background: transparent;
   border-left: 1px solid var(--border);
   border-radius: 0;
-  padding: 7px 2px;
+  padding: var(--spacing-2) 2px;
 }
 .stats div:first-child {
   border-left: 0;
@@ -493,7 +493,7 @@ label {
 .actions {
   gap: 5px;
   margin-top: 0;
-  padding-top: 11px;
+  padding-top: var(--spacing-3);
   border-top: 1px solid var(--border);
 }
 
@@ -543,7 +543,7 @@ dialog::backdrop {
   background: rgba(13, 21, 18, .58);
 }
 .dlg {
-  padding: 26px;
+  padding: var(--spacing-6);
 }
 .dlg h2 {
   font: 600 22px/1.15 var(--display);
@@ -579,7 +579,7 @@ dialog::backdrop {
 }
 
 /* ---- narrow screens: the rail becomes the old tab row ---- */
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   #app-view {
     display: block;
   }
@@ -617,7 +617,7 @@ dialog::backdrop {
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 768px) {
   .login {
     grid-template-columns: 1fr;
     gap: 28px;
@@ -634,7 +634,7 @@ dialog::backdrop {
     display: none;
   }
   .login-card {
-    padding: 26px;
+    padding: var(--spacing-6);
   }
 }
 
