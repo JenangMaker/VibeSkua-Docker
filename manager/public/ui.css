@@ -597,9 +597,6 @@ dialog {
   border-top: 3px solid var(--accent);
   box-shadow: 0 24px 70px rgba(0, 0, 0, .28);
 }
-dialog::backdrop {
-  background: rgba(13, 21, 18, .58);
-}
 .dlg {
   padding: var(--spacing-6);
 }

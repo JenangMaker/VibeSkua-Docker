@@ -296,7 +296,15 @@ input.masked { -webkit-text-security: disc; }
 .meter i { display: block; height: 100%; background: var(--accent); }
 
 /* ---- dialogs ---- */
+/* Non-modal windows: several can be open at once, and each moves by its title. */
 dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  z-index: 1000;
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--panel);
@@ -304,7 +312,6 @@ dialog {
   padding: 0;
   width: min(440px, calc(100vw - 32px));
 }
-dialog::backdrop { background: rgba(10, 12, 20, .45); }
 .dlg { padding: 22px; }
 dialog:has(.wide) { width: min(820px, calc(100vw - 32px)); }
 .dlg h2 { margin: 0 0 6px; font-size: 17px; }

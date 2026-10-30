@@ -897,7 +897,7 @@ $('#jump-all').addEventListener('click', () => {
   dlg.querySelector('h2').textContent = targets ? `Jump ${tabList(targets)}` : 'Jump every account';
   dlg.querySelector('form').reset();
   dlg.returnValue = '';   // Escape keeps the last one
-  dlg.showModal();
+  openDialog(dlg);
 });
 
 $('#dlg-jump').addEventListener('close', () => {
@@ -925,7 +925,7 @@ $('#options-all').addEventListener('click', () => {
   $('#options-title').textContent = targets ? `Skua options for ${tabList(targets)}` : 'Skua options for every tab';
   $('#options-info').textContent = '';
   $('#options-list').replaceChildren(...onOffRows('', (name, on, label) => armyAll(label, `/api/army/option?name=${name}&value=${on}`)));
-  $('#dlg-options').showModal();
+  openDialog($('#dlg-options'));
 });
 
 let skuaOptionsTab = null;
@@ -940,7 +940,7 @@ async function openSkuaOptions(n) {
   $('#options-info').textContent = 'Reading...';
   $('#options-info').classList.add('loading');
   $('#options-list').replaceChildren();
-  $('#dlg-options').showModal();
+  openDialog($('#dlg-options'));
   let values = null;
   try {
     values = await api('GET', `/api/tabs/${n}/api/army/options`);
@@ -991,7 +991,7 @@ function openScriptDialog(tabs, forQueue = false) {
   $('#script-path').value = '';
   $('#script-list').replaceChildren();
   $('#dlg-script').returnValue = '';
-  $('#dlg-script').showModal();
+  openDialog($('#dlg-script'));
   setScriptMode(scriptMode);
 }
 
@@ -1234,7 +1234,7 @@ async function openCoreBotsOptions(n) {
   $('#cbo-body').replaceChildren(cboInvPane, cboBankPane);
   $('#cbo-error').textContent = '';
   $('#cbo-save').disabled = true;
-  $('#dlg-cbo').showModal();
+  openDialog($('#dlg-cbo'));
   showCboPane(cboPane);
   try {
     const data = await api('GET', `/api/tabs/${n}/api/cbo`);
@@ -1658,7 +1658,7 @@ async function openScriptOptions(n) {
   $('.sopts-all').hidden = $('#sopts-all-note').hidden = true;
   $('#sopts-all').checked = false;
   $('#sopts-save').disabled = $('#sopts-defaults').disabled = $('#sopts-queue').disabled = true;
-  $('#dlg-sopts').showModal();
+  openDialog($('#dlg-sopts'));
   try {
     const data = await api('GET', `/api/tabs/${n}/api/script/options`);
     if (soptsTab !== n) return;
@@ -1747,7 +1747,7 @@ async function openEntryOptions(k) {
   $('#sopts-queue').hidden = true;
   $('#sopts-save').disabled = $('#sopts-defaults').disabled = true;
   $('#sopts-save').textContent = 'Save for this entry';
-  $('#dlg-sopts').showModal();
+  openDialog($('#dlg-sopts'));
   try {
     const data = await api('GET', `/api/tabs/${n}/queue/options?index=${k}`);
     if (soptsEntry?.index !== k || soptsTab !== n) return;
@@ -1927,7 +1927,7 @@ function openLog(n) {
   $('#log-title').textContent = `Tab ${n} log`;
   $('#log-text').textContent = '';
   $('#log-loading').hidden = false;
-  $('#dlg-log').showModal();
+  openDialog($('#dlg-log'));
   pollLog();
   logTimer = setInterval(pollLog, 2000);
 }
@@ -1955,13 +1955,14 @@ $('#dlg-log').addEventListener('close', () => { clearInterval(logTimer); logTab 
 
 // ---- message boxes ------------------------------------------------------------------
 // A message box open in a tab (a script's Bot.ShowMessageBox, or Skua's own),
-// from its /status (dialogs: VibeSkua with answerable message boxes). A new
-// one opens here by itself when nothing else is open; Later closes it here and
-// leaves it open in VibeSkua (the card's badge opens it again). Answering it
-// here or on the desktop, whichever is first, closes it in both.
+// from its /status (dialogs: VibeSkua with answerable message boxes). Each one
+// gets its own window, so boxes from several tabs can wait side by side. Later
+// closes that window and leaves the box open in VibeSkua; the card's badge
+// opens it again. Answering here or on the desktop, whichever is first,
+// closes it in both.
 
-const seenDialogs = new Set();   // "tab:id" of the ones already shown or noticed
-let msgbox = null;               // the one shown: { tab, id, title, message, buttons }
+const seenDialogs = new Set();             // "tab:id" of the ones already shown
+const msgWindows = new Map();              // "tab:id" -> { dlg, d }
 
 function pendingDialogs() {
   return Object.entries(state.statuses)
@@ -1972,81 +1973,117 @@ function pendingDialogs() {
 
 function checkDialogs() {
   const all = pendingDialogs();
-  if (msgbox && !all.some(d => d.tab === msgbox.tab && d.id === msgbox.id)) {
-    const was = msgbox;
-    $('#dlg-msgbox').close('gone');
-    toast(`Tab ${was.tab}: "${was.title}" was answered in VibeSkua`);
+  const keys = new Set(all.map(d => `${d.tab}:${d.id}`));
+  for (const [key, win] of [...msgWindows]) {
+    if (keys.has(key)) continue;
+    // A failed status read is not an answer: keep the window until the tab
+    // answers again. A stopped tab has no status left and does close it.
+    const running = state.tabs.some(t => t.running && t.tab === win.d.tab);
+    if (running && !state.statuses[win.d.tab]) continue;
+    win.dlg.close('gone');
+    toast(`Tab ${win.d.tab}: "${win.d.title}" was answered in VibeSkua`);
   }
-  const fresh = all.filter(d => !seenDialogs.has(`${d.tab}:${d.id}`));
-  for (const d of fresh) seenDialogs.add(`${d.tab}:${d.id}`);
-  if (fresh.length && !document.querySelector('dialog[open]') && document.visibilityState === 'visible') showMsgbox(fresh[0]);
+  if (document.visibilityState !== 'visible') return;
+  let takeFocus = !document.querySelector('dialog[open]');
+  for (const d of all) {
+    if (seenDialogs.has(`${d.tab}:${d.id}`)) continue;
+    showMsgbox(d, takeFocus);
+    takeFocus = false;
+  }
 }
 
 function openMsgbox(n) {
   const d = pendingDialogs().find(x => x.tab === n);
-  if (d) showMsgbox(d);
-  else toast(`Tab ${n}: no message box is open any more`);
-}
-
-function showMsgbox(d) {
-  msgbox = d;
-  seenDialogs.add(`${d.tab}:${d.id}`);
-  $('#msgbox-title').textContent = d.title || 'Message';
-  $('#msgbox-from').textContent = `Tab ${d.tab}${tabLabel(d.tab)}, ${fmtAgo(d.at)}. It waits for an answer.`;
-  $('#msgbox-text').textContent = anonText(d.message || '');
-  $('#msgbox-note').textContent = '';
-  $('#msgbox-buttons').replaceChildren(...d.buttons.map((b, i) =>
-    h('button', { type: 'button', class: i === 0 ? 'primary' : '', onclick: () => answerMsgbox(i) }, b)));
-  if (!$('#dlg-msgbox').open) $('#dlg-msgbox').showModal();
-  $('#msgbox-buttons button')?.focus();
-}
-
-async function answerMsgbox(i) {
-  const d = msgbox;
-  if (!d) return;
-  const button = d.buttons[i];
-  try {
-    const r = await api('POST', `/api/tabs/${d.tab}/api/dialog/answer?id=${d.id}&button=${i}`);
-    if (r?.error) { $('#msgbox-note').textContent = r.error; return; }
-  } catch (e) {
-    if (e.status !== 401) $('#msgbox-note').textContent = e.message;
+  if (!d) { toast(`Tab ${n}: no message box is open any more`); return; }
+  const key = `${d.tab}:${d.id}`;
+  const win = msgWindows.get(key);
+  if (win) {
+    raiseDialog(win.dlg);
+    win.dlg.querySelector('.msgbox-buttons button')?.focus();
     return;
   }
-  toast(`Tab ${d.tab}: answered "${button}"`);
-  // Gone from the tab's last status too, so the next one (if any) is not this one again.
-  const s = state.statuses[d.tab];
-  if (s?.dialogs) s.dialogs = s.dialogs.filter(x => x.id !== d.id);
-  // The next one (another tab's, or this tab's) takes its place in the open
-  // window; closing and reopening it would let the close event, which comes
-  // later, forget the one now shown (its buttons then did nothing).
-  const next = pendingDialogs()[0];
-  if (next) showMsgbox(next);
-  else $('#dlg-msgbox').close('answered');
-  fetchStatus(d.tab);
+  showMsgbox(d);
 }
 
-$('#msgbox-later').addEventListener('click', () => $('#dlg-msgbox').close('later'));
-// The close event comes after close() returns: by then another one may be shown.
-$('#dlg-msgbox').addEventListener('close', () => { if (!$('#dlg-msgbox').open) msgbox = null; });
-$('#msgbox-copy').addEventListener('click', async () => {
-  const text = $('#msgbox-text').textContent;
+function selectText(el) {
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const sel = getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+async function copyMsgboxText(textEl) {
+  const text = textEl.textContent;
   try {
     // The clipboard API needs https or localhost; on the LAN over http, select and copy.
     if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text);
     else {
-      const range = document.createRange();
-      range.selectNodeContents($('#msgbox-text'));
-      const sel = getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
+      selectText(textEl);
       if (!document.execCommand('copy')) throw new Error('copy refused');
     }
     toast('Copied');
   } catch {
+    selectText(textEl);
     toast('Could not copy: the text is selected, press Ctrl+C', true);
   }
-});
+}
 
+function showMsgbox(d, takeFocus = true) {
+  const key = `${d.tab}:${d.id}`;
+  const existing = msgWindows.get(key);
+  if (existing) { raiseDialog(existing.dlg); return existing.dlg; }
+  seenDialogs.add(key);
+
+  const text = h('pre', { class: 'msgbox-text', tabindex: '0', text: anonText(d.message || '') });
+  const note = h('p', { class: 'queue-note', role: 'status' });
+  const buttons = h('span', { class: 'msgbox-buttons' });
+  const copy = h('button', { type: 'button', class: 'ghost', onclick: () => copyMsgboxText(text) }, 'Copy text');
+  const later = h('button', { type: 'button', class: 'ghost', title: 'Close this window; the message stays open in VibeSkua' }, 'Later');
+  const dlg = h('dialog', { 'data-keep-open': true, class: 'msgbox-dialog' },
+    h('form', { method: 'dialog', class: 'dlg wide' },
+      h('h2', { text: d.title || 'Message' }),
+      h('p', { class: 'muted small', text: `Tab ${d.tab}${tabLabel(d.tab)}, ${fmtAgo(d.at)}. It waits for an answer.` }),
+      text,
+      note,
+      h('div', { class: 'dlg-actions' }, copy, later, buttons)));
+
+  later.addEventListener('click', () => dlg.close('later'));
+  buttons.replaceChildren(...d.buttons.map((b, i) =>
+    h('button', { type: 'button', class: i === 0 ? 'primary' : '', onclick: () => answerMsgbox(d, i, dlg, note) }, b)));
+  dlg.addEventListener('close', () => {
+    if (msgWindows.get(key)?.dlg === dlg) msgWindows.delete(key);
+    dlg.remove();
+  });
+
+  document.body.append(dlg);
+  msgWindows.set(key, { dlg, d });
+  makeDraggable(dlg);
+  openDialog(dlg, takeFocus);
+  if (takeFocus) buttons.querySelector('button')?.focus();
+  return dlg;
+}
+
+async function answerMsgbox(d, i, dlg, note) {
+  const button = d.buttons[i];
+  const answers = [...dlg.querySelectorAll('.msgbox-buttons button')];
+  answers.forEach(b => { b.disabled = true; });
+  note.textContent = '';
+  try {
+    const r = await api('POST', `/api/tabs/${d.tab}/api/dialog/answer?id=${d.id}&button=${i}`);
+    if (r?.error) { note.textContent = r.error; answers.forEach(b => { b.disabled = false; }); return; }
+  } catch (e) {
+    if (e.status !== 401) note.textContent = e.message;
+    answers.forEach(b => { b.disabled = false; });
+    return;
+  }
+  toast(`Tab ${d.tab}: answered "${button}"`);
+  // Gone from the tab's last status too, so a later poll cannot bring it back.
+  const s = state.statuses[d.tab];
+  if (s?.dialogs) s.dialogs = s.dialogs.filter(x => x.id !== d.id);
+  dlg.close('answered');
+  fetchStatus(d.tab);
+}
 // ---- script queue dialog ----------------------------------------------------------
 // One tab's queue (GET/PUT /tabs/N/queue, POST .../add|play|pause|skip|clear:
 // TabHostWindow.Queue.cs). VibeSkua plays it, with this page closed too; the
@@ -2061,7 +2098,7 @@ async function openQueue(n) {
   $('#queue-title').textContent = `Tab ${n} queue`;
   $('#queue-note').textContent = '';
   $('#queue-list').replaceChildren(h('li', { class: 'none loading', text: 'Reading the queue...' }));
-  $('#dlg-queue').showModal();
+  openDialog($('#dlg-queue'));
   try {
     renderQueue(await api('GET', `/api/tabs/${n}/queue`));
   } catch (e) {
@@ -2329,7 +2366,7 @@ function openAccountDialog(account) {
     h('label', { class: 'check' }, h('input', { type: 'checkbox', 'data-option': name }), text))));
   f.pass.required = !account;
   $('#pass-hint').textContent = account ? 'Leave empty to keep the saved password.' : 'Stored on the VibeSkua server; never shown again.';
-  $('#dlg-account').showModal();
+  openDialog($('#dlg-account'));
   (account ? f.user : f.tab).focus();
 }
 
@@ -2434,59 +2471,99 @@ for (const btn of document.querySelectorAll('[data-close]')) {
   btn.addEventListener('click', () => btn.closest('dialog').close('cancel'));
 }
 
-// A click on the backdrop (outside the dialog's box) closes it, as Cancel
-// does. Only when the press began there too: selecting text in a field and
-// letting go outside the box must not close it. Not the dialogs with fields
-// to fill in (data-keep-open): a stray tap would lose what was typed.
-for (const dlg of document.querySelectorAll('dialog:not([data-keep-open])')) {
-  const outside = e => {
-    if (e.target !== dlg) return false;
-    const r = dlg.getBoundingClientRect();
-    return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
-  };
-  let pressedOutside = false;
-  dlg.addEventListener('pointerdown', e => { pressedOutside = outside(e); });
-  dlg.addEventListener('click', e => {
-    if (pressedOutside && outside(e)) dlg.close('cancel');
-    pressedOutside = false;
-  });
+// Dialogs are non-modal windows: more than one can be open, and each can be
+// used while another is open. The window pressed last sits on top. Escape
+// closes the top one.
+let dialogZ = 1000;
+
+function raiseDialog(dlg) {
+  dlg.style.zIndex = String(++dialogZ);
 }
 
-// Dialogs move by their title (the log window by its header bar), so what is
-// behind one can be read while it is open. The offset is a translate on the
-// dialog the browser centered; the title stays at least partly on screen, and
-// closing puts the dialog back in the middle. Buttons, fields and lists in the
-// header keep working: a press on them does not start a drag.
-for (const dlg of document.querySelectorAll('dialog')) {
+function placeDialog(dlg) {
+  const p = dlg._drag || (dlg._drag = { x: 0, y: 0 });
+  dlg.style.translate = p.x || p.y ? `${p.x}px ${p.y}px` : '';
+}
+
+function openDialog(dlg, takeFocus = true) {
+  if (dlg.open) { raiseDialog(dlg); return; }
+  const previous = takeFocus ? null : document.activeElement;
+  const open = document.querySelectorAll('dialog[open]').length;
+  const step = 52, slots = 6;
+  const offset = (open % slots) * step;
+  dlg._drag = { x: offset, y: offset };
+  placeDialog(dlg);
+  raiseDialog(dlg);
+  dlg.show();
+  // A wide window has less room to cascade on a small screen. Keep it inside.
+  const r = dlg.getBoundingClientRect();
+  const maxX = Math.max(0, (innerWidth - r.width) / 2 - 8);
+  const maxY = Math.max(0, (innerHeight - r.height) / 2 - 8);
+  dlg._drag.x = Math.min(offset, maxX);
+  dlg._drag.y = Math.min(offset, maxY);
+  placeDialog(dlg);
+  if (takeFocus) {
+    if (!dlg.contains(document.activeElement)) {
+      dlg.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [href]')?.focus();
+    }
+  } else if (previous?.isConnected) {
+    // show() moves focus into the new window; a box that appeared by itself
+    // must not pull the user out of the field they were typing in.
+    previous.focus({ preventScroll: true });
+    const owner = previous.closest('dialog');
+    if (owner?.open) raiseDialog(owner);
+  }
+}
+
+function makeDraggable(dlg) {
+  dlg.addEventListener('pointerdown', () => raiseDialog(dlg), true);
+  dlg.addEventListener('focusin', () => raiseDialog(dlg));
   const handle = dlg.querySelector('.log-head') || dlg.querySelector('h2');
-  if (!handle) continue;
+  if (!handle) return;
   handle.classList.add('drag-handle');
-  let dx = 0, dy = 0, drag = null;
-  const place = () => { dlg.style.translate = dx || dy ? `${dx}px ${dy}px` : ''; };
+  let drag = null;
+  const place = () => placeDialog(dlg);
   handle.addEventListener('pointerdown', e => {
     if (e.button !== 0 || e.target.closest('button, input, select, textarea, a, label')) return;
-    drag = { x: e.clientX - dx, y: e.clientY - dy, id: e.pointerId };
+    const p = dlg._drag || (dlg._drag = { x: 0, y: 0 });
+    drag = { x: e.clientX - p.x, y: e.clientY - p.y, id: e.pointerId };
     handle.setPointerCapture(e.pointerId);
     e.preventDefault();
   });
   handle.addEventListener('pointermove', e => {
     if (!drag || e.pointerId !== drag.id) return;
+    const p = dlg._drag;
     let nx = e.clientX - drag.x, ny = e.clientY - drag.y;
     // Keep 40 px of the title inside the window, whichever way it went.
     const r = handle.getBoundingClientRect(), keep = 40;
-    const left = r.left + (nx - dx), top = r.top + (ny - dy);
+    const left = r.left + (nx - p.x), top = r.top + (ny - p.y);
     if (left > innerWidth - keep) nx -= left - (innerWidth - keep);
     if (left + r.width < keep) nx += keep - (left + r.width);
     if (top < 0) ny -= top;
     if (top > innerHeight - keep) ny -= top - (innerHeight - keep);
-    dx = nx; dy = ny; place();
+    p.x = nx; p.y = ny; place();
   });
   const end = e => { if (drag && e.pointerId === drag.id) drag = null; };
   handle.addEventListener('pointerup', end);
   handle.addEventListener('pointercancel', end);
-  dlg.addEventListener('close', () => { dx = dy = 0; drag = null; place(); });
+  dlg.addEventListener('close', () => {
+    if (dlg.open) return;   // reopened before the close event arrived
+    dlg._drag = { x: 0, y: 0 };
+    drag = null;
+    place();
+  });
 }
 
+for (const dlg of document.querySelectorAll('dialog')) makeDraggable(dlg);
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const open = [...document.querySelectorAll('dialog[open]')];
+  if (!open.length) return;
+  open.sort((a, b) => (+a.style.zIndex || 0) - (+b.style.zIndex || 0));
+  open[open.length - 1].close('cancel');
+  e.preventDefault();
+});
 // Enter in the search box searches now rather than submitting the dialog.
 $('#script-search').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); clearTimeout(searchTimer); searchScripts(); }

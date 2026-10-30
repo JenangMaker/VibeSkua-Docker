@@ -178,13 +178,14 @@ busiest processes. CPU is in percent of one core.
 
 When a script (or Skua) opens a message box in a tab, such as a report from
 `Tools/EvaluateAccount` or a Yes/No question, its card shows **Waiting for
-you** and the page opens it, with the same buttons: answering here presses
-that button in VibeSkua, and the script goes on. **Later** closes it here only
-(the badge opens it again); **Copy text** copies the message. Answered on the
-VibeSkua desktop first, it closes here too. While a script runs, the message
-also goes to its script log. Needs a VibeSkua with answerable message boxes
-(the tab API's `/status` lists `dialogs`; `POST /dialog/answer?id=&button=`
-answers one, by the button's index or text).
+you** and the page opens it in its own window, with the same buttons. Boxes
+from several tabs can be open at once. Answering here presses that button in
+VibeSkua, and the script goes on. **Later** closes that window only (the badge
+opens it again); **Copy text** copies the message. Answered on the VibeSkua
+desktop first, it closes here too. While a script runs, the message also goes
+to its script log. Needs a VibeSkua with answerable message boxes (the tab
+API's `/status` lists `dialogs`; `POST /dialog/answer?id=&button=` answers
+one, by the button's index or text).
 
 ### Streamer mode
 
@@ -202,7 +203,8 @@ tab, which hides the names in the game and on the VibeSkua desktop.
 ### Tips
 
 - **Moving a dialog:** drag it by its title (the log window by its top bar) to
-  see what is behind it. It opens in the middle again next time.
+  see what is behind it. Several dialogs can be open at once, and the one
+  pressed last sits on top. It opens in the middle again next time.
 
 - **Timing-heavy scripts** (some Ultras, such as Ultra Speaker) need every tab
   to answer fast. Keep all tabs in Headless Mode while they run, and don't
