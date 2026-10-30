@@ -344,13 +344,47 @@ label {
   background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
 .pick-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   border-radius: 2px;
   background: var(--accent);
   font: 600 11px var(--mono);
+  line-height: 1;
+  min-height: 26px;
+  padding: 4px 5px 4px 10px;
 }
 .pick-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  position: relative;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
   border-radius: 2px;
-  font-family: var(--mono);
+  font-family: var(--ui);
+  line-height: 1;
+}
+.pick-clear::before,
+.pick-clear::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: currentColor;
+}
+.pick-clear::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.pick-clear::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
 }
 
 /* ---- bot cards: file cards from a field ledger ---- */
@@ -698,3 +732,4 @@ dialog::backdrop {
     margin-left: auto;
   }
 }
+
