@@ -2,20 +2,20 @@
    Warm mineral light theme, deep pine dark theme, copper accent. */
 
 :root {
-  --bg: #eef2ef;
-  --panel: #fbfcfa;
-  --panel-2: #e4ebe7;
-  --text: #17211e;
-  --muted: #5f7069;
-  --border: #d3ded8;
-  --accent: #a65332;
-  --accent-text: #fff9f4;
-  --ok: #256b50;
-  --warn: #7c4f0c;
-  --bad: #b23b3b;
-  --hp: #c05b4d;
-  --mp: #3f7f9e;
-  --shadow: 0 1px 0 rgba(23, 33, 30, .04), 0 14px 32px rgba(23, 33, 30, .07);
+  --bg: #eef4fb;
+  --panel: #ffffff;
+  --panel-2: #e4eef9;
+  --text: #122033;
+  --muted: #566b84;
+  --border: #d1dfef;
+  --accent: #1667d6;
+  --accent-text: #ffffff;
+  --ok: #176b52;
+  --warn: #8a5a10;
+  --bad: #b83b3b;
+  --hp: #d9544f;
+  --mp: #2f7fd1;
+  --shadow: 0 1px 0 rgba(18, 32, 51, .04), 0 14px 32px rgba(18, 32, 51, .07);
   --display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
   --ui: "Segoe UI Variable Text", "Aptos", "Segoe UI", system-ui, -apple-system, sans-serif;
   --mono: "Cascadia Mono", "SFMono-Regular", ui-monospace, Consolas, monospace;
@@ -24,19 +24,19 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0d1512;
-    --panel: #14201c;
-    --panel-2: #1c2b26;
-    --text: #e7eee9;
-    --muted: #93a59d;
-    --border: #2a3c35;
-    --accent: #e0a06f;
-    --accent-text: #1b120c;
-    --ok: #7cc5a3;
-    --warn: #e0b15c;
-    --bad: #e37a71;
-    --hp: #d46d62;
-    --mp: #75b2ce;
+    --bg: #07111f;
+    --panel: #0d1a2b;
+    --panel-2: #15263b;
+    --text: #e6f0fb;
+    --muted: #8fa6bf;
+    --border: #223a55;
+    --accent: #66d9ff;
+    --accent-text: #06202b;
+    --ok: #6fe3b0;
+    --warn: #f2c15c;
+    --bad: #ff8a80;
+    --hp: #ff7b72;
+    --mp: #6cb8ff;
     --shadow: none;
     color-scheme: dark;
   }
