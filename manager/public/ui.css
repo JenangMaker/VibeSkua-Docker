@@ -218,8 +218,17 @@ label {
   font: 600 12px var(--mono);
   color: var(--text);
 }
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
 .streamer-toggle {
   font-size: 12px;
+  margin-left: 0;
 }
 #who {
   font: 12px var(--mono);
@@ -501,6 +510,8 @@ label {
 .table-wrap {
   border-radius: 2px;
   box-shadow: none;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 .table th {
   background: var(--panel-2);
@@ -635,6 +646,18 @@ dialog::backdrop {
   }
   .login-card {
     padding: var(--spacing-6);
+    max-width: 440px;
+    justify-self: center;
+  }
+}
+
+@media (max-width: 350px) {
+  .view-tab {
+    gap: 0;
+    padding: 10px 7px;
+  }
+  .tab-icon {
+    display: none;
   }
 }
 
@@ -666,5 +689,12 @@ dialog::backdrop {
 @media (prefers-reduced-motion: reduce) {
   .busy-bar::before, .loading::before, button.busy::before, .dot.wait {
     animation: none;
+  }
+}
+
+
+@media (min-width: 1025px) and (max-width: 1200px) {
+  #open-tab {
+    margin-left: auto;
   }
 }
