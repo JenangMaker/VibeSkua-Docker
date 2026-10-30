@@ -10,8 +10,8 @@
   --border: #d3ded8;
   --accent: #a65332;
   --accent-text: #fff9f4;
-  --ok: #2f7d5f;
-  --warn: #9a6a1f;
+  --ok: #256b50;
+  --warn: #7c4f0c;
   --bad: #b23b3b;
   --hp: #c05b4d;
   --mp: #3f7f9e;
@@ -434,7 +434,10 @@ label {
 }
 .bar > span {
   line-height: 12px;
-  padding-left: 8px;
+  padding: 0 5px;
+  display: inline-block;
+  background: color-mix(in srgb, var(--panel) 76%, transparent);
+  border-radius: 2px;
   font-size: 9.5px;
   letter-spacing: .01em;
 }
