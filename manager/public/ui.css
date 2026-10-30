@@ -554,6 +554,9 @@ dialog::backdrop {
 .script-list {
   border-radius: 2px;
 }
+.lib-list, .queue-list {
+  border-radius: 2px;
+}
 .script-list li:hover, .script-list li.active {
   background: color-mix(in srgb, var(--accent) 7%, var(--panel));
 }
