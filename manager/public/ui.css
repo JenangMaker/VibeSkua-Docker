@@ -151,6 +151,20 @@ label {
   margin: 0 10px 4px 0;
   background: var(--accent);
 }
+.login-intro > p.login-note {
+  max-width: 46ch;
+  margin: 22px 0 0;
+  padding: 10px 12px;
+  border-left: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.login-note strong {
+  color: var(--text);
+  font-weight: 600;
+}
 .login-card {
   width: 100%;
   background: var(--panel);
