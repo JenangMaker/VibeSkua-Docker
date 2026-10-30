@@ -190,7 +190,14 @@ function setStreamer(on, fromUser) {
   $('#who').textContent = on ? '' : $('#who').dataset.user || '';
   if (fromUser && on && confirm("Also turn on the game's own Streamer Mode in every tab (names, guild and room number in the game)?"))
     armyAll('Streamer Mode on', '/api/army/option?name=StreamerMode&value=true', true);
-  if (logTab !== null) { logSince = 0; $('#log-text').textContent = ''; pollLog(); }
+  for (const win of logWindows.values()) {
+    if (win.closed) continue;
+    win.gen++;
+    win.since = 0;
+    win.pre.textContent = '';
+    win.loading.hidden = false;
+    pollLog(win);
+  }
   render();
 }
 
@@ -1917,42 +1924,88 @@ $('#dlg-sopts').addEventListener('close', () => {
   $('#sopts-save').textContent = 'Save';
 });
 
-// ---- log dialog -----------------------------------------------------------------
+// ---- log dialogs -----------------------------------------------------------------
 
-let logTab = null, logSince = 0, logTimer = null;
+const logWindows = new Map();   // tab -> the open log window
 
 function openLog(n) {
-  logTab = n;
-  logSince = 0;
-  $('#log-title').textContent = `Tab ${n} log`;
-  $('#log-text').textContent = '';
-  $('#log-loading').hidden = false;
-  openDialog($('#dlg-log'));
-  pollLog();
-  logTimer = setInterval(pollLog, 2000);
+  const existing = logWindows.get(n);
+  if (existing?.dlg.open) {
+    raiseDialog(existing.dlg);
+    existing.type.focus();
+    return;
+  }
+  if (existing) logWindows.delete(n);
+
+  const type = h('select', { 'aria-label': 'Log' },
+    h('option', { value: 'script', text: 'Script' }),
+    h('option', { value: 'debug', text: 'Debug' }),
+    h('option', { value: 'flash', text: 'Flash' }));
+  const follow = h('input', { type: 'checkbox', checked: true });
+  const loading = h('p', { class: 'loading muted small', role: 'status', text: 'Reading the log...' });
+  const pre = h('pre', { class: 'log' });
+  const close = h('button', { type: 'button', class: 'ghost' }, 'Close');
+  const dlg = h('dialog', { class: 'log-dialog' },
+    h('div', { class: 'dlg wide' },
+      h('div', { class: 'log-head' },
+        h('h2', { text: `Tab ${n} log` }),
+        type,
+        h('label', { class: 'check' }, follow, ' Follow'),
+        h('div', { class: 'spacer' }),
+        close),
+      loading,
+      pre));
+
+  const win = {
+    dlg, tab: n, type, follow, loading, pre,
+    since: 0, gen: 0, timer: null, polling: false, closed: false,
+  };
+
+  const reset = () => {
+    win.gen++;
+    win.since = 0;
+    pre.textContent = '';
+    loading.hidden = false;
+    pollLog(win);
+  };
+  type.addEventListener('change', reset);
+  close.addEventListener('click', () => dlg.close());
+  dlg.addEventListener('close', () => {
+    win.closed = true;
+    clearInterval(win.timer);
+    if (logWindows.get(n) === win) logWindows.delete(n);
+    dlg.remove();
+  });
+
+  logWindows.set(n, win);
+  document.body.append(dlg);
+  makeDraggable(dlg);
+  openDialog(dlg);
+  pollLog(win);
+  win.timer = setInterval(() => pollLog(win), 2000);
 }
 
-// Every 2 s: only the first read of a log shows the loaders.
-async function pollLog() {
-  if (logTab === null) return;
-  const first = !$('#log-loading').hidden;
+// Every 2 s for each log window. Only the first read shows the loader.
+async function pollLog(win) {
+  if (win.closed || win.polling || !win.dlg.open) return;
+  const gen = win.gen;
+  win.polling = true;
+  const first = !win.loading.hidden;
   try {
-    const log = await api('GET', `/api/tabs/${logTab}/api/log?type=${$('#log-type').value}&since=${logSince}`, undefined, { quiet: !first });
-    $('#log-loading').hidden = true;
-    const pre = $('#log-text');
-    if (log.total < logSince) { pre.textContent = ''; logSince = 0; return; }   // cleared
+    const log = await api('GET', `/api/tabs/${win.tab}/api/log?type=${win.type.value}&since=${win.since}`, undefined, { quiet: !first });
+    if (win.closed || gen !== win.gen || !win.dlg.open) return;
+    win.loading.hidden = true;
+    if (log.total < win.since) { win.pre.textContent = ''; win.since = 0; return; }   // cleared
     if (log.lines.length) {
-      pre.append(anonText(log.lines.join('\n')) + '\n');
-      logSince = log.total;
-      if ($('#log-follow').checked) pre.scrollTop = pre.scrollHeight;
+      win.pre.append(anonText(log.lines.join('\n')) + '\n');
+      win.since = log.total;
+      if (win.follow.checked) win.pre.scrollTop = win.pre.scrollHeight;
     }
   } catch { /* try again next time */ }
+  finally {
+    win.polling = false;
+  }
 }
-
-$('#log-type').addEventListener('change', () => { logSince = 0; $('#log-text').textContent = ''; $('#log-loading').hidden = false; pollLog(); });
-$('#log-close').addEventListener('click', () => $('#dlg-log').close());
-$('#dlg-log').addEventListener('close', () => { clearInterval(logTimer); logTab = null; });
-
 // ---- message boxes ------------------------------------------------------------------
 // A message box open in a tab (a script's Bot.ShowMessageBox, or Skua's own),
 // from its /status (dialogs: VibeSkua with answerable message boxes). Each one

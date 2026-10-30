@@ -302,9 +302,13 @@ dialog {
   inset: 0;
   margin: auto;
   z-index: 1000;
+  min-width: 280px;
+  min-height: 160px;
+  max-width: calc(100vw - 24px);
   max-height: calc(100vh - 24px);
   overflow: auto;
   overscroll-behavior: contain;
+  resize: both;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--panel);
@@ -388,6 +392,21 @@ dialog:has(.wide) { width: min(820px, calc(100vw - 32px)); }
 .log-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .log-head h2 { margin: 0; }
 .log-head select { width: auto; }
+/* A log window keeps its body in the resized area instead of a fixed height. */
+.log-dialog {
+  height: min(70vh, 640px);
+}
+.log-dialog .dlg {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+}
+.log-dialog .log {
+  flex: 1;
+  height: auto;
+  min-height: 120px;
+}
 .log {
   margin: 0;
   height: min(60vh, 560px);

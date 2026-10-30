@@ -85,7 +85,7 @@ Its buttons:
 | **Skua options...** | This tab's Skua options (Lag Killer, Hide Players, Disable FX, Skip Cutscenes, Infinite Range, Magnetise, Headless Mode, Function-based Skills, Streamer Mode) as checkboxes with their current values. Each change applies right away. |
 | **CoreBots options...** | This account's Options > CoreBots, as Skua's window has it. **Loadout:** the Solo, Farm, Dodge and Boss class, each class's mode (from its skills) and, with **Specify equipment**, its equipment. **Options** and **Other:** rooms, delays, auto-enhance, best gear, boosters, Nation farms and the rest. **Save** writes the account's options file; scripts use it from their next start. Needs VibeSkua 1.3.0 or newer and a logged-in tab. **Inventory:** what the character wears, by slot, then the rest of the inventory (equippable items only, or everything), searchable and by category; **Equip** / **Unequip** as the game allows them, and why not when it does not (the class and the weapon are only replaced, an unenhanced weapon, helm or cape cannot be worn, member items need membership; elixirs and tonics are used, not equipped). Not in combat or while the tab's script runs. **Bank:** the account's bank and inventory side by side, with their slots (AC items take no bank slot), searchable and filtered by AC or not and by category; **To bank** / **To inventory** moves an item at once. Equipped items stay where they are, and moves are refused while the tab's script runs. The Inventory and Bank tabs need a VibeSkua newer than 1.3.0. |
 | **Log in / Log out** | Log this tab's account in, or out (asks first; a running script stops). The button shows whichever applies. |
-| **Log** | The live script, debug or Flash log, following new lines. |
+| **Log** | The live script, debug or Flash log, following new lines. Each tab opens its own log window, so several can stay open at once. |
 | **Show** | Bring the tab to the front on the VibeSkua desktop. |
 | **Restart** | Restart the tab's Skua (a running script stops). With the Electron game the game stays logged in; with the native game (`:native` image) the game restarts with it and logs back in by itself. |
 | **Reload game** | Restart Skua and reload the game page (it logs in again). |
@@ -205,6 +205,9 @@ tab, which hides the names in the game and on the VibeSkua desktop.
 - **Moving a dialog:** drag it by its title (the log window by its top bar) to
   see what is behind it. Several dialogs can be open at once, and the one
   pressed last sits on top. It opens in the middle again next time.
+
+- **Resizing a dialog:** drag its bottom-right corner. The log window keeps
+  the log filling the new size.
 
 - **Timing-heavy scripts** (some Ultras, such as Ultra Speaker) need every tab
   to answer fast. Keep all tabs in Headless Mode while they run, and don't
