@@ -8,6 +8,7 @@
   <title>VibeSkua Manager</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="ui.css">
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -16,9 +17,20 @@
 
   <!-- Login -->
   <main id="login-view" class="login" hidden>
+    <section class="login-intro">
+      <p class="login-kicker">Remote control</p>
+      <h2>Your party,<br>from anywhere.</h2>
+      <p>Watch every tab, run scripts, and answer the game without sitting at the PC.</p>
+      <ul class="login-points">
+        <li>Live map, HP and quests</li>
+        <li>Queues that keep running</li>
+        <li>One place for every account</li>
+      </ul>
+    </section>
     <form id="login-form" class="login-card">
       <img src="icon.svg" alt="" width="40" height="40">
       <h1>VibeSkua Manager</h1>
+      <p class="login-sub">Sign in to your manager</p>
       <label>User <input name="user" autocomplete="username" spellcheck="false" required></label>
       <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
       <p id="login-error" class="error" role="alert"></p>
@@ -41,11 +53,12 @@
       <button id="logout" class="ghost">Log out</button>
     </header>
 
-    <nav class="tabsbar" role="tablist">
-      <button class="view-tab active" data-view="bots" role="tab" id="tab-bots" aria-controls="view-bots" aria-selected="true">Bots</button>
-      <button class="view-tab" data-view="scripts" role="tab" id="tab-scripts" aria-controls="view-scripts" aria-selected="false">Scripts</button>
-      <button class="view-tab" data-view="accounts" role="tab" id="tab-accounts" aria-controls="view-accounts" aria-selected="false">Accounts</button>
-      <button class="view-tab" data-view="resources" role="tab" id="tab-resources" aria-controls="view-resources" aria-selected="false">Resources</button>
+    <nav class="tabsbar" role="tablist" aria-label="Views">
+      <button class="view-tab active" data-view="bots" role="tab" id="tab-bots" aria-controls="view-bots" aria-selected="true"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg></span><span>Bots</span></button>
+      <button class="view-tab" data-view="scripts" role="tab" id="tab-scripts" aria-controls="view-scripts" aria-selected="false"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M7 4h7l4 4v12H7z"/><path d="M14 4v4h4"/><path d="M9 12h6M9 15h6"/></svg></span><span>Scripts</span></button>
+      <button class="view-tab" data-view="accounts" role="tab" id="tab-accounts" aria-controls="view-accounts" aria-selected="false"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c.8-4 3-6 7-6s6.2 2 7 6"/></svg></span><span>Accounts</span></button>
+      <button class="view-tab" data-view="resources" role="tab" id="tab-resources" aria-controls="view-resources" aria-selected="false"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 17l5-5 3 3 7-8"/><path d="M4 20h16"/></svg></span><span>Resources</span></button>
+      <p class="rail-note" aria-hidden="true">Tabs and scripts stay on the VibeSkua host. This page is the remote control.</p>
     </nav>
 
     <main class="content" id="main" tabindex="-1">

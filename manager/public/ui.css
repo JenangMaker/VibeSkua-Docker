@@ -1,0 +1,664 @@
+/* VibeSkua Manager: the command-deck layer over style.css.
+   Warm mineral light theme, deep pine dark theme, copper accent. */
+
+:root {
+  --bg: #eef2ef;
+  --panel: #fbfcfa;
+  --panel-2: #e4ebe7;
+  --text: #17211e;
+  --muted: #5f7069;
+  --border: #d3ded8;
+  --accent: #a65332;
+  --accent-text: #fff9f4;
+  --ok: #2f7d5f;
+  --warn: #9a6a1f;
+  --bad: #b23b3b;
+  --hp: #c05b4d;
+  --mp: #3f7f9e;
+  --shadow: 0 1px 0 rgba(23, 33, 30, .04), 0 14px 32px rgba(23, 33, 30, .07);
+  --display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+  --ui: "Segoe UI Variable Text", "Aptos", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "Cascadia Mono", "SFMono-Regular", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1512;
+    --panel: #14201c;
+    --panel-2: #1c2b26;
+    --text: #e7eee9;
+    --muted: #93a59d;
+    --border: #2a3c35;
+    --accent: #e0a06f;
+    --accent-text: #1b120c;
+    --ok: #7cc5a3;
+    --warn: #e0b15c;
+    --bad: #e37a71;
+    --hp: #d46d62;
+    --mp: #75b2ce;
+    --shadow: none;
+    color-scheme: dark;
+  }
+}
+
+body {
+  font: 14px/1.55 var(--ui);
+  letter-spacing: .002em;
+  background-image: radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 34%);
+}
+
+h2 {
+  font: 600 19px/1.2 var(--display);
+  letter-spacing: -.01em;
+  margin: 24px 0 10px;
+}
+
+code, .mono, .card-num, .usage, .res-summary, .bar > span, .script-list li small.path, .msgbox-text, .log {
+  font-family: var(--mono);
+}
+
+button, input, select {
+  border-radius: 3px;
+}
+button {
+  background: transparent;
+  border-color: var(--border);
+  font-weight: 500;
+}
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+button.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, var(--text));
+  border-color: var(--accent);
+}
+button.small {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+input, select {
+  background: var(--panel);
+  border-radius: 3px;
+}
+label {
+  letter-spacing: .01em;
+}
+
+/* ---- login: a title page, not a generic card in the middle ---- */
+.login {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(340px, 440px);
+  align-items: center;
+  gap: clamp(32px, 8vw, 120px);
+  padding: clamp(28px, 7vw, 96px);
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 42%),
+    radial-gradient(circle at 80% 15%, color-mix(in srgb, var(--ok) 6%, transparent), transparent 30%),
+    var(--bg);
+}
+.login-intro {
+  max-width: 620px;
+}
+.login-kicker {
+  margin: 0 0 16px;
+  color: var(--accent);
+  font: 500 13px var(--mono);
+  letter-spacing: .04em;
+}
+.login-intro h2 {
+  margin: 0;
+  font: 600 clamp(42px, 6.2vw, 82px)/.95 var(--display);
+  letter-spacing: -.035em;
+}
+.login-intro > p:not(.login-kicker) {
+  max-width: 42ch;
+  margin: 24px 0 0;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.login-points {
+  display: grid;
+  gap: 7px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text);
+  font-size: 13px;
+}
+.login-points li::before {
+  content: "";
+  display: inline-block;
+  width: 18px;
+  height: 1px;
+  margin: 0 10px 4px 0;
+  background: var(--accent);
+}
+.login-card {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--accent);
+  border-radius: 2px;
+  padding: 34px;
+  box-shadow: var(--shadow);
+}
+.login-card h1 {
+  font: 600 27px/1.1 var(--display);
+  margin: 12px 0 2px;
+}
+.login-sub {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.login-card label {
+  margin-top: 14px;
+}
+.login-card input {
+  padding: 9px 10px;
+}
+.login-card button {
+  width: 100%;
+  margin-top: 20px;
+  padding: 10px;
+}
+
+/* ---- app shell: a rail on the left, a wide working area ---- */
+#app-view {
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--bg);
+}
+.topbar {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  gap: 18px;
+  padding: 12px 24px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.brand {
+  font: 600 19px/1 var(--display);
+  letter-spacing: -.01em;
+  gap: 9px;
+}
+.brand img {
+  border-radius: 4px;
+}
+.conn {
+  font: 12px var(--mono);
+  color: var(--muted);
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 10%, transparent);
+}
+.res-summary {
+  gap: 16px;
+  font: 12px var(--mono);
+  color: var(--muted);
+}
+.res-summary span {
+  white-space: nowrap;
+}
+.res-summary b {
+  font: 600 12px var(--mono);
+  color: var(--text);
+}
+.streamer-toggle {
+  font-size: 12px;
+}
+#who {
+  font: 12px var(--mono);
+}
+#logout {
+  font-size: 12px;
+  padding: 5px 10px;
+}
+
+.tabsbar {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  padding: 20px 12px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  border-bottom: 0;
+  position: sticky;
+  top: 0;
+  align-self: start;
+  min-height: calc(100vh - 57px);
+}
+.view-tab {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 38px;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+}
+.view-tab:hover:not(.active) {
+  color: var(--text);
+  background: var(--panel-2);
+  border-color: transparent;
+}
+.view-tab.active {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 9%, var(--panel));
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.tab-icon {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+.view-tab.active .tab-icon {
+  color: var(--accent);
+}
+.tab-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.rail-note {
+  margin: auto 12px 0;
+  padding: 16px 0 4px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.rail-note::before {
+  content: "";
+  display: block;
+  width: 24px;
+  height: 2px;
+  margin-bottom: 10px;
+  background: var(--accent);
+}
+.content {
+  grid-column: 2;
+  grid-row: 2;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 26px 32px 56px;
+}
+
+/* ---- the army strip reads as a command line, not a toolbar ---- */
+.army {
+  gap: 8px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.army-label {
+  font: 600 14px var(--display);
+  margin-right: 8px;
+}
+.army button {
+  font-size: 12px;
+  padding: 5px 9px;
+  border-radius: 2px;
+  background: transparent;
+}
+.army button.primary {
+  background: var(--accent);
+}
+.army.picking {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.pick-chip {
+  border-radius: 2px;
+  background: var(--accent);
+  font: 600 11px var(--mono);
+}
+.pick-clear {
+  border-radius: 2px;
+  font-family: var(--mono);
+}
+
+/* ---- bot cards: file cards from a field ledger ---- */
+.cards {
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 18px;
+}
+.card {
+  border-radius: 2px;
+  border-top: 3px solid color-mix(in srgb, var(--accent) 70%, var(--border));
+  padding: 18px 18px 14px;
+  gap: 12px;
+  box-shadow: var(--shadow);
+}
+.card.selected {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  border-top-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent), var(--shadow);
+}
+.card.picked {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
+}
+.card-head {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  gap: 10px;
+}
+.card-num {
+  font-size: 10px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 2px 6px;
+  letter-spacing: .02em;
+}
+.card-name {
+  font: 600 22px/1.1 var(--display);
+  letter-spacing: -.015em;
+}
+.card-tags {
+  margin-top: 0;
+  gap: 5px;
+}
+.pill, .shown-badge {
+  border-radius: 2px;
+  font: 600 10.5px var(--mono);
+  letter-spacing: .02em;
+  padding: 3px 6px;
+}
+.pill.ok {
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+}
+.pill.warn {
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+}
+.pill.bad {
+  background: color-mix(in srgb, var(--bad) 12%, transparent);
+}
+.shown-badge {
+  background: var(--accent);
+}
+.kv {
+  grid-template-columns: 78px 1fr;
+  gap: 5px 12px;
+  padding: 2px 0;
+}
+.kv dt {
+  color: var(--muted);
+  font-size: 11px;
+  align-self: center;
+}
+.kv dd {
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.bars {
+  gap: 5px;
+}
+.bar {
+  height: 12px;
+  border-radius: 2px;
+  background: var(--panel-2);
+}
+.bar > i {
+  border-radius: 2px;
+}
+.bar > span {
+  line-height: 12px;
+  padding-left: 8px;
+  font-size: 9.5px;
+  letter-spacing: .01em;
+}
+.fight {
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--panel-2);
+}
+.fight .bar {
+  background: var(--panel);
+}
+.mon {
+  border-radius: 2px;
+  background: var(--panel);
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+.equip {
+  border-radius: 2px;
+  background: var(--panel-2);
+}
+.equip summary {
+  font-weight: 500;
+}
+.stats {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.stats div {
+  background: transparent;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+  padding: 7px 2px;
+}
+.stats div:first-child {
+  border-left: 0;
+}
+.stats b {
+  font: 600 19px/1.1 var(--display);
+}
+.stats span {
+  font-size: 10px;
+  letter-spacing: .01em;
+}
+.usage {
+  font-size: 11px;
+  gap: 10px;
+}
+.actions {
+  gap: 5px;
+  margin-top: 0;
+  padding-top: 11px;
+  border-top: 1px solid var(--border);
+}
+
+/* ---- tables and resource panels ---- */
+.table-wrap {
+  border-radius: 2px;
+  box-shadow: none;
+}
+.table th {
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 9px 12px;
+}
+.table td {
+  padding: 10px 12px;
+}
+.table tbody tr:hover {
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+.stat {
+  border-radius: 2px;
+  border-top: 2px solid color-mix(in srgb, var(--accent) 60%, var(--border));
+  padding: 15px;
+}
+.stat b {
+  font: 600 25px/1.1 var(--display);
+}
+.meter {
+  border-radius: 2px;
+}
+.section-head {
+  margin-bottom: 16px;
+}
+.section-head p {
+  max-width: 72ch;
+}
+
+/* ---- dialogs and toasts ---- */
+dialog {
+  border-radius: 2px;
+  border-top: 3px solid var(--accent);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .28);
+}
+dialog::backdrop {
+  background: rgba(13, 21, 18, .58);
+}
+.dlg {
+  padding: 26px;
+}
+.dlg h2 {
+  font: 600 22px/1.15 var(--display);
+  letter-spacing: -.01em;
+}
+.dlg-actions {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.script-list {
+  border-radius: 2px;
+}
+.script-list li:hover, .script-list li.active {
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
+}
+.crumbs button {
+  color: var(--accent);
+}
+.cbo-role, .bank-col {
+  border-radius: 2px;
+}
+.msgbox-text {
+  border-radius: 2px;
+}
+.toast {
+  border-radius: 2px;
+  border-left-width: 3px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .18);
+}
+
+/* ---- narrow screens: the rail becomes the old tab row ---- */
+@media (max-width: 900px) {
+  #app-view {
+    display: block;
+  }
+  .tabsbar {
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
+    padding: 0 16px;
+    min-height: 0;
+    position: static;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .view-tab {
+    width: auto;
+    min-height: 0;
+    padding: 11px 12px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .view-tab.active {
+    background: transparent;
+    border-color: transparent;
+    border-bottom-color: var(--accent);
+    box-shadow: none;
+  }
+  .rail-note {
+    display: none;
+  }
+  .content {
+    padding: 20px 16px 44px;
+  }
+}
+
+@media (max-width: 760px) {
+  .login {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding: 28px 20px;
+  }
+  .login-intro h2 {
+    font-size: clamp(38px, 11vw, 56px);
+  }
+  .login-intro > p:not(.login-kicker) {
+    margin-top: 16px;
+    font-size: 14px;
+  }
+  .login-points {
+    display: none;
+  }
+  .login-card {
+    padding: 26px;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar, .tabsbar, .content {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .view-tab {
+    gap: 7px;
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+  .tab-icon, .tab-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+  .res-summary {
+    display: none;
+  }
+  .cards {
+    grid-template-columns: 1fr;
+  }
+  .army-exec {
+    display: inline-flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .busy-bar::before, .loading::before, button.busy::before, .dot.wait {
+    animation: none;
+  }
+}
