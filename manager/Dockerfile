@@ -4,6 +4,10 @@
 #   docker build -t vibeskua-manager manager/
 FROM node:24-alpine
 
+LABEL org.opencontainers.image.title="VibeSkua Manager" \
+      org.opencontainers.image.description="Web control panel for VibeSkua. UI design by DeepSeek V4.1 Flash." \
+      org.opencontainers.image.licenses="MIT"
+
 WORKDIR /app
 COPY package.json server.js ./
 COPY public/ public/
@@ -18,3 +22,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
   CMD wget -qO- http://127.0.0.1:3040/ >/dev/null || exit 1
 
 CMD ["node", "server.js"]
+
