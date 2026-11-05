@@ -12,6 +12,9 @@ public class PluginHelper : IPluginHelper
 
     private Dictionary<string, MainMenuItemViewModel> _buttons = new();
 
+    /// <summary>The buttons added so far, for a menu made after the plugins loaded.</summary>
+    public IEnumerable<MainMenuItemViewModel> Buttons => _buttons.Values.ToList();
+
     public PluginHelper()
     {
         _messenger = StrongReferenceMessenger.Default;
