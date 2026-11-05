@@ -21,8 +21,21 @@ public sealed class ViewLocator : IDataTemplate
 
     public static IReadOnlyCollection<Type> RegisteredViewModels => Views.Keys;
 
-    public bool Match(object? data) =>
-        data is not null && data.GetType().Namespace?.StartsWith("Skua.Core.ViewModels", StringComparison.Ordinal) == true;
+    // Only view models (and types with a view registered for them or a base). Plain
+    // items that live in the same namespace, like RegisteredQuestInfo in the
+    // Runtime window's quest list, must fall through to Avalonia's default
+    // template, which shows ToString() ("1234 (Reward: 5678)").
+    public bool Match(object? data)
+    {
+        if (data is null || data.GetType().Namespace?.StartsWith("Skua.Core.ViewModels", StringComparison.Ordinal) != true)
+            return false;
+        for (Type? t = data.GetType(); t is not null; t = t.BaseType)
+        {
+            if (Views.ContainsKey(t))
+                return true;
+        }
+        return data.GetType().Name.EndsWith("ViewModel", StringComparison.Ordinal);
+    }
 
     public Control Build(object? data)
     {
