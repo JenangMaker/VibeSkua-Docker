@@ -7,4 +7,6 @@
 /// interface extends <see cref="ICanEquip"/>, indicating that it supports equipping operations.</remarks>
 public interface IScriptInventory : ICanEquip
 {
+    /// <summary>Checks the current character's local favorite mark.</summary>
+    bool IsFavorited(int itemId);
 }

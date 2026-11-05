@@ -505,6 +505,20 @@ public class Main extends MovieClip {
         return String(items.length);
     }
 
+    // The character's local favourite mark (the game's star in the inventory),
+    // kept by the game in liteAssets.draw.FavStore. Same as Skua 1.x's
+    // isFavoriteItem; scripts use it to keep favourites out of the bank.
+    public static function isFavoriteItem(itemID:int):String {
+        try {
+            if (instance.gameDomain != null && instance.gameDomain.hasDefinition("liteAssets.draw.FavStore")) {
+                var store:* = instance.gameDomain.getDefinition("liteAssets.draw.FavStore");
+                return Boolean(store.has(itemID)).toString();
+            }
+        } catch (e:Error) {
+        }
+        return "false";
+    }
+
     private static function _looseName(s:String):String {
         return s.replace(/\s+/g, '').toLowerCase();
     }

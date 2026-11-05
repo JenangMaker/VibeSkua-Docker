@@ -77,6 +77,8 @@ public partial class ScriptInventory : IScriptInventory
         }
     }
 
+    public bool IsFavorited(int itemId) => Flash.Call<bool>("isFavoriteItem", itemId);
+
     public void EquipItem(int id)
     {
         Wait.ForActionCooldown(GameActions.EquipItem);
