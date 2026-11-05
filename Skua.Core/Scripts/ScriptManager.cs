@@ -897,6 +897,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
                     compilationCompleted[includedFile] = true;
                     Compiler.RegisterCompiled(includeHash, compiledPath);
                     fileInfoCache[includedFile] = (string.Empty, includeFileName, includeHash, compiledPath);
+                    KeepCachedInclude(compiledPath, loadContext, lockObj);
                     return;
                 }
                 catch
@@ -993,6 +994,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
                     compilationCompleted[newFile] = true;
                     Compiler.RegisterCompiled(includeHash, compiledPath);
                     fileInfoCache[newFile] = (string.Empty, includeFileName, includeHash, compiledPath);
+                    KeepCachedInclude(compiledPath, loadContext, lockObj);
                 }
                 catch
                 {
@@ -1184,6 +1186,40 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
         catch (Exception ex) when (ex is not ScriptCompileException)
         {
             throw new ScriptCompileException($"Failed to compile included file '{includedFile}': {ex.Message}", string.Empty);
+        }
+    }
+
+    // An include found in Cached-Scripts used to be loaded only when the script first
+    // touched one of its types, by name from the cache folder (ScriptLoadContext.Load).
+    // That folder is shared by every tab, and any tab starting a script prunes it
+    // (Compiler.CleanupOldCachedAssemblies: older than 7 days by write time, which a
+    // cache hit never refreshed; DeleteOldVersions when an include changed). So a tab
+    // could lose an include it was still running: FarmerJoe reached King's Echo and
+    // crashed with "Could not load file or assembly 'BocklinTreasuryMerge'" right after
+    // other tabs started ArchMage. Now a cached include is marked as used and loaded
+    // into this run's context at once, as a freshly compiled one is.
+    private static void KeepCachedInclude(string compiledPath, ScriptLoadContext loadContext, object lockObj)
+    {
+        try
+        {
+            File.SetLastWriteTimeUtc(compiledPath, DateTime.UtcNow);
+        }
+        catch
+        {
+        }
+
+        lock (lockObj)
+        {
+            if (Compiler.IsLoaded(compiledPath))
+                return;
+            try
+            {
+                using FileStream stream = File.OpenRead(compiledPath);
+                Compiler.RegisterLoaded(compiledPath, loadContext.LoadFromStream(stream));
+            }
+            catch
+            {
+            }
         }
     }
 

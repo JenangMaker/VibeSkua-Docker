@@ -35,6 +35,14 @@ public class ScriptLoadContext : AssemblyLoadContext
             }
         }
 
+        // An include this run already loaded (ScriptManager loads every include at
+        // compile time): use it, whatever has happened to Cached-Scripts since.
+        foreach (Assembly loaded in Assemblies)
+        {
+            if (string.Equals(loaded.GetName().Name, assemblyName.Name, StringComparison.Ordinal))
+                return loaded;
+        }
+
         if (!Directory.Exists(_cacheDirectory))
             return null;
 
