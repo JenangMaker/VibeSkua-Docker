@@ -863,19 +863,19 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
                 }
                 else
                 {
-                    bool containsDep;
+                    string? includedMatch;
                     _includedFilesLock.EnterReadLock();
                     try
                     {
-                        containsDep = _includedFiles.Contains(dep);
+                        includedMatch = _includedFiles.FirstOrDefault(path => path.Equals(dep, StringComparison.OrdinalIgnoreCase));
                     }
                     finally
                     {
                         _includedFilesLock.ExitReadLock();
                     }
-                    if (containsDep)
+                    if (includedMatch is not null)
                     {
-                        normalizedDeps.Add(dep);
+                        normalizedDeps.Add(includedMatch);
                     }
                 }
             }
