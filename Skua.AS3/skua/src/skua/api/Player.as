@@ -101,9 +101,12 @@ public class Player {
         }
     }
 
-    public static function rejectExcept(whitelist:String):void {
+    public static function rejectExcept(whitelist:String):String {
         var pickup:Array = whitelist.split(',');
         if (Main.instance.game.litePreference.data.bCustomDrops) {
+            if (Main.instance.game.cDropsUI == null) {
+                return "false";
+            }
             var source:* = Main.instance.game.cDropsUI.mcDraggable ? Main.instance.game.cDropsUI.mcDraggable.menu : Main.instance.game.cDropsUI;
             for (var i:int = source.numChildren - 1; i >= 0; i--) {
                 var child:* = source.getChildAt(i);
@@ -128,6 +131,8 @@ public class Player {
                 }
             }
         }
+        // Skua drops the rejected items from Current Drops only when this says it ran.
+        return "true";
     }
 }
 }

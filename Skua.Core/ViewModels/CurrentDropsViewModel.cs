@@ -19,6 +19,7 @@ public partial class CurrentDropsViewModel : BotControlViewModelBase
     protected override void OnActivated()
     {
         StrongReferenceMessenger.Default.Register<CurrentDropsViewModel, ItemDroppedMessage, int>(this, (int)MessageChannels.GameEvents, CurrentDropsChanged);
+        StrongReferenceMessenger.Default.Register<CurrentDropsViewModel, DropPickupResultMessage, int>(this, (int)MessageChannels.GameEvents, PickupResultReceived);
         OnPropertyChanged(nameof(CurrentDrops));
     }
 
@@ -56,13 +57,17 @@ public partial class CurrentDropsViewModel : BotControlViewModelBase
     [RelayCommand]
     private void PickupSelected(IList<object>? items)
     {
-        if (items is null || !_player.Playing)
+        if (items is null || items.Count == 0 || !_player.Playing)
             return;
 
         int[] dropIds = new int[items.Count];
         for (int i = 0; i < items.Count; i++)
-            dropIds[i] = ((ItemBase)items[i]).ID;
-        _drops.Pickup(dropIds);
+        {
+            if (items[i] is ItemBase ib)
+                dropIds[i] = ib.ID;
+        }
+        // Pickup(int[]) waits for the server's reply: don't block the UI thread.
+        Task.Run(() => _drops.Pickup(dropIds));
     }
 
     [RelayCommand]
@@ -74,10 +79,16 @@ public partial class CurrentDropsViewModel : BotControlViewModelBase
     [RelayCommand]
     private void PickupAC()
     {
-        _drops.PickupACItems();
+        Task.Run(() => _drops.PickupACItems());
     }
 
     private void CurrentDropsChanged(CurrentDropsViewModel recipient, ItemDroppedMessage message)
+    {
+        recipient.OnPropertyChanged(nameof(recipient.CurrentDrops));
+    }
+
+    // A drop leaves the list only when the server accepts the pickup.
+    private void PickupResultReceived(CurrentDropsViewModel recipient, DropPickupResultMessage message)
     {
         recipient.OnPropertyChanged(nameof(recipient.CurrentDrops));
     }
