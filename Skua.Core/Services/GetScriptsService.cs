@@ -113,19 +113,32 @@ public partial class GetScriptsService : ObservableObject, IGetScriptsService
             string datesFile = Path.Combine(AppContext.BaseDirectory, "ScriptDates.json");
             if (File.Exists(datesFile))
             {
-                var dict = JsonConvert.DeserializeObject<Dictionary<string, DateTime>>(File.ReadAllText(datesFile));
-                if (dict != null)
+                var dict = ParseScriptDates(File.ReadAllText(datesFile));
+                foreach (var s in scripts)
                 {
-                    foreach (var s in scripts)
-                    {
-                        if (dict.TryGetValue(s.FilePath, out var date))
-                            s.CreationDate = date;
-                    }
+                    if (dict.TryGetValue(s.FilePath, out var date))
+                        s.CreationDate = date;
                 }
             }
         } catch { }
 
         return scripts;
+    }
+
+    // Paths match ignoring case. A file renamed in the repo can be in the dates file under both
+    // casings; the older date is the script's creation (upstream 137411c).
+    private static Dictionary<string, DateTime> ParseScriptDates(string json)
+    {
+        Dictionary<string, DateTime> dates = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, DateTime>? raw = JsonConvert.DeserializeObject<Dictionary<string, DateTime>>(json);
+        if (raw == null)
+            return dates;
+        foreach (KeyValuePair<string, DateTime> entry in raw)
+        {
+            if (!dates.TryGetValue(entry.Key, out DateTime known) || entry.Value.ToUniversalTime() < known.ToUniversalTime())
+                dates[entry.Key] = entry.Value;
+        }
+        return dates;
     }
 
     public async Task UpdateScriptDatesAsync(IProgress<string>? progress, CancellationToken token)
@@ -139,7 +152,7 @@ public partial class GetScriptsService : ObservableObject, IGetScriptsService
         Dictionary<string, DateTime> dict = new();
         if (File.Exists(datesFile))
         {
-            try { dict = JsonConvert.DeserializeObject<Dictionary<string, DateTime>>(await File.ReadAllTextAsync(datesFile, token)) ?? new(); } catch { }
+            try { dict = ParseScriptDates(await File.ReadAllTextAsync(datesFile, token)); } catch { }
         }
 
         int newScripts = 0;
