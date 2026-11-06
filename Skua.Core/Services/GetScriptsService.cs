@@ -245,17 +245,12 @@ public partial class GetScriptsService : ObservableObject, IGetScriptsService
     {
         try
         {
-            long localSize = 0;
-            if (File.Exists(ClientFileSources.SkuaAdvancedSkillsFile))
-            {
-                FileInfo fileInfo = new(ClientFileSources.SkuaAdvancedSkillsFile);
-                localSize = fileInfo.Length;
-            }
+            string remoteContent = await ValidatedHttpExtensions.GetStringAsync(HttpClients.GitHubRaw, _skillsSetsRawUrl);
+            if (!File.Exists(ClientFileSources.SkuaAdvancedSkillsFile))
+                return remoteContent.Length;
 
-            string content = await ValidatedHttpExtensions.GetStringAsync(HttpClients.GitHubRaw, _skillsSetsRawUrl);
-            long remoteSize = content.Length;
-
-            return remoteSize != localSize ? remoteSize : 0;
+            string localContent = await File.ReadAllTextAsync(ClientFileSources.SkuaAdvancedSkillsFile).ConfigureAwait(false);
+            return string.Equals(localContent, remoteContent, StringComparison.Ordinal) ? 0 : remoteContent.Length;
         }
         catch
         {
@@ -268,7 +263,22 @@ public partial class GetScriptsService : ObservableObject, IGetScriptsService
         try
         {
             string content = await ValidatedHttpExtensions.GetStringAsync(HttpClients.GitHubRaw, _skillsSetsRawUrl);
-            await File.WriteAllTextAsync(ClientFileSources.SkuaAdvancedSkillsFile, content);
+            string? directory = Path.GetDirectoryName(ClientFileSources.SkuaAdvancedSkillsFile);
+            if (!string.IsNullOrEmpty(directory))
+                Directory.CreateDirectory(directory);
+
+            string destination = ClientFileSources.SkuaAdvancedSkillsFile;
+            if (File.Exists(destination))
+            {
+                string existingContent = await File.ReadAllTextAsync(destination).ConfigureAwait(false);
+                if (string.Equals(existingContent, content, StringComparison.Ordinal))
+                    return true;
+            }
+
+            // Per process: tabs are separate processes and may update the file at the same time.
+            string temporaryFile = $"{destination}.{Environment.ProcessId}.tmp";
+            await File.WriteAllTextAsync(temporaryFile, content).ConfigureAwait(false);
+            File.Move(temporaryFile, destination, true);
             return true;
         }
         catch
