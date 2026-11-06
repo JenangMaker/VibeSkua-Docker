@@ -3,6 +3,7 @@ import flash.external.ExternalInterface;
 
 import skua.api.Auras;
 import skua.api.Combat;
+import skua.api.Inventory;
 import skua.api.Monster;
 import skua.api.Player;
 import skua.api.Server;
@@ -42,6 +43,12 @@ public class Externalizer {
         this.addCallback("questTreeStamp", Main.questTreeStamp);
         this.addCallback("bagSlots", Main.bagSlots);
         this.addCallback("isFavoriteItem", Main.isFavoriteItem);
+        this.addCallback("hasInventoryCategories", Inventory.hasInventoryCategories);
+        this.addCallback("inventoryBagUsedSlots", Inventory.inventoryBagUsedSlots);
+        this.addCallback("inventoryMiscSlots", Inventory.inventoryMiscSlots);
+        this.addCallback("inventoryMiscUsedSlots", Inventory.inventoryMiscUsedSlots);
+        this.addCallback("inventoryPool", Inventory.inventoryPool);
+        this.addCallback("inventoryHasSpaceFor", Inventory.inventoryHasSpaceFor);
 
         // Server
         this.addCallback("connectToServer", Server.connectToServer);
