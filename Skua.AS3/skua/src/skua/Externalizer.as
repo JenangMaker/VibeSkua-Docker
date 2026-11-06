@@ -90,6 +90,7 @@ public class Externalizer {
         this.addCallback("buyItemByID", Shop.buyItemByID);
         this.addCallback("getShopItem", Shop.getShopItem);
         this.addCallback("getShopItemByID", Shop.getShopItemByID);
+        this.addCallback("getUnmetPurchaseRequirements", Shop.getUnmetPurchaseRequirements);
 
         // Auras
         this.addCallback("getSubjectAuras", Auras.getSubjectAuras);

@@ -40,6 +40,14 @@ public interface IScriptShop
     /// </summary>
     string Name { get; }
 
+    /// <summary>Whether scripted sales honor the game's favorite marks. Defaults to true.</summary>
+    bool ProtectFavorites { get; set; }
+
+    /// <summary>Reports unmet inventory material, token, and quest requirements for a purchase.</summary>
+    /// <param name="item">An item in the currently loaded shop.</param>
+    /// <param name="quantity">Quantity purchased, or -1 for the default bundle.</param>
+    List<string> GetUnmetPurchaseRequirements(ShopItem item, int quantity = -1);
+
     /// <summary>
     /// Buys the item with specified <paramref name="name"/> from the <see cref="ID">currently loaded shop</see>.
     /// </summary>
