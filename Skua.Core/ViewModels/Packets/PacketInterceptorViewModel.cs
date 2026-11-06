@@ -55,10 +55,13 @@ public partial class PacketInterceptorViewModel : BotControlViewModelBase
         {
             if (SetProperty(ref _isLogging, value))
             {
-                if (value)
-                    _gameProxy.Interceptors.Add(_logger);
-                else
-                    _gameProxy.Interceptors.Remove(_logger);
+                lock (_gameProxy.Interceptors)
+                {
+                    if (value)
+                        _gameProxy.Interceptors.Add(_logger);
+                    else
+                        _gameProxy.Interceptors.Remove(_logger);
+                }
             }
         }
     }

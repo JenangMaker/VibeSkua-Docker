@@ -145,9 +145,17 @@ public partial class CaptureProxy : ObservableRecipient, ICaptureProxy
                     cpacket.Clear();
 
                     MessageInfo message = new(Encoding.UTF8.GetString(data, 0, data.Length));
-                    if (Interceptors.Count > 0)
+                    // A snapshot under the lock the view model registers with (upstream cfcb4a2).
+                    IInterceptor[] currentInterceptors;
+                    lock (Interceptors)
                     {
-                        IInterceptor[] currentInterceptors = Interceptors.OrderBy(i => i.Priority).ToArray();
+                        currentInterceptors = Interceptors.Count == 0
+                            ? Array.Empty<IInterceptor>()
+                            : Interceptors.OrderBy(i => i.Priority).ToArray();
+                    }
+
+                    if (currentInterceptors.Length > 0)
+                    {
                         foreach (IInterceptor interceptor in currentInterceptors)
                             interceptor.Intercept(message, outbound);
                     }
