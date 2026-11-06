@@ -291,7 +291,7 @@ public partial class ScriptOption : ObservableRecipient, IScriptOption, IOptionD
     private int _actionDelay = 800;
 
     [ObservableProperty]
-    private int _privateNumber = 0;
+    private int _privateNumber = 100000;
 
     [ObservableProperty]
     private int _joinMapTries = 3;

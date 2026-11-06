@@ -127,8 +127,9 @@ public partial class ScriptMap : IScriptMap
         int i = 0;
         while (Name != mapName && !Manager.ShouldExit && ++i < Options.JoinMapTries)
         {
+            // Private room: map-<Private Number>, or map-100000 while no number is set (0 or less)
             if ((Options.PrivateRooms && !map.Contains('-')) || map.Contains("-1e9"))
-                map = $"{mapName}{(Options.PrivateNumber != -1 ? Options.PrivateNumber : "-100000")}";
+                map = $"{mapName}-{(Options.PrivateNumber > 0 ? Options.PrivateNumber : 100000)}";
             Wait.ForActionCooldown(GameActions.Transfer);
             JoinPacket(map, cell, pad);
             Wait.ForMapLoad(map);
