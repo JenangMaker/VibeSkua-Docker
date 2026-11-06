@@ -99,6 +99,7 @@ public class Externalizer {
         this.addCallback("GetMonsterAuraByID", Auras.GetMonsterAuraByID);
         this.addCallback("rebuildAuraArray", Auras.rebuildAuraArray);
         this.addCallback("GetAurasValue", Auras.GetAurasValue);
+        this.addCallback("GetAuraSnapshots", Auras.GetAuraSnapshots);
         this.addCallback("rebuilduoTree", Auras.rebuilduoTree);
         this.addCallback("rebuildmonTree", Auras.rebuildmonTree);
 

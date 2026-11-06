@@ -2,6 +2,7 @@ package skua.api {
 
 import flash.events.TimerEvent;
 import flash.utils.Timer;
+import flash.utils.getTimer;
 
 import skua.Main;
 
@@ -38,6 +39,36 @@ public class Auras {
             }
         } catch (e:Error) {
         }
+    }
+
+    public static function GetAuraSnapshots(subject:String):String {
+        var world:* = Main.instance.game.world;
+        var leaf:* = subject == "Self"
+            ? world.uoTree[Main.instance.game.sfc.myUserName.toLowerCase()]
+            : (world.myAvatar.target != null ? world.myAvatar.target.dataLeaf : null);
+        var snapshots:Array = [];
+        if (leaf == null || leaf.hudAuras == null) {
+            return JSON.stringify(snapshots);
+        }
+        var now:int = getTimer();
+        for (var name:String in leaf.hudAuras) {
+            var aura:* = leaf.hudAuras[name];
+            if (aura == null) {
+                continue;
+            }
+            snapshots.push({
+                nam: name,
+                n: int(aura.n),
+                dur: Number(aura.dur),
+                remaining: Number(aura.end) > 0 ? Math.max(0, (Number(aura.end) - now) / 1000) : 0,
+                persist: aura.persist == true,
+                icon: aura.icon != null ? String(aura.icon) : "",
+                desc: world.auraDescs != null && world.auraDescs[name] != null ? String(world.auraDescs[name]) : "",
+                seq: int(aura.seq)
+            });
+        }
+        snapshots.sortOn("seq", Array.NUMERIC);
+        return JSON.stringify(snapshots);
     }
 
     public static function getSubjectAuras(subject:String):Array {
@@ -157,7 +188,7 @@ public class Auras {
             var aura:Object = auras[i];
             var auraNameLower:String = aura.nam.toLowerCase();
             for (var j:int = 0; j < auraListCount; j++) {
-                if (auraNameLower == auraList[j].toLowerCase().trim()) {
+                if (auraNameLower == auraList[j].toLowerCase().replace(/^\s+|\s+$/g, "")) {
                     return true.toString();
                 }
             }
