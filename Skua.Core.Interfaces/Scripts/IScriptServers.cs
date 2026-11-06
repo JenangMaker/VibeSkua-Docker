@@ -28,6 +28,12 @@ public interface IScriptServers : INotifyPropertyChanged
     string LastIP { get; set; }
 
     /// <summary>
+    /// Indicates whether the last logout was intentionally triggered by the user or a script
+    /// (or the account was locked out). While set, auto relogin does not log back in.
+    /// </summary>
+    bool IsIntentionalLogout { get; set; }
+
+    /// <summary>
     /// The name of the last server the player was connected to.
     /// </summary>
     string LastName { get; set; }
@@ -108,6 +114,16 @@ public interface IScriptServers : INotifyPropertyChanged
     /// Logs out of the game.
     /// </summary>
     void Logout();
+
+    /// <summary>
+    /// Disconnects and returns to the login screen without marking the logout as intentional.
+    /// Used by reconnect operations.
+    /// </summary>
+    void DisconnectForRelogin()
+    {
+        Logout();
+        IsIntentionalLogout = false;
+    }
 
     /// <summary>
     /// Logs in and connects to the server with specified <paramref name="name"/>.

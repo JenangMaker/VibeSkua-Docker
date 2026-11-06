@@ -118,8 +118,11 @@ public sealed class NativeSession(IServiceProvider services, RuffleBridge bridge
                 }
                 if (!_playing)
                     continue;
-                // Disconnected or kicked: give Skua's AutoRelogin a minute.
-                bool idle = Has("mcLogin.ni") && !Has("mcLogin.sl.iList");
+                // Disconnected or kicked: give Skua's AutoRelogin a minute. Not after a
+                // logout on purpose (the game's Logout button, a script, Army Control) or a
+                // banned / disabled account: Skua marks those intentional.
+                bool idle = Has("mcLogin.ni") && !Has("mcLogin.sl.iList")
+                    && services.GetService<IScriptServers>()?.IsIntentionalLogout != true;
                 if (!idle)
                 {
                     _idleSince = null;

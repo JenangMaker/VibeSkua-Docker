@@ -140,6 +140,7 @@ public class Main extends MovieClip {
         this.game.addEventListener(MouseEvent.CLICK,this.onGameClick);
         this.game.addEventListener(Event.REMOVED_FROM_STAGE, this.onGameRemoved);
         this.game.sfc.addEventListener(SFSEvent.onExtensionResponse, this.onExtensionResponse);
+        this.game.sfc.addEventListener(SFSEvent.onConnectionLost, this.onConnectionLost);
         this.gameDomain = LoaderInfo(event.target).applicationDomain;
         catchPackets();
 
@@ -156,6 +157,11 @@ public class Main extends MovieClip {
         Auras.initialize();
         
         this.external.call('loaded');
+    }
+
+    // The game's socket closed: Skua relogs at once instead of waiting to notice.
+    public function onConnectionLost(event:*):void {
+        this.external.call('connectionLost');
     }
 
     public function onExtensionResponse(packet:*):void {
@@ -203,9 +209,31 @@ public class Main extends MovieClip {
 
     private function onGameClick(event:MouseEvent) : void
     {
-        if (event == null)
+        if (event == null || event.target == null)
                 return;
-        var className:String = getQualifiedClassName(event.target.parent);
+        var className:String = (event.target.parent != null) ? getQualifiedClassName(event.target.parent) : "";
+        var targetName:String = (event.target.name != null) ? String(event.target.name) : "";
+        var parentName:String = (event.target.parent != null && event.target.parent.name != null) ? String(event.target.parent.name) : "";
+
+        // The player's own Logout / Change Server clicks: Skua must not relog.
+        if (targetName == "btnLogout" || targetName == "btnLogoutFB") {
+            this.external.call("userIntentionalAction", "logout");
+            return;
+        }
+        if (targetName == "btnChange" && (className.indexOf("mcOption") > -1 || parentName == "mcOption")) {
+            this.external.call("userIntentionalAction", "changeServer");
+            return;
+        }
+        // A server picked on the server list: a login on purpose, relogs allowed again.
+        var p:* = event.target.parent;
+        while (p != null) {
+            if (p.name == "iList") {
+                this.external.call("userIntentionalAction", "selectServer");
+                break;
+            }
+            if (p == this.game || p == this.stg) break;
+            p = p.parent;
+        }
         switch(event.target.name)
         {
             case "btCharPage":

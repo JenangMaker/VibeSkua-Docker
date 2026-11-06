@@ -53,6 +53,8 @@ public class Externalizer {
         // Server
         this.addCallback("connectToServer", Server.connectToServer);
         this.addCallback("clickServer", Server.clickServer);
+        this.addCallback("killLoginModals", Server.killLoginModals);
+        this.addCallback("getActiveModalMessage", Server.getActiveModalMessage);
 
         // Player
         this.addCallback("isLoggedIn", Player.isLoggedIn);
