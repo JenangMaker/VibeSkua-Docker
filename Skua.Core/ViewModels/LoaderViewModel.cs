@@ -148,10 +148,22 @@ public partial class LoaderViewModel : BotControlViewModelBase, IManagedWindow
     {
         IsLoading = true;
         ProgressReport = "Getting quests";
-        QuestIDs.Clear();
-        QuestIDs.AddRange(await _questLoader.GetFromFileAsync("QuestData.json"));
-        ProgressReport = string.Empty;
-        IsLoading = false;
+        // A missing or broken QuestData.json used to leave the loader stuck loading (upstream a5a26b4).
+        try
+        {
+            var questData = await _questLoader.GetFromFileAsync("QuestData.json");
+            QuestIDs.Clear();
+            QuestIDs.AddRange(questData);
+            ProgressReport = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            ProgressReport = $"Failed to load quests: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     [RelayCommand]
