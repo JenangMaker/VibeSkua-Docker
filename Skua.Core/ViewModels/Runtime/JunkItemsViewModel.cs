@@ -40,6 +40,10 @@ public sealed partial class JunkItemsViewModel : BotControlViewModelBase
     public ObservableCollection<string> CategoryOptions { get; } = new() { AllCategories };
     public const string AllCategories = "All Categories";
 
+    // Bound to the category box; a refresh that rebuilds the list keeps it, or goes back to All.
+    [ObservableProperty]
+    private string _selectedCategory = AllCategories;
+
     [ObservableProperty]
     private bool _skipSellWarning;
 
@@ -83,8 +87,10 @@ public sealed partial class JunkItemsViewModel : BotControlViewModelBase
                 .Select(g =>
                 {
                     InventoryItem item = g.First();
-                    int inventoryQuantity = inventoryItems.Where(i => i.ID == item.ID).Sum(i => i.Quantity);
-                    int bankQuantity = bankItems.Where(i => i.ID == item.ID).Sum(i => i.Quantity);
+                    // A class's Quantity is its class points, so a class counts as 1.
+                    int Count(List<InventoryItem> items) => items.Where(i => i.ID == item.ID).Sum(i => i.Category == ItemCategory.Class ? 1 : i.Quantity);
+                    int inventoryQuantity = Count(inventoryItems);
+                    int bankQuantity = Count(bankItems);
                     return new JunkItemEntry(item.ID, item.Name, item.Category.ToString(), item.Coins, inventoryQuantity, bankQuantity, junkIds.Contains(item.ID));
                 })
                 .OrderBy(i => i.Name)
@@ -104,10 +110,12 @@ public sealed partial class JunkItemsViewModel : BotControlViewModelBase
         List<string> categories = entries.Select(e => e.Category).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(c => c).ToList();
         if (!categories.SequenceEqual(CategoryOptions.Skip(1)))
         {
+            string selected = SelectedCategory;
             CategoryOptions.Clear();
             CategoryOptions.Add(AllCategories);
             foreach (string category in categories)
                 CategoryOptions.Add(category);
+            SelectedCategory = CategoryOptions.Contains(selected) ? selected : AllCategories;
         }
     }
 
