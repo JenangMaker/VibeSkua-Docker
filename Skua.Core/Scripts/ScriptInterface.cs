@@ -143,7 +143,12 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
         Accounts = accounts;
         _settingsService = settingsService;
 
-        Version = Version.Parse(settingsService.Get("ApplicationVersion", "0.0.0.0"));
+        string applicationVersion = settingsService.Get("ApplicationVersion", "0.0.0.0");
+        int versionSuffix = applicationVersion.IndexOfAny(['-', '+']);
+        if (versionSuffix >= 0)
+            applicationVersion = applicationVersion[..versionSuffix];
+
+        Version = Version.Parse(applicationVersion);
 
         _stateChannel = new GameStateChannel(_ => { }, 100);
         _stateChannel.Start();
@@ -221,10 +226,23 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
 
     private void CheckScriptTermination()
     {
-        if (Manager is IScriptManager scriptManager)
-            scriptManager.ScriptPauseEvent.Wait();
-        if (Manager.ShouldExit && Thread.CurrentThread.Name == "Script Thread")
-            throw new OperationCanceledException();
+        if (Thread.CurrentThread.Name == "Script Thread")
+        {
+            // A paused script can still be stopped: the pause wait ends on the script's cancellation.
+            if (Manager is IScriptManager scriptManager)
+            {
+                try
+                {
+                    scriptManager.ScriptPauseEvent.Wait(scriptManager.ScriptCts?.Token ?? CancellationToken.None);
+                }
+                catch (OperationCanceledException)
+                {
+                }
+            }
+
+            if (Manager.ShouldExit)
+                throw new OperationCanceledException();
+        }
     }
 
     public bool? ShowMessageBox(string message, string caption, bool yesAndNo = false)

@@ -48,7 +48,14 @@ public class Player {
     }
 
     public static function isKicked():String {
-        return (Main.instance.game.mcLogin != null && Main.instance.game.mcLogin.warning.visible).toString();
+        try {
+            return (Main.instance.game != null &&
+                    Main.instance.game.mcLogin != null &&
+                    Main.instance.game.mcLogin.warning != null &&
+                    Main.instance.game.mcLogin.warning.visible).toString();
+        } catch (ex:Error) {
+        }
+        return "false";
     }
 
     public function equipLoadout(setName:String, changeColors:Boolean = false): void
