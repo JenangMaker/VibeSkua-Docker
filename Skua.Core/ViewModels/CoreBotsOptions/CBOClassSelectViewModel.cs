@@ -448,6 +448,44 @@ public partial class CBOClassSelectViewModel : ObservableObject, IManageCBOption
         SelectedBossUseMode = null;
     }
 
+    // Re-reads the player's classes and keeps each slot's class, equipment tick, use mode and
+    // skill preset: the class reload clears them, and re-setting the class alone put back the
+    // class but not the rest (upstream d7cc071, 192ae15).
+    [RelayCommand]
+    private void RefreshClasses()
+    {
+        (string? Class, bool Equip, ClassUseMode? Mode, string? Preset) solo = (SelectedSoloClass, UseSoloEquipment, SelectedSoloUseMode, SelectedSoloModeString);
+        (string? Class, bool Equip, ClassUseMode? Mode, string? Preset) farm = (SelectedFarmClass, UseFarmEquipment, SelectedFarmUseMode, SelectedFarmModeString);
+        (string? Class, bool Equip, ClassUseMode? Mode, string? Preset) dodge = (SelectedDodgeClass, UseDodgeEquipment, SelectedDodgeUseMode, SelectedDodgeModeString);
+        (string? Class, bool Equip, ClassUseMode? Mode, string? Preset) boss = (SelectedBossClass, UseBossEquipment, SelectedBossUseMode, SelectedBossModeString);
+
+        ReloadClasses();
+
+        SelectedSoloClass = solo.Class;
+        UseSoloEquipment = solo.Equip;
+        SelectedSoloUseMode = solo.Mode;
+        if (solo.Preset is not null)
+            SelectedSoloModeString = solo.Preset;
+
+        SelectedFarmClass = farm.Class;
+        UseFarmEquipment = farm.Equip;
+        SelectedFarmUseMode = farm.Mode;
+        if (farm.Preset is not null)
+            SelectedFarmModeString = farm.Preset;
+
+        SelectedDodgeClass = dodge.Class;
+        UseDodgeEquipment = dodge.Equip;
+        SelectedDodgeUseMode = dodge.Mode;
+        if (dodge.Preset is not null)
+            SelectedDodgeModeString = dodge.Preset;
+
+        SelectedBossClass = boss.Class;
+        UseBossEquipment = boss.Equip;
+        SelectedBossUseMode = boss.Mode;
+        if (boss.Preset is not null)
+            SelectedBossModeString = boss.Preset;
+    }
+
     public StringBuilder Save(StringBuilder builder)
     {
         string soloClass = SelectedSoloClass == CurrentClassOption ? CurrentClassOption : SelectedSoloClass;

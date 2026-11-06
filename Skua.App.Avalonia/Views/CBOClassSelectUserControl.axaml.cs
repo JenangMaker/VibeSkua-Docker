@@ -14,13 +14,7 @@ public partial class CBOClassSelectUserControl : UserControl
     // Reload the class list when a class box opens, keeping the selections.
     private void ClassBox_DropDownOpened(object? sender, EventArgs e)
     {
-        if (DataContext is not CBOClassSelectViewModel vm)
-            return;
-        string? solo = vm.SelectedSoloClass, farm = vm.SelectedFarmClass, dodge = vm.SelectedDodgeClass, boss = vm.SelectedBossClass;
-        vm.ReloadClassesCommand.Execute(null);
-        vm.SelectedSoloClass = solo;
-        vm.SelectedFarmClass = farm;
-        vm.SelectedDodgeClass = dodge;
-        vm.SelectedBossClass = boss;
+        if (DataContext is CBOClassSelectViewModel vm)
+            vm.RefreshClassesCommand.Execute(null);
     }
 }
