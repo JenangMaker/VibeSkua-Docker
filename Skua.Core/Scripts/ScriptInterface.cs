@@ -559,10 +559,21 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
                             dynamic p = data.p?[Player.Username.ToLower()]!;
                             if (p is not null && p.intHP == 0)
                             {
-                                Stats.Deaths++;
-                                Messenger.Send<PlayerDeathMessage, int>((int)MessageChannels.GameEvents);
+                                // Combat-state packets can repeat while the player remains dead.
+                                if (!_playerDead)
+                                {
+                                    Stats.Deaths++;
+                                    Messenger.Send<PlayerDeathMessage, int>((int)MessageChannels.GameEvents);
+                                }
+
+                                _playerDead = true;
                                 break;
                             }
+
+                            // Alive again only on HP above 0: a packet with only MP or state would
+                            // otherwise let the next HP 0 packet count the same death twice.
+                            if (p is not null && p.intHP != null && p.intHP > 0)
+                                _playerDead = false;
                             dynamic anims = data.anims?[0]!;
                             if (anims is not null)
                             {
@@ -691,6 +702,7 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
                             break;
 
                         case "loginResponse":
+                            _playerDead = false;
                             Stats.GetSpace();
                             Options.CustomName = string.Empty;
                             Options.CustomGuild = string.Empty;
@@ -805,6 +817,8 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
     }
 
     private bool _disposed = false;
+    // Set by a combat packet with HP 0, cleared when HP is back above 0 or on login (deaths are counted once).
+    private bool _playerDead;
 
     public void Dispose()
     {
