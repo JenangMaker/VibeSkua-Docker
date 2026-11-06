@@ -36,6 +36,10 @@ public sealed partial class JunkItemsViewModel : BotControlViewModelBase
 
     public RangedObservableCollection<JunkItemEntry> Items { get; }
 
+    // The categories of the listed items, for the view's category filter (upstream 1fb82a8).
+    public ObservableCollection<string> CategoryOptions { get; } = new() { AllCategories };
+    public const string AllCategories = "All Categories";
+
     [ObservableProperty]
     private bool _skipSellWarning;
 
@@ -74,13 +78,16 @@ public sealed partial class JunkItemsViewModel : BotControlViewModelBase
             List<InventoryItem> inventoryItems = _inventory.Items.ToList();
             List<InventoryItem> bankItems = _bank.Items.ToList();
 
-            IEnumerable<InventoryItem> allItems = inventoryItems.Concat(bankItems);
-
-            return allItems
+            return inventoryItems.Concat(bankItems)
                 .GroupBy(i => i.ID)
-                .Select(g => g.First())
+                .Select(g =>
+                {
+                    InventoryItem item = g.First();
+                    int inventoryQuantity = inventoryItems.Where(i => i.ID == item.ID).Sum(i => i.Quantity);
+                    int bankQuantity = bankItems.Where(i => i.ID == item.ID).Sum(i => i.Quantity);
+                    return new JunkItemEntry(item.ID, item.Name, item.Category.ToString(), item.Coins, inventoryQuantity, bankQuantity, junkIds.Contains(item.ID));
+                })
                 .OrderBy(i => i.Name)
-                .Select(item => new JunkItemEntry(item.ID, item.Name, item.Category.ToString(), junkIds.Contains(item.ID)))
                 .ToList();
         });
 
@@ -93,6 +100,15 @@ public sealed partial class JunkItemsViewModel : BotControlViewModelBase
 
         Items.ReplaceRange(entries);
         OnPropertyChanged(nameof(TotalJunk));
+
+        List<string> categories = entries.Select(e => e.Category).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(c => c).ToList();
+        if (!categories.SequenceEqual(CategoryOptions.Skip(1)))
+        {
+            CategoryOptions.Clear();
+            CategoryOptions.Add(AllCategories);
+            foreach (string category in categories)
+                CategoryOptions.Add(category);
+        }
     }
 
     [RelayCommand]
@@ -208,17 +224,24 @@ public sealed partial class JunkItemsViewModel : BotControlViewModelBase
 
 public sealed partial class JunkItemEntry : ObservableObject
 {
-    public JunkItemEntry(int id, string name, string category, bool isJunk)
+    public JunkItemEntry(int id, string name, string category, bool isAc, int inventoryQuantity, int bankQuantity, bool isJunk)
     {
         ID = id;
         Name = name;
         Category = category;
+        IsAc = isAc;
+        InventoryQuantity = inventoryQuantity;
+        BankQuantity = bankQuantity;
         _isJunk = isJunk;
     }
 
     public int ID { get; }
     public string Name { get; }
     public string Category { get; }
+    public bool IsAc { get; }
+    public int InventoryQuantity { get; }
+    public int BankQuantity { get; }
+    public string QuantityDisplay => $"Inv: {InventoryQuantity}  |  Bank: {BankQuantity}";
 
     [ObservableProperty]
     private bool _isSelected;
