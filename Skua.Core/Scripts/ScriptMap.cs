@@ -174,11 +174,32 @@ public partial class ScriptMap : IScriptMap
         Thread.Sleep(Options.ActionDelay);
     }
 
-    private Dictionary<string, List<MapItem>>? LoadSavedMapItems()
+    // Through a per-process temp file: tabs are separate processes sharing this file, and two
+    // writing it at once could leave it damaged.
+    private void WriteSavedMapItems()
     {
-        return !File.Exists(_savedCacheFilePath)
-            ? null
-            : (_savedMapItems = JsonConvert.DeserializeObject<Dictionary<string, List<MapItem>>>(File.ReadAllText(_savedCacheFilePath))!);
+        string temporaryFile = $"{_savedCacheFilePath}.{Environment.ProcessId}.tmp";
+        File.WriteAllText(temporaryFile, JsonConvert.SerializeObject(_savedMapItems, Formatting.Indented));
+        File.Move(temporaryFile, _savedCacheFilePath, true);
+    }
+
+    private Dictionary<string, List<MapItem>> LoadSavedMapItems()
+    {
+        if (!File.Exists(_savedCacheFilePath))
+            return _savedMapItems;
+
+        try
+        {
+            _savedMapItems = JsonConvert.DeserializeObject<Dictionary<string, List<MapItem>>>(File.ReadAllText(_savedCacheFilePath))
+                ?? new Dictionary<string, List<MapItem>>();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            // A damaged cache must not prevent the client from starting or map features from working.
+            _savedMapItems = new();
+        }
+
+        return _savedMapItems;
     }
 
     private readonly string _cachePath = Path.Combine(ClientFileSources.SkuaDIR, "cache");
@@ -215,7 +236,7 @@ public partial class ScriptMap : IScriptMap
                 _savedMapItems[FileName] = info;
             else
                 _savedMapItems.Add(FileName, info);
-            File.WriteAllText(_savedCacheFilePath, JsonConvert.SerializeObject(_savedMapItems, Formatting.Indented));
+            WriteSavedMapItems();
         }
 
         List<MapItem>? ParseMapSWFData()
@@ -386,7 +407,7 @@ public partial class ScriptMap : IScriptMap
             if (_savedMapItems.ContainsKey(specificMap))
             {
                 _savedMapItems.Remove(specificMap);
-                File.WriteAllText(_savedCacheFilePath, JsonConvert.SerializeObject(_savedMapItems, Formatting.Indented));
+                WriteSavedMapItems();
             }
         }
         else
