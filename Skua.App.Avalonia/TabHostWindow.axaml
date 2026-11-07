@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:theming="clr-namespace:Skua.App.Avalonia.Theming"
         xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         xmlns:local="clr-namespace:Skua.App.Avalonia"
         x:Class="Skua.App.Avalonia.TabHostWindow"
@@ -50,6 +51,7 @@
         </Style>
     </Window.Styles>
     <DockPanel>
+        <theming:WindowTitleBar DockPanel.Dock="Top" />
         <DockPanel DockPanel.Dock="Top" Height="34" Margin="2,2,2,0">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="0,0,5,0">
                 <Button x:Name="ArmyButton" Classes="tabbar">

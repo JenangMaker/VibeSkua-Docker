@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:theming="clr-namespace:Skua.App.Avalonia.Theming"
         x:Class="Skua.App.Avalonia.HostDialog"
         Title="{Binding Title}"
         Width="400"
@@ -8,5 +9,8 @@
         Topmost="True"
         WindowStartupLocation="CenterOwner"
         Icon="avares://Skua.App.Avalonia/Assets/SkuaIcon.ico">
-    <ContentControl Content="{Binding}" />
+    <DockPanel>
+        <theming:WindowTitleBar DockPanel.Dock="Top" />
+        <ContentControl Content="{Binding}" Margin="10,8,10,10" />
+    </DockPanel>
 </Window>

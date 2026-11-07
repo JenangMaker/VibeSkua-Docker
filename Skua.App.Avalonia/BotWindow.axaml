@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:theming="clr-namespace:Skua.App.Avalonia.Theming"
         xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         x:Class="Skua.App.Avalonia.BotWindow"
         Title="{Binding SelectedItem.Title}"
@@ -10,6 +11,7 @@
     <!-- Skua.WPF's BotWindow: a drawer listing every bot control, the
          selected one's view beside it. -->
     <DockPanel>
+        <theming:WindowTitleBar DockPanel.Dock="Top" />
         <Border DockPanel.Dock="Top" Padding="2" Background="{DynamicResource SkuaBarBrush}">
             <StackPanel Orientation="Horizontal" Spacing="14">
                 <ToggleButton x:Name="MenuToggle" Classes="flat" ToolTip.Tip="Menu"

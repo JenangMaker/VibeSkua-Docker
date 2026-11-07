@@ -15,6 +15,12 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        if (App.Mode != AppMode.TabChild)
+        {
+            var bar = new Skua.App.Avalonia.Theming.WindowTitleBar();
+            DockPanel.SetDock(bar, Dock.Top);
+            RootDock.Children.Insert(0, bar);
+        }
         // As MainMenuUserControl did: the menu has its own view model.
         var menu = App.Service<MainMenuViewModel>();
         AddResetScripts(menu);

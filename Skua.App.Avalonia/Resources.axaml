@@ -23,4 +23,5 @@
     <conv:PacketDirectionBrushConverter x:Key="PacketDirectionBrush" />
     <conv:GrabberItemDisplayConverter x:Key="GrabberItemDisplay" />
     <conv:IntToSelectionModeConverter x:Key="IntToSelectionMode" />
+    <conv:MenuIconConverter x:Key="MenuIcon" />
 </ResourceDictionary>

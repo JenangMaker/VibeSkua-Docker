@@ -671,6 +671,7 @@ public partial class TabHostWindow : Window
     {
         if ((sender as Control)?.DataContext is SkuaTab tab)
             Select(tab);
+        e.Handled = true;
     }
 
     private void CloseTab_Click(object? sender, RoutedEventArgs e)

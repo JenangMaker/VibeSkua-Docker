@@ -9,52 +9,111 @@
         Icon="avares://Skua.App.Avalonia/Assets/SkuaIcon.ico">
     <!-- Skua.App.WPF's MainWindow: the main menu over the game. The game is the
          vibeskua-web Electron window, embedded over GameArea (GameEmbed.cs);
-         the status line shows what Skua sees. -->
-    <DockPanel>
-        <DockPanel x:Name="MenuBar" DockPanel.Dock="Top" Height="28" Background="{DynamicResource SkuaPaperBrush}"
-                   >
-            <Button DockPanel.Dock="Right" Classes="flat" Command="{Binding ShowBotWindowCommand}" ToolTip.Tip="Bot window">
-                <icons:MaterialIcon Kind="Plus" />
-            </Button>
-            <Button DockPanel.Dock="Right" Classes="flat" Content="Jump">
-                <Button.Flyout>
-                    <Flyout Placement="BottomEdgeAlignedRight">
-                        <views:JumpUserControl Width="300" DataContext="{Binding JumpViewModel}" />
-                    </Flyout>
-                </Button.Flyout>
-            </Button>
-            <Button DockPanel.Dock="Right" Classes="flat">
-                <StackPanel Orientation="Horizontal" Spacing="3">
-                    <icons:MaterialIcon Kind="ProgressCheck" IsVisible="{Binding AutoViewModel.Auto.IsRunning}" />
-                    <TextBlock Text="Auto" />
-                </StackPanel>
-                <Button.Flyout>
-                    <Flyout Placement="BottomEdgeAlignedRight">
+         the status line shows what Skua sees. The 2.x title bar is added in
+         code, except in a tab (the tab host has it). -->
+    <DockPanel x:Name="RootDock">
+        <!-- 2.x top bar (upstream 2.1.2's TopNavBorder): menus with icons, then Auto and
+             Jump as toggles that open popup panels, and the bot window button. -->
+        <Border x:Name="MenuBar" DockPanel.Dock="Top" Height="34" Padding="4,0"
+                Background="{DynamicResource SkuaSurfaceBrush}"
+                BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="0,0,0,1">
+        <DockPanel>
+            <StackPanel DockPanel.Dock="Right" Margin="0,0,4,0" Orientation="Horizontal" Spacing="4"
+                        VerticalAlignment="Center">
+                <ToggleButton x:Name="AutoToggle" Classes="top-nav-item"
+                              ToolTip.Tip="Automated Combat &amp; Hunting Controls">
+                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                        <icons:MaterialIcon Kind="RobotOutline" Width="13" Height="13" VerticalAlignment="Center"
+                                            Foreground="{DynamicResource SkuaTextBrush}" />
+                        <TextBlock Text="Auto" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" />
+                        <Border Width="6" Height="6" CornerRadius="3" Margin="2,0,0,0" VerticalAlignment="Center"
+                                Background="{DynamicResource SkuaSuccessBrush}"
+                                IsVisible="{Binding AutoViewModel.Auto.IsRunning}" />
+                    </StackPanel>
+                </ToggleButton>
+                <Popup Placement="Bottom" IsLightDismissEnabled="True"
+                       IsOpen="{Binding IsChecked, ElementName=AutoToggle, Mode=TwoWay}"
+                       PlacementTarget="{Binding ElementName=AutoToggle}">
+                    <Border Classes="topbar-popup" Background="{DynamicResource SkuaSurfaceBrush}"
+                            BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="1" CornerRadius="8">
                         <views:AutoUserControl Width="400" DataContext="{Binding AutoViewModel}" />
-                    </Flyout>
-                </Button.Flyout>
-            </Button>
-            <Menu DockPanel.Dock="Left" ItemsSource="{Binding MainMenuItems}">
-                <Menu.Styles>
-                    <Style Selector="MenuItem">
-                        <Setter Property="Header" Value="{Binding Header}" />
-                        <Setter Property="ItemsSource" Value="{Binding SubItems}" />
-                        <Setter Property="Command" Value="{Binding Command}" />
+                    </Border>
+                </Popup>
+
+                <ToggleButton x:Name="JumpToggle" Classes="top-nav-item"
+                              ToolTip.Tip="Map &amp; Cell Fast Jump Controls">
+                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                        <icons:MaterialIcon Kind="RunFast" Width="13" Height="13" VerticalAlignment="Center"
+                                            Foreground="{DynamicResource SkuaTextBrush}" />
+                        <TextBlock Text="Jump" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" />
+                    </StackPanel>
+                </ToggleButton>
+                <Popup Placement="Bottom" IsLightDismissEnabled="True"
+                       IsOpen="{Binding IsChecked, ElementName=JumpToggle, Mode=TwoWay}"
+                       PlacementTarget="{Binding ElementName=JumpToggle}">
+                    <Border Classes="topbar-popup" Background="{DynamicResource SkuaSurfaceBrush}"
+                            BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="1" CornerRadius="8">
+                        <views:JumpUserControl Width="300" DataContext="{Binding JumpViewModel}" />
+                    </Border>
+                </Popup>
+
+                <Border Width="1" Height="16" Margin="2,0" VerticalAlignment="Center"
+                        Background="{DynamicResource SkuaBorderBrush}" />
+
+                <Button Classes="top-nav-item" Width="28" Height="28" Padding="0"
+                        Command="{Binding ShowBotWindowCommand}" ToolTip.Tip="Show All Bot Windows &amp; Tools">
+                    <icons:MaterialIcon Kind="Plus" Width="15" Height="15" HorizontalAlignment="Center"
+                                        VerticalAlignment="Center" Foreground="{DynamicResource SkuaTextBrush}" />
+                </Button>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel.Styles>
+                    <!-- Top-level entries: icon and name; sub-entries: the icon in the menu's icon column. -->
+                    <Style Selector="Menu > MenuItem">
+                        <Setter Property="HeaderTemplate">
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <icons:MaterialIcon Kind="{Binding Converter={StaticResource MenuIcon}}"
+                                                        IsVisible="{Binding Converter={StaticResource MenuIcon}, ConverterParameter=has}"
+                                                        Width="14" Height="14" VerticalAlignment="Center"
+                                                        Foreground="{DynamicResource SkuaTextBrush}" />
+                                    <TextBlock Text="{Binding}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </Setter>
                     </Style>
-                </Menu.Styles>
-            </Menu>
-            <Menu DockPanel.Dock="Left">
-                <MenuItem Header="Plugins" ItemsSource="{Binding Plugins}">
-                    <MenuItem.Styles>
-                        <Style Selector="MenuItem > MenuItem">
+                    <Style Selector="MenuItem MenuItem">
+                        <Setter Property="Icon">
+                            <Template>
+                                <icons:MaterialIcon Kind="{Binding Header, Converter={StaticResource MenuIcon}}"
+                                                    IsVisible="{Binding Header, Converter={StaticResource MenuIcon}, ConverterParameter=has}"
+                                                    Width="14" Height="14" />
+                            </Template>
+                        </Setter>
+                    </Style>
+                </StackPanel.Styles>
+                <Menu Classes="top-toolbar" ItemsSource="{Binding MainMenuItems}">
+                    <Menu.Styles>
+                        <Style Selector="MenuItem">
                             <Setter Property="Header" Value="{Binding Header}" />
+                            <Setter Property="ItemsSource" Value="{Binding SubItems}" />
                             <Setter Property="Command" Value="{Binding Command}" />
                         </Style>
-                    </MenuItem.Styles>
-                </MenuItem>
-            </Menu>
-            <Panel />
+                    </Menu.Styles>
+                </Menu>
+                <Menu Classes="top-toolbar">
+                    <MenuItem Header="Plugins" ItemsSource="{Binding Plugins}">
+                        <MenuItem.Styles>
+                            <Style Selector="MenuItem > MenuItem">
+                                <Setter Property="Header" Value="{Binding Header}" />
+                                <Setter Property="Command" Value="{Binding Command}" />
+                            </Style>
+                        </MenuItem.Styles>
+                    </MenuItem>
+                </Menu>
+            </StackPanel>
         </DockPanel>
+        </Border>
         <Border x:Name="StatusBar" DockPanel.Dock="Top" Padding="10,6" Background="{DynamicResource SkuaBarBrush}">
             <DockPanel>
                 <!-- Script sync, while it runs and for a little while after. -->
