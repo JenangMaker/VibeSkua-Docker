@@ -24,4 +24,5 @@
     <conv:GrabberItemDisplayConverter x:Key="GrabberItemDisplay" />
     <conv:IntToSelectionModeConverter x:Key="IntToSelectionMode" />
     <conv:MenuIconConverter x:Key="MenuIcon" />
+    <conv:OptionLabelConverter x:Key="OptionLabel" />
 </ResourceDictionary>

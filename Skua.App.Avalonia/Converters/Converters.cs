@@ -198,3 +198,31 @@ public sealed class MenuIconConverter : IValueConverter
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
 }
+
+/// <summary>
+/// Option rows (2.x look): the "* " prefix that marks a restart-only option becomes a "restart"
+/// chip. Parameter "title": the name without it; "restart": whether it has it; "action": the
+/// button word for an action option ("Clear Flash Cache" -> "Clear"); "desc": whether the
+/// description says more than the title (binds the option itself).
+/// </summary>
+public sealed class OptionLabelConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (parameter as string == "desc")
+            return value is Skua.Core.ViewModels.DisplayOptionItemViewModelBase o
+                && !string.IsNullOrWhiteSpace(o.Description) && o.Description != o.Content;
+        string text = value as string ?? "";
+        bool restart = text.StartsWith("* ", StringComparison.Ordinal);
+        string title = restart ? text[2..] : text;
+        return parameter as string switch
+        {
+            "restart" => restart,
+            "action" => title.Split(' ', 2)[0],
+            _ => title,
+        };
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}

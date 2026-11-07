@@ -4,44 +4,81 @@
              xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="Skua.App.Avalonia.Views.OptionItemUserControl">
+    <!-- One option as a 2.x row (upstream 2.1.2's OptionItemControl layout): name, "restart" chip
+         and description on the left; the switch, value field with Set, or action button on the
+         right. Text options put their field under the name, full width. -->
+    <UserControl.Resources>
+        <DataTemplate x:Key="Label">
+            <StackPanel Spacing="2" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Classes="option-title" Text="{Binding Content, Converter={StaticResource OptionLabel}, ConverterParameter=title}" />
+                    <Border Classes="chip warning" ToolTip.Tip="Takes effect after a restart"
+                            IsVisible="{Binding Content, Converter={StaticResource OptionLabel}, ConverterParameter=restart}">
+                        <TextBlock Text="restart" />
+                    </Border>
+                </StackPanel>
+                <TextBlock Classes="option-description" Text="{Binding Description}"
+                           IsVisible="{Binding Converter={StaticResource OptionLabel}, ConverterParameter=desc}" />
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.Resources>
     <ContentControl Content="{Binding}">
         <ContentControl.ContentTemplate>
             <b:OptionTemplateSelector>
                 <b:OptionTemplateSelector.BoolTemplate>
                     <DataTemplate>
-                        <CheckBox x:Name="OptionCheckBox" HorizontalAlignment="Stretch" Margin="6,2"
-                                  Command="{Binding Command}" CommandParameter="{Binding #OptionCheckBox.IsChecked}"
-                                  Content="{Binding Content}" IsChecked="{Binding Value}" IsThreeState="False"
-                                  ToolTip.Tip="{Binding Content}" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <ContentControl Content="{Binding}" ContentTemplate="{StaticResource Label}" />
+                            <ToggleSwitch x:Name="OptionToggle" Grid.Column="1" OnContent="" OffContent="" MinWidth="0"
+                                          VerticalAlignment="Center"
+                                          Command="{Binding Command}" CommandParameter="{Binding #OptionToggle.IsChecked}"
+                                          IsChecked="{Binding Value}" />
+                        </Grid>
                     </DataTemplate>
                 </b:OptionTemplateSelector.BoolTemplate>
                 <b:OptionTemplateSelector.IntTemplate>
                     <DataTemplate>
-                        <DockPanel Height="32" Margin="6,3">
-                            <TextBox x:Name="NumberTextBox" DockPanel.Dock="Left" Width="110" CornerRadius="16,0,0,16"
-                                     InnerRightContent="{Binding SuffixText}"
-                                     Text="{Binding Value}" b:Behave.OnlyNumbers="True" b:Behave.SelectAll="True" />
-                            <Button Classes="outlined" CornerRadius="0,16,16,0" HorizontalAlignment="Stretch"
-                                    Command="{Binding Command}" CommandParameter="{Binding #NumberTextBox.Text}"
-                                    Content="{Binding Content}" ToolTip.Tip="{Binding Content}" />
-                        </DockPanel>
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <ContentControl Content="{Binding}" ContentTemplate="{StaticResource Label}" />
+                            <Border Grid.Column="1" Classes="option-field" Width="124" VerticalAlignment="Center">
+                                <Grid ColumnDefinitions="*,Auto,Auto">
+                                    <TextBox x:Name="NumberTextBox" Classes="option-pill-input" TextAlignment="Right"
+                                             Text="{Binding Value}" b:Behave.OnlyNumbers="True" b:Behave.SelectAll="True" />
+                                    <TextBlock Grid.Column="1" Classes="option-pill-suffix" Margin="0,0,8,0"
+                                               Text="{Binding SuffixText}" IsVisible="{Binding SuffixText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                    <Button Grid.Column="2" Classes="option-set" Content="Set"
+                                            Command="{Binding Command}" CommandParameter="{Binding #NumberTextBox.Text}"
+                                            ToolTip.Tip="Apply this value" />
+                                </Grid>
+                            </Border>
+                        </Grid>
                     </DataTemplate>
                 </b:OptionTemplateSelector.IntTemplate>
                 <b:OptionTemplateSelector.StringTemplate>
                     <DataTemplate>
-                        <DockPanel Height="32" Margin="6,3">
-                            <Button DockPanel.Dock="Right" Classes="outlined" CornerRadius="0,16,16,0"
-                                    Command="{Binding Command}" CommandParameter="{Binding #OptionTextBox.Text}"
-                                    Content="Set" ToolTip.Tip="{Binding Content}" />
-                            <TextBox x:Name="OptionTextBox" CornerRadius="16,0,0,16" Watermark="{Binding Content}"
-                                     Text="{Binding Value}" b:Behave.SelectAll="True" />
-                        </DockPanel>
+                        <StackPanel Spacing="6" Margin="0,3">
+                            <ContentControl Content="{Binding}" ContentTemplate="{StaticResource Label}" />
+                            <Border Classes="option-field">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBox x:Name="OptionTextBox" Classes="option-pill-input" Watermark="{Binding Content}"
+                                             Text="{Binding Value}" b:Behave.SelectAll="True" />
+                                    <Button Grid.Column="1" Classes="option-set" Content="Set"
+                                            Command="{Binding Command}" CommandParameter="{Binding #OptionTextBox.Text}"
+                                            ToolTip.Tip="Apply this value" />
+                                </Grid>
+                            </Border>
+                        </StackPanel>
                     </DataTemplate>
                 </b:OptionTemplateSelector.StringTemplate>
                 <b:OptionTemplateSelector.ActionTemplate>
                     <DataTemplate>
-                        <Button Height="32" Margin="6,3" Classes="outlined" CornerRadius="16" HorizontalAlignment="Stretch"
-                                Command="{Binding Command}" Content="{Binding Content}" ToolTip.Tip="{Binding Content}" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <ContentControl Content="{Binding}" ContentTemplate="{StaticResource Label}" />
+                            <Button Grid.Column="1" Classes="small w84" VerticalAlignment="Center"
+                                    Command="{Binding Command}"
+                                    Content="{Binding Content, Converter={StaticResource OptionLabel}, ConverterParameter=action}"
+                                    ToolTip.Tip="{Binding Content}" />
+                        </Grid>
                     </DataTemplate>
                 </b:OptionTemplateSelector.ActionTemplate>
             </b:OptionTemplateSelector>
