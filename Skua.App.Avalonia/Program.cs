@@ -68,8 +68,9 @@ App.Runtime = SkuaRuntime.Create(services =>
 // The tab host only uses Skua's services for its dialogs (Scheduler, Script
 // Repo); the bot, bridge and API run in the tabs.
 App.StartRuntime = App.Mode != AppMode.TabHost;
+// Avalonia's warnings and errors into the log as [ui] lines (UiDiagnostics.cs).
+Avalonia.Logging.Logger.Sink = new UiLogSink();
 AppBuilder.Configure<App>()
     .UsePlatformDetect()
     .WithInterFont()
-    .LogToTrace()
     .StartWithClassicDesktopLifetime(args);

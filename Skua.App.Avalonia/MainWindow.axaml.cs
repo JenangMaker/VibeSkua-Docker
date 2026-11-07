@@ -23,6 +23,7 @@ public partial class MainWindow : Window
         Opened += (_, _) =>
         {
             _status.Start();
+            RenderWatch.Watch(this, App.Mode == AppMode.TabChild ? $"tab {Skua.Linux.SkuaRuntime.Instance + 1} window" : "main window");
             // The game goes under the menu, as in the WPF app; without one to
             // embed, this becomes a bar above the game window instead.
             if (Skua.Linux.SkuaRuntime.EnvRaw("SKUA_EMBED_GAME") is "0" or "false" or "no")
