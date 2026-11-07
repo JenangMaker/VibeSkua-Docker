@@ -8,9 +8,10 @@
         SizeToContent="Height"
         Topmost="True"
         WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource SkuaPageBrush}"
         Icon="avares://Skua.App.Avalonia/Assets/SkuaIcon.ico">
     <DockPanel>
         <theming:WindowTitleBar DockPanel.Dock="Top" />
-        <ContentControl Content="{Binding}" Margin="10,8,10,10" />
+        <ContentControl Content="{Binding}" Margin="16,12,16,16" />
     </DockPanel>
 </Window>

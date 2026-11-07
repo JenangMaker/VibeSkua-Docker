@@ -4,12 +4,14 @@
              xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="Skua.App.Avalonia.Views.CustomMessageBoxDialog">
-    <StackPanel>
-        <SelectableTextBlock Margin="6,6,6,3" Text="{Binding Message}" TextWrapping="Wrap" />
-        <ItemsControl Margin="3,0" ItemsSource="{Binding Buttons}">
+    <!-- 2.x dialog: the message, then the script's own buttons on the right. -->
+    <StackPanel Spacing="12">
+        <SelectableTextBlock Text="{Binding Message}" TextWrapping="Wrap" LineHeight="20" />
+        <ItemsControl ItemsSource="{Binding Buttons}" HorizontalAlignment="Right">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Button Margin="3" Click="Button_Click" Content="{Binding}" ToolTip.Tip="{Binding}" />
+                    <Button Classes="skua-button" Margin="8,0,0,8" MinWidth="84" HorizontalContentAlignment="Center"
+                            Click="Button_Click" Content="{Binding}" ToolTip.Tip="{Binding}" />
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
             <ItemsControl.ItemsPanel>
