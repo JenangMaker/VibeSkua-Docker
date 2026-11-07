@@ -117,17 +117,6 @@ public sealed class BoolTextConverter : IValueConverter
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => BindingOperations.DoNothing;
 }
 
-/// <summary>Script repository row tint: [Downloaded, Outdated] -> brush, as ScriptRepoView's row triggers.</summary>
-public sealed class ScriptRowBrushConverter : IMultiValueConverter
-{
-    private static readonly IBrush Downloaded = new SolidColorBrush(Color.Parse("#456796"), 0.2);
-    private static readonly IBrush Missing = new SolidColorBrush(Colors.Red, 0.2);
-    private static readonly IBrush Outdated = new SolidColorBrush(Colors.Yellow, 0.2);
-
-    public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture) =>
-        values.ElementAtOrDefault(1) is true ? Outdated : values.ElementAtOrDefault(0) is true ? Downloaded : Missing;
-}
-
 /// <summary>Packet interceptor row tint: Outbound true/false/null -> yellow/blue/red, as its triggers.</summary>
 public sealed class PacketDirectionBrushConverter : IValueConverter
 {

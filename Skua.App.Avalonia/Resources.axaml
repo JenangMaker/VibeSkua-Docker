@@ -19,7 +19,6 @@
     <conv:GreaterThanConverter x:Key="GreaterThanConverter" />
     <conv:MultiValueEqualityConverter x:Key="MultiValueEqualityConverter" />
     <conv:BoolTextConverter x:Key="BoolText" />
-    <conv:ScriptRowBrushConverter x:Key="ScriptRowBrush" />
     <conv:PacketDirectionBrushConverter x:Key="PacketDirectionBrush" />
     <conv:GrabberItemDisplayConverter x:Key="GrabberItemDisplay" />
     <conv:IntToSelectionModeConverter x:Key="IntToSelectionMode" />
