@@ -24,8 +24,10 @@ public partial class MapService : ObservableObject, IMapService
 
     public List<string> Cells => Map.Cells;
 
+    // Fast travel goes to a private room unless unticked (upstream ee476b4). Not saved: each
+    // session starts ticked.
     [ObservableProperty]
-    private bool _UsePrivateRoom;
+    private bool _UsePrivateRoom = true;
 
     [ObservableProperty]
     private int _PrivateRoomNumber = 111111;
