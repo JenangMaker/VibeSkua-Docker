@@ -36,7 +36,7 @@
                        PlacementTarget="{Binding ElementName=AutoToggle}">
                     <Border Classes="topbar-popup" Background="{DynamicResource SkuaSurfaceBrush}"
                             BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="1" CornerRadius="8">
-                        <views:AutoUserControl Width="400" DataContext="{Binding AutoViewModel}" />
+                        <views:AutoUserControl Width="360" DataContext="{Binding AutoViewModel}" />
                     </Border>
                 </Popup>
 
@@ -53,7 +53,7 @@
                        PlacementTarget="{Binding ElementName=JumpToggle}">
                     <Border Classes="topbar-popup" Background="{DynamicResource SkuaSurfaceBrush}"
                             BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="1" CornerRadius="8">
-                        <views:JumpUserControl Width="300" DataContext="{Binding JumpViewModel}" />
+                        <views:JumpUserControl Width="320" DataContext="{Binding JumpViewModel}" />
                     </Border>
                 </Popup>
 

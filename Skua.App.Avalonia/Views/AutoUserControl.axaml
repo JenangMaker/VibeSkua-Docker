@@ -1,30 +1,47 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:b="clr-namespace:Skua.App.Avalonia"
-             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="Skua.App.Avalonia.Views.AutoUserControl">
-    <Grid Margin="6" ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto">
-        <Button Grid.Column="0" Margin="0,0,3,3" HorizontalAlignment="Stretch"
-                Command="{Binding StartAutoAttackCommand}" Content="Auto Attack"
-                IsVisible="{Binding !Auto.IsRunning}" />
-        <Button Grid.Column="1" Margin="3,0,0,3" HorizontalAlignment="Stretch"
-                Command="{Binding StartAutoHuntCommand}" Content="Auto Hunt"
-                IsVisible="{Binding !Auto.IsRunning}" />
-        <Button Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,3" HorizontalAlignment="Stretch"
-                Command="{Binding StopAutoAsyncCommand}" Content="Stop"
-                IsVisible="{Binding Auto.IsRunning}" />
-        <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="*,*">
-            <ComboBox x:Name="ClassBox" Grid.Column="0" Margin="0,0,3,0" HorizontalAlignment="Stretch"
-                      PlaceholderText="Class"
+    <!-- 2.x popup (upstream 2.1.2 "Combat Automation"): header, divider, the two start buttons
+         (one Stop while running), class and mode, then the optional map IDs. -->
+    <Grid Margin="12" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="10">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <icons:MaterialIcon Kind="RobotOutline" Width="18" Height="18" Foreground="{DynamicResource SkuaMutedTextBrush}" />
+            <TextBlock Text="Combat Automation" FontWeight="SemiBold" VerticalAlignment="Center" />
+        </StackPanel>
+        <Border Grid.Row="1" Height="1" Background="{DynamicResource SkuaBorderBrush}" />
+        <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="8">
+            <Button Classes="skua-button skua-primary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Height="36"
+                    Command="{Binding StartAutoAttackCommand}" IsVisible="{Binding !Auto.IsRunning}"
+                    ToolTip.Tip="Attack whatever is in the current cell">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="PlayCircleOutline" Width="16" Height="16" />
+                    <TextBlock Text="Auto Attack" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <Button Grid.Column="1" Classes="skua-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Height="36"
+                    Command="{Binding StartAutoHuntCommand}" IsVisible="{Binding !Auto.IsRunning}"
+                    ToolTip.Tip="Hunt monsters across the map's cells">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="Crosshairs" Width="16" Height="16" />
+                    <TextBlock Text="Auto Hunt" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <Button Grid.ColumnSpan="2" Classes="skua-button skua-danger" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Height="36"
+                    Command="{Binding StopAutoAsyncCommand}" IsVisible="{Binding Auto.IsRunning}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="StopCircleOutline" Width="16" Height="16" />
+                    <TextBlock Text="Stop" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </Grid>
+        <Grid Grid.Row="3" ColumnDefinitions="*,*" ColumnSpacing="8">
+            <ComboBox x:Name="ClassBox" HorizontalAlignment="Stretch" PlaceholderText="Select class..."
                       ItemsSource="{Binding PlayerClasses}" SelectedItem="{Binding SelectedClass}" />
-            <ComboBox Grid.Column="1" Margin="3,0,0,0" HorizontalAlignment="Stretch"
-                      PlaceholderText="Mode"
+            <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" PlaceholderText="Select mode..."
                       ItemsSource="{Binding CurrentClassModeStrings}" SelectedItem="{Binding SelectedClassModeString}" />
         </Grid>
-        <TextBox Grid.Row="2" Grid.ColumnSpan="2" Margin="0,6,0,0"
-                 Watermark="Manual MapIDs (optional)" UseFloatingWatermark="True"
-                 Text="{Binding ManualMapIDs}"
+        <TextBox Grid.Row="4" Watermark="Manual MapIDs (optional, e.g. 1, 2)" Text="{Binding ManualMapIDs}"
                  ToolTip.Tip="Enter MapIDs separated by commas for priority targeting (e.g., 12345, 67890). First available monster in the list will be attacked. If it dies, switches to next available, but returns to first when it respawns." />
     </Grid>
 </UserControl>

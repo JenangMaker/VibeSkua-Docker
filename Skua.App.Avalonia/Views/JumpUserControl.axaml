@@ -1,17 +1,36 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:b="clr-namespace:Skua.App.Avalonia"
-             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="Skua.App.Avalonia.Views.JumpUserControl">
-    <Grid Margin="6,0,6,6" ColumnDefinitions="1.5*,*" RowDefinitions="Auto,Auto">
-        <ComboBox x:Name="Cells" Grid.Column="0" Margin="3,0,4,3" MinWidth="120" HorizontalAlignment="Stretch"
-                  ItemsSource="{Binding Cells}" SelectedItem="{Binding SelectedCell}" />
-        <Button Grid.Row="1" Grid.Column="0" Margin="0,3,3,0" HorizontalAlignment="Stretch"
-                Command="{Binding GetCurrentCommand}" Content="Current" />
-        <ComboBox Grid.Row="0" Grid.Column="1" Margin="3,0,0,3" MinWidth="120" HorizontalAlignment="Stretch"
-                  ItemsSource="{Binding Pads}" SelectedItem="{Binding SelectedPad}" />
-        <Button Grid.Row="1" Grid.Column="1" Margin="3,3,0,0" HorizontalAlignment="Stretch"
-                Command="{Binding JumpToCommand}" Content="Jump" />
+    <!-- 2.x popup (upstream 2.1.2 "Fast Map Jump"): header, divider, cell and pad, then Current
+         and Jump. Up/Down on the cell box still steps through the cells (code-behind). -->
+    <Grid Margin="12" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <icons:MaterialIcon Kind="Run" Width="18" Height="18" Foreground="{DynamicResource SkuaMutedTextBrush}" />
+            <TextBlock Text="Fast Map Jump" FontWeight="SemiBold" VerticalAlignment="Center" />
+        </StackPanel>
+        <Border Grid.Row="1" Height="1" Background="{DynamicResource SkuaBorderBrush}" />
+        <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="8">
+            <ComboBox x:Name="Cells" HorizontalAlignment="Stretch" PlaceholderText="Select cell..."
+                      ItemsSource="{Binding Cells}" SelectedItem="{Binding SelectedCell}" />
+            <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" PlaceholderText="Select pad..."
+                      ItemsSource="{Binding Pads}" SelectedItem="{Binding SelectedPad}" />
+        </Grid>
+        <Grid Grid.Row="3" ColumnDefinitions="*,*" ColumnSpacing="8">
+            <Button Classes="skua-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Height="36"
+                    Command="{Binding GetCurrentCommand}" ToolTip.Tip="Fill in the cell and pad you are in">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="MapMarkerOutline" Width="16" Height="16" />
+                    <TextBlock Text="Current" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <Button Grid.Column="1" Classes="skua-button skua-primary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Height="36"
+                    Command="{Binding JumpToCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="Run" Width="16" Height="16" />
+                    <TextBlock Text="Jump" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </Grid>
     </Grid>
 </UserControl>
