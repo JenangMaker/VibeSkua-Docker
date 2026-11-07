@@ -17,7 +17,7 @@ public class ScriptStatsViewModel : ObservableObject, IManagedWindow
     public IRelayCommand ResetStatsCommand { get; }
     public IRelayCommand GetSpaceCommand { get; }
     public string Title => "Stats";
-    public int Width => 345;
-    public int Height => 235;
+    public int Width => 480;
+    public int Height => 340;
     public bool CanResize => false;
 }

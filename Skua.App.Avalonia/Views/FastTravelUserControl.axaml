@@ -3,33 +3,77 @@
              xmlns:b="clr-namespace:Skua.App.Avalonia"
              xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             Background="{DynamicResource SkuaPageBrush}"
              x:Class="Skua.App.Avalonia.Views.FastTravelUserControl">
-    <Grid RowDefinitions="Auto,*,Auto">
-        <Grid Grid.Row="0" Margin="6,6,6,3" ColumnDefinitions="*,Auto,Auto,Auto,Auto">
-            <TextBox x:Name="SearchBox" Margin="0,0,3,0" Watermark="Search" Classes="clearButton" />
-            <Button Grid.Column="1" Margin="3,0" Command="{Binding SaveFastTravelsCommand}" Content="Save" />
-            <Button Grid.Column="2" Margin="3,0" Command="{Binding ClearFastTravelsCommand}" Content="Clear" />
-            <CheckBox Grid.Column="3" Margin="6,0,0,0" IsChecked="{Binding MapService.UsePrivateRoom}" ToolTip.Tip="Join private rooms with specified number." />
-            <TextBox Grid.Column="4" Width="110" Margin="3,0,0,0" Watermark="Private Number" MaxLength="6"
-                     Text="{Binding MapService.PrivateRoomNumber}" b:Behave.OnlyNumbers="True" />
+    <!-- 2.x layout (upstream 2.1.2 FastTravelView): search with the private room switch and
+         number, destinations as cards (click to travel), a bar to add one at the bottom. -->
+    <Grid Margin="12" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+            <TextBox x:Name="SearchBox" Watermark="Search destinations">
+                <TextBox.InnerLeftContent>
+                    <icons:MaterialIcon Kind="Magnify" Width="15" Height="15" Margin="10,0,0,0" Foreground="{DynamicResource SkuaMutedTextBrush}" />
+                </TextBox.InnerLeftContent>
+            </TextBox>
+            <ToggleSwitch Grid.Column="1" OnContent="" OffContent="" MinWidth="0" VerticalAlignment="Center"
+                          IsChecked="{Binding MapService.UsePrivateRoom}" ToolTip.Tip="Join private rooms with this number" />
+            <TextBlock Grid.Column="2" Text="Private room" VerticalAlignment="Center" />
+            <TextBox Grid.Column="3" Width="110" Watermark="Room" MaxLength="6"
+                     Text="{Binding MapService.PrivateRoomNumber}" b:Behave.OnlyNumbers="True">
+                <TextBox.InnerLeftContent>
+                    <icons:MaterialIcon Kind="Pound" Width="15" Height="15" Margin="10,0,0,0" Foreground="{DynamicResource SkuaMutedTextBrush}" />
+                </TextBox.InnerLeftContent>
+            </TextBox>
         </Grid>
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <ItemsControl x:Name="FastTravelControl" Margin="3">
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="6">
+            <TextBlock Classes="section-label" Text="DESTINATIONS" VerticalAlignment="Center" />
+            <Border Grid.Column="1" Classes="count">
+                <TextBlock Text="{Binding FastTravelItems.Count}" />
+            </Border>
+            <Button Grid.Column="3" Classes="skua-button small skua-danger-soft" Command="{Binding ClearFastTravelsCommand}" ToolTip.Tip="Remove every destination">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                    <icons:MaterialIcon Kind="DeleteSweepOutline" Width="14" Height="14" />
+                    <TextBlock Text="Clear" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <Button Grid.Column="4" Classes="skua-button small" Command="{Binding SaveFastTravelsCommand}" ToolTip.Tip="Save the destinations">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                    <icons:MaterialIcon Kind="ContentSave" Width="14" Height="14" />
+                    <TextBlock Text="Save" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </Grid>
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl x:Name="FastTravelControl">
                 <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                    <ItemsPanelTemplate><UniformGrid Columns="3" VerticalAlignment="Top" /></ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <v:FastTravelItemUserControl />
+                        <v:FastTravelItemUserControl Margin="0,0,8,8" />
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
         </ScrollViewer>
-        <Expander Grid.Row="2" Margin="6,3,6,6" Header="Add Fast Travel" HorizontalAlignment="Stretch">
-            <StackPanel>
-                <v:FastTravelEditorUserControl Margin="6,6,6,3" DataContext="{Binding Editor}" />
-                <Button Margin="6,3,6,6" HorizontalAlignment="Stretch" Command="{Binding AddFastTravelCommand}" Content="Add" />
-            </StackPanel>
-        </Expander>
+        <Border Grid.Row="3" Padding="6" CornerRadius="8" Background="{DynamicResource SkuaSurfaceBrush}"
+                BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="1">
+            <Grid ColumnDefinitions="2*,1.6*,*,*,Auto,Auto" ColumnSpacing="6">
+                <TextBox Watermark="Name, e.g. Ultra Alteon" Text="{Binding Editor.Travel.DescriptionName}" b:Behave.SelectAll="True" ToolTip.Tip="Name" />
+                <TextBox Grid.Column="1" Watermark="Map" Text="{Binding Editor.Travel.MapName}" b:Behave.SelectAll="True" ToolTip.Tip="Map" />
+                <TextBox Grid.Column="2" Watermark="Cell" Text="{Binding Editor.Travel.Cell}" b:Behave.SelectAll="True" ToolTip.Tip="Cell" />
+                <TextBox Grid.Column="3" Watermark="Pad" Text="{Binding Editor.Travel.Pad}" b:Behave.SelectAll="True" ToolTip.Tip="Pad" />
+                <Button Grid.Column="4" Classes="skua-button" Command="{Binding Editor.GetCurrentCommand}" ToolTip.Tip="Fill in the current map, cell and pad">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <icons:MaterialIcon Kind="Crosshairs" Width="15" Height="15" />
+                        <TextBlock Text="Get current" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="5" Classes="skua-button skua-primary" Command="{Binding AddFastTravelCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <icons:MaterialIcon Kind="Plus" Width="15" Height="15" />
+                        <TextBlock Text="Add" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>

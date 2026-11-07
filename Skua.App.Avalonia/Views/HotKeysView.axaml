@@ -1,12 +1,13 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:b="clr-namespace:Skua.App.Avalonia"
-             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             Background="{DynamicResource SkuaPageBrush}"
              x:Class="Skua.App.Avalonia.Views.HotKeysView">
-    <Grid RowDefinitions="Auto,*">
-        <Grid Grid.Row="0" Margin="5" ColumnDefinitions="*,Auto">
-            <AutoCompleteBox Grid.Column="0" FilterMode="None" MinimumPrefixLength="0" Watermark="Search actions"
+    <!-- 2.x layout (upstream 2.1.2 HotKeysView): pick an action and Add, the assigned count, then
+         a row per hotkey (name, key pill to change it, remove). -->
+    <Grid Margin="12" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <AutoCompleteBox FilterMode="None" MinimumPrefixLength="0" Watermark="Add an action..."
                              ItemsSource="{Binding FilteredCustomActions}" SelectedItem="{Binding SelectedCustomAction}"
                              Text="{Binding SearchText}" ValueMemberBinding="{Binding Title}">
                 <AutoCompleteBox.ItemTemplate>
@@ -15,10 +16,24 @@
                     </DataTemplate>
                 </AutoCompleteBox.ItemTemplate>
             </AutoCompleteBox>
-            <Button Grid.Column="1" Margin="5,0,0,0" Padding="10,2" Content="Add Custom Hotkey" Command="{Binding AddCustomCommand}" />
+            <Button Grid.Column="1" Classes="skua-button skua-primary w84" Command="{Binding AddCustomCommand}" ToolTip.Tip="Add a hotkey for the chosen action">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="Plus" Width="16" Height="16" />
+                    <TextBlock Text="Add" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
         </Grid>
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-            <ItemsControl Margin="3" Grid.IsSharedSizeScope="True" ItemsSource="{Binding HotKeys}" />
-        </ScrollViewer>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6">
+            <TextBlock Classes="section-label" Text="ASSIGNED" VerticalAlignment="Center" />
+            <Border Classes="count">
+                <TextBlock Text="{Binding HotKeys.Count}" />
+            </Border>
+        </StackPanel>
+        <Border Grid.Row="2" Classes="option-list" VerticalAlignment="Top">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding HotKeys}" Margin="0,0,0,-1" />
+            </ScrollViewer>
+        </Border>
+        <TextBlock Grid.Row="3" FontSize="11" Foreground="{DynamicResource SkuaMutedTextBrush}" Text="Click a key to change it." />
     </Grid>
 </UserControl>

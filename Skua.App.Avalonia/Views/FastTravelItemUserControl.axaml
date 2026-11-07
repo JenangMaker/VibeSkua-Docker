@@ -1,17 +1,30 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:b="clr-namespace:Skua.App.Avalonia"
-             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="Skua.App.Avalonia.Views.FastTravelItemUserControl">
-    <DockPanel Width="300" Margin="3">
-        <Button DockPanel.Dock="Right" Classes="outlined" CornerRadius="0,2,2,0" Command="{Binding RemoveCommand}">
-            <icons:MaterialIcon Kind="Close" />
+    <!-- A destination as a 2.x card: click it to travel; edit and remove on the right. -->
+    <Grid ColumnDefinitions="*,Auto">
+        <Button Grid.ColumnSpan="2" Classes="skua-button" Height="48" Padding="12,6,64,6" HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Left" CornerRadius="8"
+                Command="{Binding TravelCommand}" CommandParameter="{Binding}" ToolTip.Tip="Travel here">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                <icons:MaterialIcon Kind="NavigationVariantOutline" Width="18" Height="18" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                    <TextBlock Text="{Binding DescriptionName}" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                    <TextBlock FontSize="11" FontWeight="Normal" FontFamily="{DynamicResource MonoFont}" TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource SkuaMutedTextBrush}">
+                        <Run Text="{Binding MapName}" /><Run Text=" - " /><Run Text="{Binding Cell}" /><Run Text=" - " /><Run Text="{Binding Pad}" />
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
         </Button>
-        <Button DockPanel.Dock="Right" Classes="outlined" CornerRadius="0" Command="{Binding EditCommand}">
-            <icons:MaterialIcon Kind="Edit" />
-        </Button>
-        <Button MinWidth="70" HorizontalAlignment="Stretch" CornerRadius="2,0,0,2"
-                Command="{Binding TravelCommand}" CommandParameter="{Binding}" Content="{Binding DescriptionName}" />
-    </DockPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" Margin="0,0,6,0" VerticalAlignment="Center">
+            <Button Classes="icon icon-muted" Width="24" Height="24" Command="{Binding EditCommand}" ToolTip.Tip="Edit">
+                <icons:MaterialIcon Kind="PencilOutline" Width="14" Height="14" />
+            </Button>
+            <Button Classes="icon danger-icon" Width="24" Height="24" Command="{Binding RemoveCommand}" ToolTip.Tip="Remove">
+                <icons:MaterialIcon Kind="Close" Width="14" Height="14" />
+            </Button>
+        </StackPanel>
+    </Grid>
 </UserControl>
