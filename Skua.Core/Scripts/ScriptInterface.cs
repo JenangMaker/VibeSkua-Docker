@@ -300,10 +300,15 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
                         Watchdog();
                         return;
                     }
+                    // A logout on purpose is over once we are back in game, so the flag is
+                    // cleared on that transition only. Not on every tick: the game's Logout
+                    // button sets it while still connected, and the server closes the
+                    // connection a moment later; clearing it in between let NativeSession
+                    // log back in a minute later (live test 2026-11-07).
+                    if (!_wasInGame && Servers.IsIntentionalLogout)
+                        Servers.IsIntentionalLogout = false;
                     _wasInGame = true;
                     _dropSeenAt = 0;
-                    if (Servers.IsIntentionalLogout)
-                        Servers.IsIntentionalLogout = false;
                     if (!Player.Alive)
                         return;
 
