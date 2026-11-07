@@ -114,6 +114,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
             ScriptRunning = true;
         }
 
+        bool startAnnounced = false, threadStarted = false;
         try
         {
             await _lazyBot.Value.Auto.StopAsync();
@@ -229,13 +230,18 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
                 IsBackground = true
             };
 
+            // Announce the start before the thread runs: a script that ends at once sends its
+            // stopped (and error) messages from its own thread, and those must not reach the
+            // listeners first, or the loader stays "[Running]" (upstream 944852d).
+            StrongReferenceMessenger.Default.Send<ScriptStartedMessage, int>((int)MessageChannels.ScriptStatus);
+            startAnnounced = true;
+
             lock (_threadLock)
             {
                 _currentScriptThread = scriptThread;
                 scriptThread.Start();
+                threadStarted = true;
             }
-
-            StrongReferenceMessenger.Default.Send<ScriptStartedMessage, int>((int)MessageChannels.ScriptStatus);
 
             if (needsConfig)
             {
@@ -270,6 +276,10 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
             {
                 ScriptRunning = false;
             }
+            // Started was sent but the thread never ran: close the run for its listeners. A
+            // thread that did start sends its own stopped message.
+            if (startAnnounced && !threadStarted)
+                StrongReferenceMessenger.Default.Send<ScriptStoppedMessage, int>((int)MessageChannels.ScriptStatus);
             return e is System.Reflection.TargetInvocationException && e.InnerException != null ? e.InnerException : e;
         }
     }
