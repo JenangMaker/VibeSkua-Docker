@@ -9,7 +9,7 @@ namespace Skua.Core.ViewModels;
 public partial class LoaderViewModel : BotControlViewModelBase, IManagedWindow
 {
     public LoaderViewModel(IScriptShop shops, IScriptQuest quests, IQuestDataLoaderService questLoader, IClipboardService clipboardService)
-        : base("Loader", 720, 375)
+        : base("Loader", 720, 520)
     {
         _shops = shops;
         _quests = quests;

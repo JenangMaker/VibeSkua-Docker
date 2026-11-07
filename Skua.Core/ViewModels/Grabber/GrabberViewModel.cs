@@ -6,7 +6,7 @@ namespace Skua.Core.ViewModels;
 public partial class GrabberViewModel : BotControlViewModelBase
 {
     public GrabberViewModel(IEnumerable<GrabberListViewModel> grabberTabs)
-        : base("Grabber", 622, 450)
+        : base("Grabber", 800, 560)
     {
         _grabberTabs = new(grabberTabs);
         _selectedTab = _grabberTabs[0];
