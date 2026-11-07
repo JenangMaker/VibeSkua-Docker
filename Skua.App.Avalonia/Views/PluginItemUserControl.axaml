@@ -1,19 +1,26 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:b="clr-namespace:Skua.App.Avalonia"
-             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="Skua.App.Avalonia.Views.PluginItemUserControl">
-    <Grid Margin="3" ToolTip.Tip="{Binding Container.Plugin.Description}">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" SharedSizeGroup="Author" />
-            <ColumnDefinition />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="Auto" />
-        </Grid.ColumnDefinitions>
-        <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Text="{Binding Container.Plugin.Author}" />
-        <TextBlock Grid.Column="1" VerticalAlignment="Center" Margin="10,0,3,0" FontSize="14" Text="{Binding Container.Plugin.Name}" />
-        <Button Grid.Column="2" Margin="3,0" Command="{Binding EditPluginOptionsCommand}" Content="Options" IsEnabled="{Binding HasOptions}" />
-        <Button Grid.Column="3" Command="{Binding UnloadCommand}"><icons:MaterialIcon Kind="Close" /></Button>
-    </Grid>
+    <!-- A plugin as a 2.x row: icon, name, "by author - description", Options and Unload. -->
+    <Border Classes="option-row" ToolTip.Tip="{Binding Container.Plugin.Description}">
+        <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
+            <Border Width="32" Height="32" CornerRadius="8" Background="{DynamicResource SkuaSurfaceAltBrush}">
+                <icons:MaterialIcon Kind="PuzzleOutline" Width="18" Height="18" Foreground="{DynamicResource SkuaMutedTextBrush}" />
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                <TextBlock Classes="option-title" Text="{Binding Container.Plugin.Name}" TextTrimming="CharacterEllipsis" />
+                <TextBlock FontSize="11" Foreground="{DynamicResource SkuaMutedTextBrush}" TextTrimming="CharacterEllipsis">
+                    <Run Text="by " /><Run Text="{Binding Container.Plugin.Author}" /><Run Text=" - " /><Run Text="{Binding Container.Plugin.Description}" />
+                </TextBlock>
+            </StackPanel>
+            <Button Grid.Column="2" Classes="skua-button small" Command="{Binding EditPluginOptionsCommand}" IsEnabled="{Binding HasOptions}">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                    <icons:MaterialIcon Kind="TuneVariant" Width="14" Height="14" />
+                    <TextBlock Text="Options" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <Button Grid.Column="3" Classes="skua-button small skua-danger-soft w84" Command="{Binding UnloadCommand}" Content="Unload" />
+        </Grid>
+    </Border>
 </UserControl>

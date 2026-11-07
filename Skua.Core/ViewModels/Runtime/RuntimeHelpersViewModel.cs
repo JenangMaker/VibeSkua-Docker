@@ -3,7 +3,7 @@
 public class RuntimeHelpersViewModel : BotControlViewModelBase
 {
     public RuntimeHelpersViewModel(ToPickupDropsViewModel toPickupDropsViewModel, RegisteredQuestsViewModel registeredQuestsViewModel, BoostsViewModel boostsViewModel)
-        : base("Runtime")
+        : base("Runtime", 955, 600)
     {
         ToPickupDropsViewModel = toPickupDropsViewModel;
         RegisteredQuestsViewModel = registeredQuestsViewModel;

@@ -11,7 +11,7 @@ namespace Skua.Core.ViewModels;
 public partial class PluginsViewModel : BotControlViewModelBase
 {
     public PluginsViewModel(IPluginManager pluginManager, IFileDialogService fileService)
-        : base("Plugins")
+        : base("Plugins", 800, 450)
     {
         PluginManager = pluginManager;
         _fileService = fileService;

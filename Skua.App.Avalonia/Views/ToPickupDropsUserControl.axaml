@@ -1,44 +1,75 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:b="clr-namespace:Skua.App.Avalonia"
-             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="Skua.App.Avalonia.Views.ToPickupDropsUserControl">
-    <Grid ColumnDefinitions="*,Auto" RowDefinitions="*,Auto,Auto,Auto">
-        <ListBox Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,3" ItemsSource="{Binding ToPickup}" SelectionMode="Multiple"
-                 b:Behave.DeleteSelected="{Binding RemoveDropsCommand}" b:Behave.AltDelete="{Binding RemoveAllDropsCommand}"
-                 b:Behave.UnselectAllMenu="True">
-            <ToolTip.Tip>
-                <TextBlock>A list of all drops the bot will pickup.<LineBreak /><Bold>Delete:</Bold> Removes all selected drops from the pickup list.<LineBreak /><Bold>Alt + Delete:</Bold> Removes all drops from the pickup list.<LineBreak /></TextBlock>
-            </ToolTip.Tip>
-            <ListBox.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Command="{Binding RemoveAllDropsCommand}" Header="Remove All" />
-                </ContextMenu>
-            </ListBox.ContextMenu>
-        </ListBox>
-        <TextBox Grid.Row="1" Grid.Column="0" Margin="0,3,3,3" Watermark="Drop Name" UseFloatingWatermark="True" Text="{Binding AddDropInput}">
-            <TextBox.KeyBindings>
-                <KeyBinding Gesture="Enter" Command="{Binding AddDropCommand}" />
-            </TextBox.KeyBindings>
-        </TextBox>
-        <Button Grid.Row="1" Grid.Column="1" Margin="3,3,0,3" VerticalAlignment="Stretch" Command="{Binding AddDropCommand}" Content="Add" />
-        <Grid Grid.Row="2" Grid.ColumnSpan="2" Margin="0,3" ColumnDefinitions="*,*,*">
-            <TextBox Grid.Column="0" Margin="3,3,0,3" Watermark="Interval" UseFloatingWatermark="True" Text="{Binding Drops.Interval}" b:Behave.OnlyNumbers="True">
-                <ToolTip.Tip>
-                    <TextBlock>The interval, in milliseconds, at which to pickup the drops.<LineBreak /><Bold>Note:</Bold> the base interval is 1000ms, any value assigned to this property will be added to that interval.</TextBlock>
-                </ToolTip.Tip>
-            </TextBox>
-            <CheckBox Grid.Column="1" HorizontalAlignment="Center" Content="Reject Else" IsChecked="{Binding Drops.RejectElse}"
-                      ToolTip.Tip="Whether to reject drops not included in the list." />
-            <CheckBox Grid.Column="2" HorizontalAlignment="Center" Content="Accept AC Drops" IsChecked="{Binding Options.AcceptACDrops}"
-                      ToolTip.Tip="When enabled will pickup any AC item that drops, even when the drop should be rejected." />
+    <!-- 2.x card (upstream 2.1.2 runtime "Drops helper"): the pickup list, add a drop, interval,
+         Reject else / Accept AC, then Pick drops and Notifications. -->
+    <UserControl.Styles>
+        <Style Selector="Border.helper">
+            <Setter Property="Background" Value="{DynamicResource SkuaSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+        <Style Selector="ListBox.helper-list">
+            <Setter Property="Background" Value="{DynamicResource SkuaPageBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="0,4" />
+        </Style>
+    </UserControl.Styles>
+    <Border Classes="helper">
+        <Grid RowDefinitions="Auto,*,Auto,Auto,Auto" RowSpacing="8">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Classes="section-label" Text="DROPS HELPER" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Classes="skua-button small" Click="Remove_Click" Content="Remove selected"
+                        ToolTip.Tip="Delete removes the selected ones, Alt + Delete removes all" />
+            </Grid>
+            <ListBox x:Name="List" Grid.Row="1" Classes="helper-list" ItemsSource="{Binding ToPickup}" SelectionMode="Multiple"
+                     b:Behave.DeleteSelected="{Binding RemoveDropsCommand}" b:Behave.AltDelete="{Binding RemoveAllDropsCommand}"
+                     b:Behave.UnselectAllMenu="True" ToolTip.Tip="The drops the bot will pick up">
+                <ListBox.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Command="{Binding RemoveAllDropsCommand}" Header="Remove All" />
+                    </ContextMenu>
+                </ListBox.ContextMenu>
+            </ListBox>
+            <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <TextBox Watermark="Drop name (e.g. Unidentified 13)" Text="{Binding AddDropInput}">
+                    <TextBox.KeyBindings>
+                        <KeyBinding Gesture="Enter" Command="{Binding AddDropCommand}" />
+                    </TextBox.KeyBindings>
+                </TextBox>
+                <Button Grid.Column="1" Classes="skua-button skua-primary" Command="{Binding AddDropCommand}" Content="Add drop" />
+            </Grid>
+            <Grid Grid.Row="3" ColumnDefinitions="110,*,Auto" ColumnSpacing="10">
+                <TextBox Text="{Binding Drops.Interval}" b:Behave.OnlyNumbers="True"
+                         ToolTip.Tip="Extra pickup interval in ms, added to the base 1000 ms">
+                    <TextBox.InnerRightContent>
+                        <TextBlock Text="ms" FontSize="11" Margin="0,0,10,0" VerticalAlignment="Center" Foreground="{DynamicResource SkuaMutedTextBrush}" />
+                    </TextBox.InnerRightContent>
+                </TextBox>
+                <CheckBox Grid.Column="1" Content="Reject else" IsChecked="{Binding Drops.RejectElse}"
+                          ToolTip.Tip="Reject drops that are not in the list" />
+                <CheckBox Grid.Column="2" Content="Accept AC drops" IsChecked="{Binding Options.AcceptACDrops}"
+                          ToolTip.Tip="Pick up any AC item that drops, even when it would be rejected" />
+            </Grid>
+            <Grid Grid.Row="4" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Button Classes="skua-button" Classes.skua-primary="{Binding !Drops.Enabled}" Classes.skua-danger="{Binding Drops.Enabled}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Command="{Binding ToggleDropsCommand}"
+                        Content="{Binding Drops.Enabled, Converter={StaticResource BoolText}, ConverterParameter='Stop picking drops|Pick drops'}"
+                        ToolTip.Tip="Start/Stop the drop grabber" />
+                <Button Grid.Column="1" Classes="skua-button" Command="{Binding OpenNotifyDropCommand}"
+                        ToolTip.Tip="Items to be notified about with a beep when they drop">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <icons:MaterialIcon Kind="BellPlusOutline" Width="15" Height="15" />
+                        <TextBlock Text="Notifications" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </Grid>
         </Grid>
-        <ToggleButton Grid.Row="3" Grid.Column="0" Margin="0,3,3,0" HorizontalAlignment="Stretch" Command="{Binding ToggleDropsCommand}"
-                      Content="Pick Drops" IsChecked="{Binding Drops.Enabled, Mode=OneWay}" ToolTip.Tip="Start/Stop the Drop grabber." />
-        <Button Grid.Row="3" Grid.Column="1" Margin="3,3,3,0" Command="{Binding OpenNotifyDropCommand}"
-                ToolTip.Tip="Add items to be notified when they are dropped with a beep sound.">
-            <icons:MaterialIcon Kind="BellPlus" />
-        </Button>
-    </Grid>
+    </Border>
 </UserControl>
