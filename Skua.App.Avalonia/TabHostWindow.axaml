@@ -8,92 +8,166 @@
         Title="VibeSkua"
         Width="1100"
         Height="700"
-        Background="#1E1E1E"
+        Background="{DynamicResource SkuaPageBrush}"
         Icon="avares://Skua.App.Avalonia/Assets/SkuaIcon.ico">
     <!-- Skua.App.WPF's TabbedHostWindow: a tab per account, each its own Skua
          (menu over its game) placed over HostArea; Army Control sends every
          tab the same command; Grid View shows all their games at once. -->
     <Window.Styles>
+        <!-- 2.x tab bar, as upstream 2.1.2's TabbedHostWindow: folder tabs on the surface bar, the
+             selected one with an accent top edge; Army Control and Grid View as outlined boxes. -->
         <Style Selector="Border.tab">
-            <Setter Property="Background" Value="#252526" />
-            <Setter Property="BorderBrush" Value="#333333" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="MinWidth" Value="60" />
+            <Setter Property="MaxWidth" Value="200" />
+            <Setter Property="VerticalAlignment" Value="Bottom" />
+            <Setter Property="Background" Value="{DynamicResource SkuaSurfaceAltBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
             <Setter Property="BorderThickness" Value="1,1,1,0" />
-            <Setter Property="CornerRadius" Value="4,4,0,0" />
-            <Setter Property="Margin" Value="2,0" />
+            <Setter Property="CornerRadius" Value="6,6,0,0" />
+            <Setter Property="Margin" Value="0,0,3,0" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
+        <Style Selector="Border.tab TextBlock.tab-title">
+            <Setter Property="Foreground" Value="{DynamicResource SkuaMutedTextBrush}" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
         <Style Selector="Border.tab:pointerover">
-            <Setter Property="Background" Value="#2D2D30" />
+            <Setter Property="Background" Value="{DynamicResource SkuaNavHoverBrush}" />
+        </Style>
+        <Style Selector="Border.tab:pointerover TextBlock.tab-title">
+            <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
         </Style>
         <Style Selector="Border.tab.selected">
-            <Setter Property="Background" Value="#3E3E42" />
+            <Setter Property="Background" Value="{DynamicResource SkuaSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SkuaAccentBrush}" />
+            <Setter Property="BorderThickness" Value="1,2,1,0" />
         </Style>
-        <Style Selector="Border.tab > Grid > Border.indicator">
-            <Setter Property="IsVisible" Value="False" />
+        <Style Selector="Border.tab.selected TextBlock.tab-title">
+            <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
-        <Style Selector="Border.tab.selected > Grid > Border.indicator">
-            <Setter Property="IsVisible" Value="True" />
+        <Style Selector="Button.tab-close">
+            <Setter Property="Width" Value="18" />
+            <Setter Property="Height" Value="18" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{DynamicResource SkuaMutedTextBrush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.tab-close:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SkuaDangerBrush}" />
+            <Setter Property="Foreground" Value="White" />
         </Style>
         <Style Selector="Button.tabbar, ToggleButton.tabbar">
-            <Setter Property="Background" Value="#252526" />
-            <Setter Property="BorderBrush" Value="#333333" />
-            <Setter Property="BorderThickness" Value="1,1,1,0" />
-            <Setter Property="CornerRadius" Value="4,4,0,0" />
-            <Setter Property="Margin" Value="2,0" />
-            <Setter Property="Padding" Value="10,4" />
-            <Setter Property="VerticalAlignment" Value="Stretch" />
-            <Setter Property="Foreground" Value="{DynamicResource SkuaPrimaryBrush}" />
-            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Background" Value="{DynamicResource SkuaSurfaceAltBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
         <Style Selector="ToggleButton.tabbar:checked /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#3E3E42" />
-            <Setter Property="BorderBrush" Value="#007ACC" />
+            <Setter Property="Background" Value="{DynamicResource SkuaAccentTintBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SkuaAccentBrush}" />
+        </Style>
+        <Style Selector="MenuFlyoutPresenter icons|MaterialIcon">
+            <Setter Property="Width" Value="14" />
+            <Setter Property="Height" Value="14" />
         </Style>
     </Window.Styles>
     <DockPanel>
         <theming:WindowTitleBar DockPanel.Dock="Top" />
-        <DockPanel DockPanel.Dock="Top" Height="34" Margin="2,2,2,0">
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="0,0,5,0">
+        <Border DockPanel.Dock="Top" Height="36" Background="{DynamicResource SkuaSurfaceBrush}"
+                BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="0,0,0,1">
+        <DockPanel>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="0,0,8,0" Spacing="6"
+                        VerticalAlignment="Center">
                 <Button x:Name="ArmyButton" Classes="tabbar">
                     <StackPanel Orientation="Horizontal" Spacing="5">
-                        <icons:MaterialIcon Kind="Earth" />
+                        <icons:MaterialIcon Kind="Earth" Width="14" Height="14" VerticalAlignment="Center" />
                         <TextBlock Text="Army Control" VerticalAlignment="Center" />
+                        <icons:MaterialIcon Kind="ChevronDown" Width="12" Height="12" VerticalAlignment="Center"
+                                            Foreground="{DynamicResource SkuaMutedTextBrush}" />
                     </StackPanel>
                     <Button.Flyout>
                         <MenuFlyout Placement="BottomEdgeAlignedRight">
-                            <MenuItem x:Name="MenuStartScripts" Header="Start All Scripts" Click="StartAll_Click" />
-                            <MenuItem x:Name="MenuStopScripts" Header="Stop All Scripts" Click="StopAll_Click" />
-                            <MenuItem Header="Load Script to All" Click="LoadScriptAll_Click" />
-                            <MenuItem Header="Army Scheduler" Click="ArmyScheduler_Click" />
+                            <MenuItem x:Name="MenuStartScripts" Header="Start All Scripts" Click="StartAll_Click">
+                                <MenuItem.Icon><icons:MaterialIcon Kind="PlayCircleOutline" /></MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem x:Name="MenuStopScripts" Header="Stop All Scripts" Click="StopAll_Click">
+                                <MenuItem.Icon><icons:MaterialIcon Kind="StopCircleOutline" Foreground="{DynamicResource SkuaDangerBrush}" /></MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Load Script to All" Click="LoadScriptAll_Click">
+                                <MenuItem.Icon><icons:MaterialIcon Kind="FolderOpenOutline" /></MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Army Scheduler" Click="ArmyScheduler_Click">
+                                <MenuItem.Icon><icons:MaterialIcon Kind="CalendarClockOutline" /></MenuItem.Icon>
+                            </MenuItem>
                             <Separator />
-                            <MenuItem x:Name="MenuLoginAll" Header="Login All Clients" Click="LoginAll_Click" />
-                            <MenuItem Header="Logout All Clients" Click="LogoutAll_Click" />
+                            <MenuItem x:Name="MenuLoginAll" Header="Login All Clients" Click="LoginAll_Click">
+                                <MenuItem.Icon><icons:MaterialIcon Kind="LoginVariant" /></MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Logout All Clients" Click="LogoutAll_Click">
+                                <MenuItem.Icon><icons:MaterialIcon Kind="LogoutVariant" /></MenuItem.Icon>
+                            </MenuItem>
                             <Separator />
-                            <MenuItem Header="Jump All to Map..." Click="JumpMap_Click" />
-                            <MenuItem Header="Jump All to Player..." Click="JumpPlayer_Click" />
+                            <MenuItem Header="Jump All to Map..." Click="JumpMap_Click">
+                                <MenuItem.Icon><icons:MaterialIcon Kind="MapMarkerOutline" /></MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Jump All to Player..." Click="JumpPlayer_Click">
+                                <MenuItem.Icon><icons:MaterialIcon Kind="AccountArrowRightOutline" /></MenuItem.Icon>
+                            </MenuItem>
                             <Separator />
-                            <MenuItem Header="Accept Quest (All)..." Click="AcceptQuest_Click" />
+                            <MenuItem Header="Accept Quest (All)..." Click="AcceptQuest_Click">
+                                <MenuItem.Icon><icons:MaterialIcon Kind="FileDocumentEditOutline" /></MenuItem.Icon>
+                            </MenuItem>
                             <Separator />
                             <MenuItem Header="Misc Options">
-                                <MenuItem Header="Lag Killer" Tag="LagKiller" ToggleType="CheckBox" Click="Option_Click" />
-                                <MenuItem Header="Headless Mode" Tag="HeadlessMode" ToggleType="CheckBox" Click="Option_Click" />
-                                <MenuItem Header="Hide Players" Tag="HidePlayers" ToggleType="CheckBox" Click="Option_Click" />
-                                <MenuItem Header="Disable FX" Tag="DisableFX" ToggleType="CheckBox" Click="Option_Click" />
-                                <MenuItem Header="Infinite Range" Tag="InfiniteRange" ToggleType="CheckBox" Click="Option_Click" />
-                                <MenuItem Header="Use Function-Based Skills" Tag="UseFunctionBasedSkills" ToggleType="CheckBox" Click="Option_Click" />
-                                <MenuItem Header="Streamer Mode" Tag="StreamerMode" ToggleType="CheckBox" Click="Option_Click" />
+                                <MenuItem.Icon><icons:MaterialIcon Kind="TuneVariant" /></MenuItem.Icon>
+                                <MenuItem Header="Lag Killer" Tag="LagKiller" ToggleType="CheckBox" Click="Option_Click">
+                                    <MenuItem.Icon><icons:MaterialIcon Kind="FlashOutline" /></MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Headless Mode" Tag="HeadlessMode" ToggleType="CheckBox" Click="Option_Click">
+                                    <MenuItem.Icon><icons:MaterialIcon Kind="MonitorOff" /></MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Hide Players" Tag="HidePlayers" ToggleType="CheckBox" Click="Option_Click">
+                                    <MenuItem.Icon><icons:MaterialIcon Kind="AccountEyeOutline" /></MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Disable FX" Tag="DisableFX" ToggleType="CheckBox" Click="Option_Click">
+                                    <MenuItem.Icon><icons:MaterialIcon Kind="AutoFix" /></MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Infinite Range" Tag="InfiniteRange" ToggleType="CheckBox" Click="Option_Click">
+                                    <MenuItem.Icon><icons:MaterialIcon Kind="ArrowExpandAll" /></MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Use Function-Based Skills" Tag="UseFunctionBasedSkills" ToggleType="CheckBox" Click="Option_Click">
+                                    <MenuItem.Icon><icons:MaterialIcon Kind="FunctionVariant" /></MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Streamer Mode" Tag="StreamerMode" ToggleType="CheckBox" Click="Option_Click">
+                                    <MenuItem.Icon><icons:MaterialIcon Kind="Broadcast" /></MenuItem.Icon>
+                                </MenuItem>
                             </MenuItem>
                         </MenuFlyout>
                     </Button.Flyout>
                 </Button>
                 <ToggleButton x:Name="GridButton" Classes="tabbar" Click="Grid_Click">
                     <StackPanel Orientation="Horizontal" Spacing="5">
-                        <icons:MaterialIcon Kind="ViewGrid" />
+                        <icons:MaterialIcon Kind="ViewGridOutline" Width="14" Height="14" VerticalAlignment="Center" />
                         <TextBlock Text="Grid View" VerticalAlignment="Center" />
                     </StackPanel>
                 </ToggleButton>
             </StackPanel>
-            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="4,0,0,0">
                 <StackPanel Orientation="Horizontal">
                     <ItemsControl x:Name="TabStrip" ItemsSource="{Binding Tabs}">
                         <ItemsControl.ItemsPanel>
@@ -104,29 +178,30 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="local:SkuaTab">
                                 <Border Classes="tab" Classes.selected="{Binding IsSelected}" PointerPressed="Tab_PointerPressed">
-                                    <Grid>
-                                        <StackPanel Orientation="Horizontal" Margin="10,4" Spacing="8">
-                                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
-                                            <Button Classes="flat" Padding="4,0" Click="CloseTab_Click" ToolTip.Tip="Close this tab (its Skua and game)">
-                                                <icons:MaterialIcon Kind="Close" Width="12" Height="12" />
-                                            </Button>
-                                        </StackPanel>
-                                        <Border Classes="indicator" Height="3" VerticalAlignment="Bottom" Background="{DynamicResource SkuaPrimaryBrush}" />
-                                    </Grid>
+                                    <StackPanel Orientation="Horizontal" Margin="10,0,4,0" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock Classes="tab-title" Text="{Binding Title}" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" MaxWidth="150" />
+                                        <Button Classes="tab-close" Click="CloseTab_Click" ToolTip.Tip="Close this tab (its Skua and game)">
+                                            <icons:MaterialIcon Kind="Close" Width="11" Height="11" />
+                                        </Button>
+                                    </StackPanel>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                    <Button Classes="tabbar" Click="AddTab_Click" ToolTip.Tip="New tab: another Skua with its own game">
-                        <icons:MaterialIcon Kind="Plus" />
+                    <Button Classes="tabbar" Width="28" Padding="0" Margin="4,0,8,0" Click="AddTab_Click"
+                            ToolTip.Tip="New tab: another Skua with its own game">
+                        <icons:MaterialIcon Kind="Plus" Width="14" Height="14" HorizontalAlignment="Center"
+                                            Foreground="{DynamicResource SkuaAccentBrush}" />
                     </Button>
                 </StackPanel>
             </ScrollViewer>
         </DockPanel>
-        <Panel x:Name="HostArea" Background="#252526">
-            <StackPanel x:Name="LoadingIndicator" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.5">
-                <TextBlock Text="Loading Instance..." Foreground="White" FontSize="24" FontWeight="Light" HorizontalAlignment="Center" Margin="0,0,0,10" />
-                <TextBlock Text="Please wait while the game is being initialized" Foreground="#AAAAAA" FontSize="14" HorizontalAlignment="Center" />
+        </Border>
+        <Panel x:Name="HostArea" Background="{DynamicResource SkuaPageBrush}">
+            <StackPanel x:Name="LoadingIndicator" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.7">
+                <TextBlock Text="Loading Game Instance..." Foreground="{DynamicResource SkuaTextBrush}" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,6" />
+                <TextBlock Text="Please wait while the game client initializes" Foreground="{DynamicResource SkuaMutedTextBrush}" FontSize="12" HorizontalAlignment="Center" />
             </StackPanel>
         </Panel>
     </DockPanel>

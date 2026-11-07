@@ -78,6 +78,14 @@ public static class Snapshot
         }
 
         Shot("MainWindow", () => new MainWindow { DataContext = provider.GetRequiredService<MainViewModel>() });
+        Shot("TabHostWindow", () =>
+        {
+            TabHostWindow.Preview = true;
+            var host = new TabHostWindow();
+            for (int n = 0; n < 3; n++)
+                host.Tabs.Add(new SkuaTab(n) { Title = $"Tab {n + 1}", IsSelected = n == 1 });
+            return host;
+        });
         Shot("BotWindow", () => new BotWindow { DataContext = provider.GetRequiredService<BotWindowViewModel>() });
         Shot("Dialog-MessageBox", () => new HostDialog { DataContext = new MessageBoxDialogViewModel("A message from a script.", "Caption", true) });
         Shot("Dialog-Custom", () => new HostDialog { DataContext = new CustomDialogViewModel("Pick one:", "Caption", new[] { "Full", "Partial", "None" }) });

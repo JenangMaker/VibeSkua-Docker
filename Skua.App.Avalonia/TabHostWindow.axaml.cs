@@ -102,6 +102,9 @@ public partial class TabHostWindow : Window
     private ulong _hostXid;
     private string _lastJumpMap = "", _lastJumpCell = "", _lastJumpPlayer = "", _lastQuestId = "", _lastQuestItem = "";
 
+    /// <summary>--snapshot: draw the window with made-up tabs, start nothing.</summary>
+    internal static bool Preview;
+
     public TabHostWindow()
     {
         ApiAuth.AddTo(_http);
@@ -117,6 +120,8 @@ public partial class TabHostWindow : Window
         };
         Opened += (_, _) =>
         {
+            if (Preview)
+                return;
             _display = X.XOpenDisplay(null);
             _hostXid = TryGetPlatformHandle()?.Handle is { } h ? (ulong)h : 0;
             foreach (int n in InitialTabs)
