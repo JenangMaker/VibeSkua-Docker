@@ -144,7 +144,7 @@ public static class Behave
             a.Handled = true;
     }
 
-    private static async void CopySelected(ListBox l)
+    internal static async void CopySelected(ListBox l)
     {
         if (l.SelectedItems is null || TopLevel.GetTopLevel(l)?.Clipboard is not { } clipboard)
             return;

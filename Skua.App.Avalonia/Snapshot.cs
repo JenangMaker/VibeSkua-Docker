@@ -61,10 +61,16 @@ public static class Snapshot
             {
                 Window window = create();
                 window.Show();
-                for (int i = 0; i < 3; i++)
+                // SNAPSHOT_WAIT=<ms>: keep pumping that long first, for views that load async
+                // (the script list).
+                var wait = System.Diagnostics.Stopwatch.StartNew();
+                int waitMs = int.TryParse(Environment.GetEnvironmentVariable("SNAPSHOT_WAIT"), out int w) ? w : 0;
+                for (int i = 0; i < 3 || wait.ElapsedMilliseconds < waitMs; i++)
                 {
                     Dispatcher.UIThread.RunJobs();
                     AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+                    if (i >= 3)
+                        Thread.Sleep(20);
                 }
                 window.CaptureRenderedFrame()?.Save(Path.Combine(dir, name + ".png"));
                 Console.WriteLine($"[snapshot] {name} {window.Bounds.Width}x{window.Bounds.Height}");
@@ -110,6 +116,10 @@ public static class Snapshot
             catch { vm = null; }   // needs arguments only its caller has (dialogs)
             if (vm is null)
                 continue;
+            // The script list fills on activation (from the local copy; a network fetch only if
+            // there is none), as when its window opens.
+            if (vm is ScriptRepoViewModel repo)
+                repo.IsActive = true;
             Shot(type.Name, () => new HostWindow { DataContext = vm, Width = 800, Height = 500 });
         }
     }

@@ -1,30 +1,49 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:b="clr-namespace:Skua.App.Avalonia"
-             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="Skua.App.Avalonia.Views.LogsView">
-    <DockPanel Margin="6">
-        <ListBox DockPanel.Dock="Top" Classes="plain" Margin="0,0,0,6"
-                 ItemsSource="{Binding LogTabs}" SelectedItem="{Binding SelectedTab}">
-            <ListBox.ItemsPanel>
-                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="6" /></ItemsPanelTemplate>
-            </ListBox.ItemsPanel>
-            <ListBox.Styles>
-                <!-- MaterialDesignChoiceChipPrimaryOutlineListBox -->
-                <Style Selector="ListBoxItem">
-                    <Setter Property="BorderBrush" Value="{DynamicResource SkuaPrimaryBrush}" />
-                    <Setter Property="BorderThickness" Value="1" />
-                    <Setter Property="CornerRadius" Value="14" />
-                    <Setter Property="Padding" Value="12,4" />
-                </Style>
-            </ListBox.Styles>
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <TextBlock Width="60" TextAlignment="Center" FontWeight="Medium" Text="{Binding Title}" />
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
-        <ContentControl Content="{Binding SelectedTab}" />
-    </DockPanel>
+    <!-- 2.x layout (upstream 2.1.2 LogsView): Debug / Script / Flash as top tabs, the actions on
+         the right, then the selected log. -->
+    <Grid Margin="12" RowDefinitions="Auto,*" RowSpacing="10">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+            <ListBox Classes="top-tabs-client" ItemsSource="{Binding LogTabs}" SelectedItem="{Binding SelectedTab}"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Classes="top-tabs-label" Text="{Binding Title}" />
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Classes="skua-button small" Click="Copy_Click" ToolTip.Tip="Copy the selected lines, or the whole log">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <icons:MaterialIcon Kind="ContentCopy" Width="14" Height="14" />
+                        <TextBlock Text="Copy" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="skua-button small" Click="Deselect_Click" ToolTip.Tip="Clear the selection">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <icons:MaterialIcon Kind="SelectionRemove" Width="14" Height="14" />
+                        <TextBlock Text="Deselect" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="skua-button small" Command="{Binding SelectedTab.SaveLogCommand}" ToolTip.Tip="Save the log to a file">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <icons:MaterialIcon Kind="ContentSave" Width="14" Height="14" />
+                        <TextBlock Text="Save" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="skua-button small skua-danger-soft" Command="{Binding SelectedTab.ClearLogCommand}" ToolTip.Tip="Clear the log">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <icons:MaterialIcon Kind="TrashCanOutline" Width="14" Height="14" />
+                        <TextBlock Text="Clear" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+        <ContentControl x:Name="TabContent" Grid.Row="1" Content="{Binding SelectedTab}" />
+    </Grid>
 </UserControl>

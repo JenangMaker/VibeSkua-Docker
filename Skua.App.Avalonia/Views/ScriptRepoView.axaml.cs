@@ -33,7 +33,16 @@ public partial class ScriptRepoView : UserControl
         if (DataContext is not ScriptRepoViewModel vm)
             return;
         _scripts = new UiMirror<ScriptInfoViewModel>(vm.Scripts) { Filter = Search };
-        ScriptsGrid.ItemsSource = _scripts.Items;
+        ScriptList.ItemsSource = _scripts.Items;
+        _scripts.Items.CollectionChanged += (_, _) => EmptyNote.IsVisible = _scripts?.Items.Count == 0 && vm.Scripts.Count > 0;
+    }
+
+    // The row's "more" menu acts on the selected script (the view model's commands take no
+    // parameter): select the row first.
+    private void More_Click(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: ScriptInfoViewModel script } && DataContext is ScriptRepoViewModel vm)
+            vm.SelectedItem = script;
     }
 
     private bool Search(ScriptInfoViewModel script)
