@@ -13,6 +13,12 @@ public partial class ApplicationThemesView : UserControl
     {
         InitializeComponent();
         DataContextChanged += (_, _) => SyncPicker();
+        Tabs.SelectionChanged += (_, _) =>
+        {
+            PalettePage.IsVisible = Tabs.SelectedIndex == 0;
+            LibraryPage.IsVisible = Tabs.SelectedIndex == 1;
+            BackgroundsPage.IsVisible = Tabs.SelectedIndex == 2;
+        };
     }
 
     private bool _syncing;

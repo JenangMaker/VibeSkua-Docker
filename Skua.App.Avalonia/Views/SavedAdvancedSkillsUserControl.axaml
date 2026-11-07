@@ -4,23 +4,41 @@
              xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="Skua.App.Avalonia.Views.SavedAdvancedSkillsUserControl">
-    <Grid RowDefinitions="Auto,335">
-        <DockPanel Grid.Row="0">
-            <Button DockPanel.Dock="Right" Margin="3,6,3,3" Command="{Binding ResetSkillsSetCommand}" Content="Reset Skills" />
-            <Button DockPanel.Dock="Right" Margin="3,6,3,3" Command="{Binding RefreshSkillsCommand}"><icons:MaterialIcon Kind="Refresh" /></Button>
-            <TextBox x:Name="SearchBox" Margin="6,6,3,3" Watermark="Search" />
-        </DockPanel>
-        <ListBox x:Name="SkillsList" Grid.Row="1" Margin="6,3,6,6" SelectedItem="{Binding SelectedSkill}" SelectionMode="Multiple">
-            <ListBox.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Command="{Binding RemoveSelectedCommand}" Header="Remove Selected" />
-                </ContextMenu>
-            </ListBox.ContextMenu>
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <TextBlock Text="{Binding}" DoubleTapped="Skill_DoubleTapped" />
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+    <!-- 2.x layout: search, refresh and Reset skills, then the saved skills in a framed list
+         (double-click one to edit it). -->
+    <Grid Margin="12" RowDefinitions="Auto,*" RowSpacing="10">
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <TextBox x:Name="SearchBox" Watermark="Search saved skills">
+                <TextBox.InnerLeftContent>
+                    <icons:MaterialIcon Kind="Magnify" Width="15" Height="15" Margin="10,0,0,0" Foreground="{DynamicResource SkuaMutedTextBrush}" />
+                </TextBox.InnerLeftContent>
+            </TextBox>
+            <Button Grid.Column="1" Classes="skua-button" Width="34" Padding="0" Command="{Binding RefreshSkillsCommand}" ToolTip.Tip="Reload the saved skills">
+                <icons:MaterialIcon Kind="Refresh" Width="16" Height="16" />
+            </Button>
+            <Button Grid.Column="2" Classes="skua-button skua-danger-soft" Command="{Binding ResetSkillsSetCommand}" Content="Reset skills"
+                    ToolTip.Tip="Restore the default skill sets" />
+        </Grid>
+        <Border Grid.Row="1" Classes="option-list">
+            <ListBox x:Name="SkillsList" SelectedItem="{Binding SelectedSkill}" SelectionMode="Multiple"
+                     Background="Transparent" BorderThickness="0" Padding="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="12,5" />
+                        <Setter Property="CornerRadius" Value="0" />
+                    </Style>
+                </ListBox.Styles>
+                <ListBox.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Command="{Binding RemoveSelectedCommand}" Header="Remove Selected" />
+                    </ContextMenu>
+                </ListBox.ContextMenu>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" FontSize="12" FontFamily="{DynamicResource MonoFont}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}" DoubleTapped="Skill_DoubleTapped" />
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
     </Grid>
 </UserControl>
