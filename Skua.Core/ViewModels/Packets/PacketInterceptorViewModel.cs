@@ -15,7 +15,7 @@ public partial class PacketInterceptorViewModel : BotControlViewModelBase
 {
 
     public PacketInterceptorViewModel(IEnumerable<PacketLogFilterViewModel> filters, ICaptureProxy gameProxy, IScriptServers server)
-        : base("Packet Interceptor")
+        : base("Packet Interceptor", 800, 450)
     {
         _gameProxy = gameProxy;
         _server = server;

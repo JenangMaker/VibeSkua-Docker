@@ -13,6 +13,12 @@ public partial class CurrentDropsUserControl : UserControl
     {
         InitializeComponent();
         DataContextChanged += (_, _) => Attach();
+        CurrentDropsListBox.SelectionChanged += (_, _) =>
+        {
+            int n = CurrentDropsListBox.SelectedItems?.Count ?? 0;
+            PickupSelected.IsEnabled = n > 0;
+            SelectedText.Text = n == 0 ? "None selected" : $"{n} selected";
+        };
         // Debounced search (300 ms); Enter searches at once.
         SearchBox.TextChanged += (_, _) =>
         {

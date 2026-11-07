@@ -9,4 +9,10 @@ public partial class ConsoleView : UserControl
     {
         InitializeComponent();
     }
+
+    private void Clear_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        Snippet.Text = string.Empty;
+        Snippet.Focus();
+    }
 }

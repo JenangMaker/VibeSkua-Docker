@@ -1,42 +1,96 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:b="clr-namespace:Skua.App.Avalonia"
-             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             Background="{DynamicResource SkuaPageBrush}"
              x:Class="Skua.App.Avalonia.Views.PacketLoggerView">
-    <Grid Margin="6" ColumnDefinitions="2*,*" RowDefinitions="Auto,*,Auto,Auto">
-        <TextBox x:Name="LogSearchBox" Grid.Row="0" Grid.Column="0" Margin="0,0,3,3" Watermark="Search packets" />
-        <TextBox x:Name="FilterSearchBox" Grid.Row="0" Grid.Column="1" Margin="3,0,0,3" Watermark="Search filters" />
-        <ListBox x:Name="PacketsList" Grid.Row="1" Grid.Column="0" Margin="0,3,3,3" SelectionMode="Multiple"
-                 b:Behave.CopySelected="True" b:Behave.UnselectAllMenu="True" b:Behave.ScrollToEnd="True">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <TextBlock Text="{Binding}" TextWrapping="Wrap" FontFamily="{DynamicResource MonoFont}" />
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
-        <ScrollViewer Grid.Row="1" Grid.RowSpan="2" Grid.Column="1" Margin="3,0,0,3" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-            <ItemsControl x:Name="FiltersList">
-                <ItemsControl.ContextMenu>
-                    <ContextMenu>
-                        <MenuItem Command="{Binding ClearFiltersCommand}" Header="Clear Filters" />
-                    </ContextMenu>
-                </ItemsControl.ContextMenu>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <CheckBox HorizontalAlignment="Stretch" Margin="0,1" Content="{Binding Content}" IsChecked="{Binding IsChecked}" />
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
-        <Grid Grid.Row="2" Grid.Column="0" ColumnDefinitions="*,*">
-            <Button Grid.Column="0" Margin="0,3,3,3" HorizontalAlignment="Stretch" Click="UnselectAllLogs_Click" Content="Unselect All Logs" />
-            <Button Grid.Column="1" Margin="3,3,0,3" HorizontalAlignment="Stretch" Command="{Binding ClearFiltersCommand}" Content="Clear Filters" />
+    <!-- 2.x layout (upstream 2.1.2 PacketLoggerView): Start / Stop logging, search with the
+         packet types in a Show menu, the packet list, then the count and Copy / Save / Clear. -->
+    <Grid Margin="12" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
+        <Panel HorizontalAlignment="Left">
+            <Button Classes="skua-button skua-primary w140" Click="ToggleLogging_Click" IsVisible="{Binding !IsReceivingPackets}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="PlayCircleOutline" Width="15" Height="15" />
+                    <TextBlock Text="Start logging" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <Button Classes="skua-button skua-danger w140" Click="ToggleLogging_Click" IsVisible="{Binding IsReceivingPackets}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="StopCircleOutline" Width="15" Height="15" />
+                    <TextBlock Text="Stop logging" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </Panel>
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox x:Name="LogSearchBox" Watermark="Search packets">
+                <TextBox.InnerLeftContent>
+                    <icons:MaterialIcon Kind="Magnify" Width="15" Height="15" Margin="10,0,0,0" Foreground="{DynamicResource SkuaMutedTextBrush}" />
+                </TextBox.InnerLeftContent>
+            </TextBox>
+            <Button Grid.Column="1" Classes="skua-button" ToolTip.Tip="Packet types to show">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="FilterVariant" Width="16" Height="16" />
+                    <TextBlock Text="Show" VerticalAlignment="Center" />
+                    <Border Classes="count"><TextBlock x:Name="ShowCount" Text="0 / 0" /></Border>
+                    <icons:MaterialIcon Kind="ChevronDown" Width="15" Height="15" />
+                </StackPanel>
+                <Button.Flyout>
+                    <Flyout Placement="BottomEdgeAlignedRight">
+                        <Grid Width="260" RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+                            <TextBox x:Name="FilterSearchBox" Watermark="Search filters" />
+                            <ScrollViewer Grid.Row="1" MaxHeight="320" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl x:Name="FiltersList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox HorizontalAlignment="Stretch" Margin="0,1" Content="{Binding Content}" IsChecked="{Binding IsChecked}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                            <Button Grid.Row="2" Classes="skua-button small" HorizontalAlignment="Right" Command="{Binding ClearFiltersCommand}" Content="Clear filters" />
+                        </Grid>
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
         </Grid>
-        <Grid Grid.Row="3" Grid.ColumnSpan="2" Margin="0,3,0,0" ColumnDefinitions="*,*,*">
-            <Button Grid.Column="0" Margin="0,0,3,0" HorizontalAlignment="Stretch" Command="{Binding ClearPacketLogsCommand}" Content="Clear" />
-            <Button Grid.Column="1" Margin="3,0" HorizontalAlignment="Stretch" Command="{Binding SavePacketLogsCommand}" Content="Save" />
-            <ToggleButton Grid.Column="2" Margin="3,0,0,0" HorizontalAlignment="Stretch" Content="Enabled" IsChecked="{Binding IsReceivingPackets}" />
+        <Border Grid.Row="2" Classes="option-list">
+            <ListBox x:Name="PacketsList" SelectionMode="Multiple" Background="Transparent" BorderThickness="0" Padding="0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     b:Behave.CopySelected="True" b:Behave.ScrollToEnd="True" b:Behave.UnselectAllMenu="True">
+                <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="10,3" />
+                        <Setter Property="CornerRadius" Value="0" />
+                    </Style>
+                </ListBox.Styles>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12" FontFamily="{DynamicResource MonoFont}" />
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+            <TextBlock FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource SkuaMutedTextBrush}"
+                       Text="{Binding PacketLogs.Count, StringFormat='{}{0} packets'}" />
+            <Button Classes="skua-button" Grid.Column="1" Click="Copy_Click" ToolTip.Tip="Copy the selected packets">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="ContentCopy" Width="15" Height="15" />
+                    <TextBlock Text="Copy" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <Button Classes="skua-button" Grid.Column="2" Command="{Binding SavePacketLogsCommand}" ToolTip.Tip="Save the packets to a file">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="ContentSave" Width="15" Height="15" />
+                    <TextBlock Text="Save" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <Button Classes="skua-button skua-danger-soft" Grid.Column="3" Command="{Binding ClearPacketLogsCommand}" ToolTip.Tip="Clear the packets">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="TrashCanOutline" Width="15" Height="15" />
+                    <TextBlock Text="Clear" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
         </Grid>
     </Grid>
 </UserControl>

@@ -1,59 +1,105 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:b="clr-namespace:Skua.App.Avalonia"
-             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             Background="{DynamicResource SkuaPageBrush}"
              x:Class="Skua.App.Avalonia.Views.PacketInterceptorView">
-    <Grid Margin="6" ColumnDefinitions="2*,*" RowDefinitions="Auto,Auto,Auto,*">
-        <Grid Grid.Row="0" Grid.Column="0" Margin="0,0,3,3" ColumnDefinitions="*,Auto">
-            <ComboBox Grid.Column="0" HorizontalAlignment="Stretch" PlaceholderText="Server" ItemsSource="{Binding ServerList}" SelectedItem="{Binding SelectedServer}" />
-            <Button Grid.Column="1" Width="110" Margin="6,0,0,0" Classes="accent" Command="{Binding ConnectInterceptorCommand}"
-                    Content="{Binding Running, Converter={StaticResource BoolText}, ConverterParameter='Disconnect|Connect'}" />
+    <!-- 2.x layout (upstream 2.1.2 PacketInterceptorView): server, Connect and Log packets;
+         search with the packet types in a Show menu; the packets (tinted by direction); then the
+         count, the colour key and Copy / Clear. -->
+    <UserControl.Styles>
+        <Style Selector="Border.key">
+            <Setter Property="Width" Value="10" />
+            <Setter Property="Height" Value="10" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </UserControl.Styles>
+    <Grid Margin="12" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
+        <Grid ColumnDefinitions="200,Auto,Auto,Auto,*" ColumnSpacing="8">
+            <ComboBox HorizontalAlignment="Stretch" PlaceholderText="Server" ItemsSource="{Binding ServerList}" SelectedItem="{Binding SelectedServer}" />
+            <Button Grid.Column="1" Classes="skua-button w140" Command="{Binding ConnectInterceptorCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="LinkVariant" Width="15" Height="15" />
+                    <TextBlock VerticalAlignment="Center" Text="{Binding Running, Converter={StaticResource BoolText}, ConverterParameter='Disconnect|Connect'}" />
+                </StackPanel>
+            </Button>
+            <ToggleSwitch Grid.Column="2" OnContent="" OffContent="" MinWidth="0" VerticalAlignment="Center" IsChecked="{Binding IsLogging}" />
+            <TextBlock Grid.Column="3" Text="Log packets" VerticalAlignment="Center" />
         </Grid>
-        <TextBox x:Name="FilterSearchBox" Grid.Row="0" Grid.Column="1" Margin="3,0,0,3" Watermark="Search filters" />
-        <TextBox x:Name="SearchBox" Grid.Row="1" Grid.Column="0" Margin="0,0,3,3" Watermark="Search packets..." />
-        <ScrollViewer Grid.Row="1" Grid.RowSpan="3" Grid.Column="1" Margin="3,0,0,0" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-            <ItemsControl x:Name="FiltersList">
-                <ItemsControl.ContextMenu>
-                    <ContextMenu>
-                        <MenuItem Command="{Binding ClearFiltersCommand}" Header="Clear Filters" />
-                    </ContextMenu>
-                </ItemsControl.ContextMenu>
-                <ItemsControl.ItemTemplate>
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox x:Name="SearchBox" Watermark="Search packets">
+                <TextBox.InnerLeftContent>
+                    <icons:MaterialIcon Kind="Magnify" Width="15" Height="15" Margin="10,0,0,0" Foreground="{DynamicResource SkuaMutedTextBrush}" />
+                </TextBox.InnerLeftContent>
+            </TextBox>
+            <Button Grid.Column="1" Classes="skua-button" ToolTip.Tip="Packet types to show">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="FilterVariant" Width="16" Height="16" />
+                    <TextBlock Text="Show" VerticalAlignment="Center" />
+                    <Border Classes="count"><TextBlock x:Name="ShowCount" Text="0 / 0" /></Border>
+                    <icons:MaterialIcon Kind="ChevronDown" Width="15" Height="15" />
+                </StackPanel>
+                <Button.Flyout>
+                    <Flyout Placement="BottomEdgeAlignedRight">
+                        <Grid Width="260" RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+                            <TextBox x:Name="FilterSearchBox" Watermark="Search filters" />
+                            <ScrollViewer Grid.Row="1" MaxHeight="320" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl x:Name="FiltersList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox HorizontalAlignment="Stretch" Margin="0,1" Content="{Binding Content}" IsChecked="{Binding IsChecked}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                            <Button Grid.Row="2" Classes="skua-button small" HorizontalAlignment="Right" Command="{Binding ClearFiltersCommand}" Content="Clear filters" />
+                        </Grid>
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
+        </Grid>
+        <Border Grid.Row="2" Classes="option-list">
+            <ListBox x:Name="PacketsList" SelectionMode="Multiple" Background="Transparent" BorderThickness="0" Padding="0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     b:Behave.CopySelected="True" b:Behave.ScrollToEnd="True" b:Behave.UnselectAllMenu="True">
+                <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="10,3" />
+                        <Setter Property="CornerRadius" Value="0" />
+                        <Setter Property="Background" Value="{Binding Outbound, Converter={StaticResource PacketDirectionBrush}}" />
+                    </Style>
+                </ListBox.Styles>
+                <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <CheckBox HorizontalAlignment="Stretch" Margin="0,1" Content="{Binding Content}" IsChecked="{Binding IsChecked}" />
+                        <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12" FontFamily="{DynamicResource MonoFont}" />
                     </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
-        <Grid Grid.Row="2" Grid.Column="0" Margin="0,3,3,3" ColumnDefinitions="Auto,*,Auto">
-            <ToggleButton Margin="3,0" Content="Log Packets" IsChecked="{Binding IsLogging}" />
-            <StackPanel Grid.Column="1" HorizontalAlignment="Center" Orientation="Horizontal">
-                <Border Height="30" BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="2,2,1,2" CornerRadius="4,0,0,4" Background="#33FFFF00">
-                    <TextBlock Width="70" Margin="3,0" VerticalAlignment="Center" FontSize="14" Text="Outbound" TextAlignment="Center" />
-                </Border>
-                <Border Height="30" BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="1,2,1,2" Background="#330000FF">
-                    <TextBlock Width="70" Margin="3,0" VerticalAlignment="Center" FontSize="14" Text="Inbound" TextAlignment="Center" />
-                </Border>
-                <Border Height="30" BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="1,2,2,2" CornerRadius="0,4,4,0" Background="#33FF0000">
-                    <TextBlock Width="70" Margin="3,0" VerticalAlignment="Center" FontSize="14" Text="Blocked" TextAlignment="Center" />
-                </Border>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+        <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+            <TextBlock FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource SkuaMutedTextBrush}"
+                       Text="{Binding Packets.Count, StringFormat='{}{0} packets'}" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center">
+                <Border Classes="key" Background="#66FFFF00" />
+                <TextBlock Text="Outbound" FontSize="11" Margin="0,0,8,0" Foreground="{DynamicResource SkuaMutedTextBrush}" />
+                <Border Classes="key" Background="#660000FF" />
+                <TextBlock Text="Inbound" FontSize="11" Margin="0,0,8,0" Foreground="{DynamicResource SkuaMutedTextBrush}" />
+                <Border Classes="key" Background="#66FF0000" />
+                <TextBlock Text="Blocked" FontSize="11" Foreground="{DynamicResource SkuaMutedTextBrush}" />
             </StackPanel>
-            <Button Grid.Column="2" Command="{Binding ClearPacketsCommand}" Content="Clear" />
+            <Button Classes="skua-button" Grid.Column="2" Click="Copy_Click" ToolTip.Tip="Copy the selected packets">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="ContentCopy" Width="15" Height="15" />
+                    <TextBlock Text="Copy" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <Button Classes="skua-button skua-danger-soft" Grid.Column="3" Command="{Binding ClearPacketsCommand}" ToolTip.Tip="Clear the packets">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="TrashCanOutline" Width="15" Height="15" />
+                    <TextBlock Text="Clear" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
         </Grid>
-        <ListBox x:Name="PacketsList" Grid.Row="3" Grid.Column="0" Margin="0,3,3,0" SelectionMode="Multiple"
-                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Visible"
-                 b:Behave.CopySelected="True" b:Behave.ScrollToEnd="True" b:Behave.UnselectAllMenu="True">
-            <ListBox.Styles>
-                <Style Selector="ListBoxItem">
-                    <Setter Property="Background" Value="{Binding Outbound, Converter={StaticResource PacketDirectionBrush}}" />
-                </Style>
-            </ListBox.Styles>
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <TextBlock Text="{Binding}" TextWrapping="Wrap" FontFamily="{DynamicResource MonoFont}" />
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
     </Grid>
 </UserControl>
