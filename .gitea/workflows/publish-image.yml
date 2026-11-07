@@ -113,3 +113,17 @@ jobs:
           IMAGE="${REGISTRY:-gitea.jenangmaker.cloud}/jenangmaker/vibeskua-web:$(echo "$TAG" | tr '/' '-')"
           docker push "$IMAGE"
           echo "Pushed $IMAGE"
+
+      # The runner builds with the host's Docker (its socket is mounted), so every image built
+      # here stayed on the server's system disk after the push, and each rebuild of a tag left
+      # the previous one untagged: tens of GB within weeks. The registry keeps the pushed copy.
+      # Runs even when a step failed; cleanup errors never fail the job.
+      - name: Clean up the runner host
+        if: ${{ always() }}
+        run: |
+          REGISTRY="${{ vars.PACKAGE_URL }}"
+          IMAGE="${REGISTRY:-gitea.jenangmaker.cloud}/jenangmaker/vibeskua-web:$(echo "$TAG" | tr '/' '-')"
+          docker image rm "$IMAGE" || true
+          docker image prune -f || true
+          docker builder prune -f --filter until=72h || true
+          docker system df || true
