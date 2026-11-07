@@ -37,7 +37,7 @@ public class UnifiedSettingsService
 
             try
             {
-                _fileMutex.WaitOne();
+                AcquireFileMutex();
 
                 if (!File.Exists(ClientFileSources.SkuaSettingsDIR))
                 {
@@ -71,23 +71,79 @@ public class UnifiedSettingsService
     {
         lock (_lock)
         {
+            AcquireFileMutex();
             try
             {
-                _fileMutex.WaitOne();
-                if (File.Exists(ClientFileSources.SkuaSettingsDIR))
-                {
-                    LoadSettings();
-                    EnsureRoleDefaults();
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error reloading settings: {ex.Message}");
+                TryReloadFromFile();
             }
             finally
             {
                 _fileMutex.ReleaseMutex();
             }
+        }
+    }
+
+    /// <summary>
+    /// Re-reads the file another process saved. On a read or parse error the settings in memory
+    /// are kept: falling back to defaults (as the first load does) would let the next save write
+    /// those defaults over every tab's file (upstream 60e03a2). Call with the file mutex held.
+    /// </summary>
+    private bool TryReloadFromFile()
+    {
+        try
+        {
+            if (!File.Exists(ClientFileSources.SkuaSettingsDIR))
+                return true;
+            if (ReadSettingsFile() is not { } loaded)
+            {
+                Console.WriteLine("Error reloading settings: the file holds no settings; kept the current ones.");
+                return false;
+            }
+            _root = loaded;
+            if (CleanupDeprecatedKeys())
+                SaveSettings();
+            EnsureRoleDefaults();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error reloading settings, kept the current ones: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>Reads and normalizes the settings file; null when it holds no settings. Throws on a read or parse error.</summary>
+    private SettingsRoot? ReadSettingsFile()
+    {
+        string json = File.ReadAllText(ClientFileSources.SkuaSettingsDIR);
+        SettingsRoot? loaded = JsonSerializer.Deserialize<SettingsRoot>(json, GetJsonOptions());
+        if (loaded == null)
+            return null;
+
+        if (loaded.FormatVersion == 0)
+            loaded.FormatVersion = 1;
+
+        loaded.Shared ??= new SharedSettings();
+        loaded.Client ??= new ClientSettings();
+        loaded.Manager ??= new ManagerSettings();
+
+        loaded.Shared.InitializeDefaults();
+        loaded.Client.InitializeDefaults();
+        loaded.Manager.InitializeDefaults();
+        return loaded;
+    }
+
+    // A process that exited holding the mutex leaves it abandoned: WaitOne then throws, but this
+    // process does own it, so carry on (and release it as usual). Without this a crashed tab
+    // left the mutex held for good by whichever process saw the exception (upstream 60e03a2).
+    private void AcquireFileMutex()
+    {
+        try
+        {
+            _fileMutex.WaitOne();
+        }
+        catch (AbandonedMutexException)
+        {
         }
     }
 
@@ -541,7 +597,7 @@ public class UnifiedSettingsService
     {
         try
         {
-            _fileMutex.WaitOne();
+            AcquireFileMutex();
 
             string tempFile = ClientFileSources.SkuaSettingsDIR + ".tmp";
 
@@ -549,11 +605,8 @@ public class UnifiedSettingsService
             string json = JsonSerializer.Serialize(_root, options);
             File.WriteAllText(tempFile, json);
 
-            if (File.Exists(ClientFileSources.SkuaSettingsDIR))
-            {
-                File.Delete(ClientFileSources.SkuaSettingsDIR);
-            }
-
+            // Replace in one step: deleting first left a moment with no file, and a failed move
+            // lost the last good settings (upstream e6b7f0c).
             File.Move(tempFile, ClientFileSources.SkuaSettingsDIR, overwrite: true);
         }
         catch (Exception ex)
