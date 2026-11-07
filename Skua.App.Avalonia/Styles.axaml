@@ -59,4 +59,11 @@
             </ControlTemplate>
         </Setter>
     </Style>
+    <!-- Popups (menus, drop-downs, tooltips, the Auto and Jump cards) are rounded over a transparent
+         window. Without a compositor (the Docker desktop: KasmVNC's X server) a window cannot be
+         transparent and Avalonia fills it with this brush, white by default: the corners showed
+         white. With the menu surface they blend in. No effect where transparency works (Windows). -->
+    <Style Selector="PopupRoot">
+        <Setter Property="TransparencyBackgroundFallback" Value="{DynamicResource SkuaSurfaceBrush}" />
+    </Style>
 </Styles>
