@@ -1,0 +1,155 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- From upstream VibeSkua 2.1.2 (Skua.Shared.Avalonia/Theming/Colors.axaml), see README.md.
+         Ours: AvaloniaThemeService (ThemeBrushes) sets the accent keys from the saved theme,
+         and the old 1.x keys at the end of each theme dictionary point at the 2.x surfaces. -->
+
+    <!-- 1.x keys still used by our views until phase 2 restyles them.
+         SkuaPrimaryBrush (accent text) is set by the theme service. -->
+    <SolidColorBrush x:Key="SkuaPrimaryBrush" Color="#90A4AE" />
+    <SolidColorBrush x:Key="SkuaSecondaryBrush" Color="#EF4444" />
+
+    <!-- Scheme Target mapping:
+        Primary -> SkuaAccentColor / SkuaAccentBrush
+        Text on Primary -> SkuaAccentForegroundColor / SkuaAccentForegroundBrush
+        These are updated at runtime by ThemeResourceApplicator via theme editor selections. -->
+    
+    <Color x:Key="SkuaAccentColor">#10B981</Color>
+    <Color x:Key="SkuaAccentForegroundColor">#FFFFFFFF</Color>
+    <SolidColorBrush x:Key="SkuaAccentBrush" Color="{StaticResource SkuaAccentColor}" />
+    <SolidColorBrush x:Key="SkuaAccentForegroundBrush" Color="{StaticResource SkuaAccentForegroundColor}" />
+    <SolidColorBrush x:Key="SkuaAccentHoverBrush" Color="#059669" />
+    <SolidColorBrush x:Key="SkuaAccentPressedBrush" Color="#047857" />
+    <SolidColorBrush x:Key="SkuaDangerBrush" Color="#EF4444" />
+    <SolidColorBrush x:Key="SkuaDangerHoverBrush" Color="#DC2626" />
+    <SolidColorBrush x:Key="SkuaDangerPressedBrush" Color="#B91C1C" />
+    <SolidColorBrush x:Key="SkuaDangerForegroundBrush" Color="#FFFFFFFF" />
+
+    <!-- Fluent reads these for CheckBox, RadioButton, Slider, ProgressBar, TabItem pipe, TextBox focus.
+         ThemeResourceApplicator overwrites them with the user's primary colour at startup. -->
+    <Color x:Key="SystemAccentColor">#10B981</Color>
+    <Color x:Key="SystemAccentColorLight1">#28C08E</Color>
+    <Color x:Key="SystemAccentColorLight2">#40C79A</Color>
+    <Color x:Key="SystemAccentColorLight3">#58CEA7</Color>
+    <Color x:Key="SystemAccentColorDark1">#0E9D6E</Color>
+    <Color x:Key="SystemAccentColorDark2">#0B825A</Color>
+    <Color x:Key="SystemAccentColorDark3">#096647</Color>
+    <SolidColorBrush x:Key="SkuaTagBackgroundBrush" Color="#2210B981" />
+    <SolidColorBrush x:Key="SkuaTagBackgroundHoverBrush" Color="#3B10B981" />
+    <SolidColorBrush x:Key="SkuaTagBorderBrush" Color="#4D10B981" />
+    <SolidColorBrush x:Key="SkuaTagBorderHoverBrush" Color="#8010B981" />
+    <SolidColorBrush x:Key="SkuaTagTextBrush" Color="#34D399" />
+
+    <!-- Selected and on states: accent tint fill plus accent border. ThemeResourceApplicator derives these from the primary. -->
+    <SolidColorBrush x:Key="SkuaAccentTintBrush" Color="#2410B981" />
+    <SolidColorBrush x:Key="SkuaAccentTintStrongBrush" Color="#3810B981" />
+    <!-- Soft destructive buttons and the destructive icon button hover -->
+    <SolidColorBrush x:Key="SkuaDangerTintBrush" Color="#1FEF4444" />
+    <SolidColorBrush x:Key="SkuaDangerTintStrongBrush" Color="#33EF4444" />
+    <SolidColorBrush x:Key="SkuaDangerSoftBorderBrush" Color="#73EF4444" />
+    <!-- Status chip tints (fill and outline) -->
+    <SolidColorBrush x:Key="SkuaSuccessTintBrush" Color="#1F34D399" />
+    <SolidColorBrush x:Key="SkuaSuccessTintBorderBrush" Color="#5934D399" />
+    <SolidColorBrush x:Key="SkuaWarningTintBrush" Color="#1FFBBF24" />
+    <SolidColorBrush x:Key="SkuaWarningTintBorderBrush" Color="#59FBBF24" />
+    <SolidColorBrush x:Key="SkuaGoldTintBrush" Color="#1AFFD700" />
+    <SolidColorBrush x:Key="SkuaGoldTintBorderBrush" Color="#52FFD700" />
+
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+            <SolidColorBrush x:Key="SkuaPageBrush" Color="#FFFAFAFA" />
+            <SolidColorBrush x:Key="SkuaSurfaceBrush" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="SkuaSurfaceAltBrush" Color="#FFF5F5F5" />
+            <SolidColorBrush x:Key="SkuaTitleBarOverlayBrush" Color="#33FFFFFF" />
+            <SolidColorBrush x:Key="SkuaBorderBrush" Color="#FFE0E0E0" />
+            <SolidColorBrush x:Key="SkuaNavHoverBrush" Color="#FFECEFF1" />
+            <SolidColorBrush x:Key="SkuaTextBrush" Color="#FF212121" />
+            <SolidColorBrush x:Key="SkuaMutedTextBrush" Color="#FF616161" />
+            <SolidColorBrush x:Key="SkuaSelectionBrush" Color="#33607D8B" />
+            <SolidColorBrush x:Key="SkuaHoverBrush" Color="#14000000" />
+            <SolidColorBrush x:Key="SkuaHoverPressedBrush" Color="#22000000" />
+            <SolidColorBrush x:Key="SkuaNavChipBrush" Color="#FFF1F3F4" />
+            <SolidColorBrush x:Key="SkuaScrollThumbBrush" Color="#BDBDBD" />
+            <SolidColorBrush x:Key="SkuaScrollThumbHoverBrush" Color="#9E9E9E" />
+            <SolidColorBrush x:Key="SkuaScrollThumbPressedBrush" Color="#757575" />
+            <SolidColorBrush x:Key="SkuaSurfaceSubtleBrush" Color="#FFF0F0F0" />
+            <!-- Status colours (not the accent): darker variants so text stays readable on light surfaces -->
+            <SolidColorBrush x:Key="SkuaSuccessBrush" Color="#059669" />
+            <SolidColorBrush x:Key="SkuaWarningBrush" Color="#B45309" />
+            <SolidColorBrush x:Key="SkuaGoldBrush" Color="#A16207" />
+            <SolidColorBrush x:Key="SkuaInfoBrush" Color="#0277BD" />
+            <!-- Control states: hover border, pressed fill, unchecked check box / radio / switch outline -->
+            <SolidColorBrush x:Key="SkuaBorderStrongBrush" Color="#FFBDBDBD" />
+            <SolidColorBrush x:Key="SkuaPressedBrush" Color="#FFE0E0E0" />
+            <SolidColorBrush x:Key="SkuaControlOffBrush" Color="#FF9E9E9E" />
+            <!-- Fluent check box / radio / switch outlines (the Fluent template reads these keys) -->
+            <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUnchecked" Color="#FF9E9E9E" />
+            <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUncheckedPointerOver" Color="#FF616161" />
+            <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUncheckedPressed" Color="#FF616161" />
+            <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUnchecked" Color="Transparent" />
+            <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUncheckedPointerOver" Color="Transparent" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseStroke" Color="#FF9E9E9E" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseStrokePointerOver" Color="#FF616161" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseFill" Color="Transparent" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseFillPointerOver" Color="Transparent" />
+            <SolidColorBrush x:Key="ToggleSwitchStrokeOff" Color="#FF9E9E9E" />
+            <SolidColorBrush x:Key="ToggleSwitchStrokeOffPointerOver" Color="#FF616161" />
+            <SolidColorBrush x:Key="ToggleSwitchFillOff" Color="#FFF5F5F5" />
+            <SolidColorBrush x:Key="ToggleSwitchFillOffPointerOver" Color="#FFF5F5F5" />
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOff" Color="#FF616161" />
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOffPointerOver" Color="#FF424242" />
+            <!-- 1.x keys on the 2.x surfaces -->
+            <SolidColorBrush x:Key="SkuaPaperBrush" Color="#FFFAFAFA" />
+            <SolidColorBrush x:Key="SkuaBarBrush" Color="#FFF5F5F5" />
+            <SolidColorBrush x:Key="SkuaDividerBrush" Color="#FFE0E0E0" />
+        </ResourceDictionary>
+
+        <ResourceDictionary x:Key="Dark">
+            <SolidColorBrush x:Key="SkuaPageBrush" Color="#0A0A0A" />
+            <SolidColorBrush x:Key="SkuaSurfaceBrush" Color="#121212" />
+            <SolidColorBrush x:Key="SkuaSurfaceAltBrush" Color="#181818" />
+            <SolidColorBrush x:Key="SkuaTitleBarOverlayBrush" Color="#6610141C" />
+            <SolidColorBrush x:Key="SkuaBorderBrush" Color="#282828" />
+            <SolidColorBrush x:Key="SkuaNavHoverBrush" Color="#222222" />
+            <SolidColorBrush x:Key="SkuaTextBrush" Color="#F5F5F5" />
+            <SolidColorBrush x:Key="SkuaMutedTextBrush" Color="#A3A3A3" />
+            <SolidColorBrush x:Key="SkuaSelectionBrush" Color="#40FFFFFF" />
+            <SolidColorBrush x:Key="SkuaHoverBrush" Color="#1FFFFFFF" />
+            <SolidColorBrush x:Key="SkuaHoverPressedBrush" Color="#2AFFFFFF" />
+            <SolidColorBrush x:Key="SkuaNavChipBrush" Color="#1C1C1C" />
+            <SolidColorBrush x:Key="SkuaScrollThumbBrush" Color="#333333" />
+            <SolidColorBrush x:Key="SkuaScrollThumbHoverBrush" Color="#555555" />
+            <SolidColorBrush x:Key="SkuaScrollThumbPressedBrush" Color="#777777" />
+            <SolidColorBrush x:Key="SkuaSurfaceSubtleBrush" Color="#1E1E1E" />
+            <SolidColorBrush x:Key="SkuaSuccessBrush" Color="#34D399" />
+            <SolidColorBrush x:Key="SkuaWarningBrush" Color="#FBBF24" />
+            <SolidColorBrush x:Key="SkuaGoldBrush" Color="#FFD700" />
+            <SolidColorBrush x:Key="SkuaInfoBrush" Color="#29B6F6" />
+            <SolidColorBrush x:Key="SkuaBorderStrongBrush" Color="#3A3A3A" />
+            <SolidColorBrush x:Key="SkuaPressedBrush" Color="#2A2A2A" />
+            <SolidColorBrush x:Key="SkuaControlOffBrush" Color="#5C5C5C" />
+            <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUnchecked" Color="#5C5C5C" />
+            <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUncheckedPointerOver" Color="#A3A3A3" />
+            <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUncheckedPressed" Color="#A3A3A3" />
+            <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUnchecked" Color="Transparent" />
+            <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUncheckedPointerOver" Color="Transparent" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseStroke" Color="#5C5C5C" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseStrokePointerOver" Color="#A3A3A3" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseFill" Color="Transparent" />
+            <SolidColorBrush x:Key="RadioButtonOuterEllipseFillPointerOver" Color="Transparent" />
+            <SolidColorBrush x:Key="ToggleSwitchStrokeOff" Color="#5C5C5C" />
+            <SolidColorBrush x:Key="ToggleSwitchStrokeOffPointerOver" Color="#A3A3A3" />
+            <SolidColorBrush x:Key="ToggleSwitchFillOff" Color="#181818" />
+            <SolidColorBrush x:Key="ToggleSwitchFillOffPointerOver" Color="#181818" />
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOff" Color="#A3A3A3" />
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOffPointerOver" Color="#F5F5F5" />
+            <!-- 1.x keys on the 2.x surfaces -->
+            <SolidColorBrush x:Key="SkuaPaperBrush" Color="#0A0A0A" />
+            <SolidColorBrush x:Key="SkuaBarBrush" Color="#181818" />
+            <SolidColorBrush x:Key="SkuaDividerBrush" Color="#282828" />
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>
+
+
+
