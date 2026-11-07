@@ -122,6 +122,7 @@ public partial class TabHostWindow : Window
         {
             if (Preview)
                 return;
+            RenderWatch.Watch(this, "tab host");
             _display = X.XOpenDisplay(null);
             _hostXid = TryGetPlatformHandle()?.Handle is { } h ? (ulong)h : 0;
             foreach (int n in InitialTabs)
