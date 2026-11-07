@@ -1,0 +1,63 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Design.PreviewWith>
+        <Border Padding="20">
+            <!-- Add Controls for Previewer Here -->
+        </Border>
+    </Design.PreviewWith>
+    
+    <!-- No global TextBlock foreground: text inherits it from Window.skua (BaseTheme) or from
+         the control it sits in, so labels inside accent/danger buttons follow the button. -->
+
+    <Style Selector="TextBlock.option-pill-suffix">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaMutedTextBrush}" />
+        <Setter Property="FontSize" Value="11" />
+    </Style>
+
+    <Style Selector="TextBlock.section-title">
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="16" />
+    </Style>
+
+    <Style Selector="TextBlock.hint">
+        <Setter Property="Foreground" Value="{DynamicResource SkuaMutedTextBrush}" />
+        <Setter Property="Opacity" Value="0.75" />
+    </Style>
+    
+    <Style Selector="TextBlock.titlebar-title">
+        <Setter Property="Foreground" Value="{DynamicResource SkuaAccentBrush}" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+    
+    <Style Selector="TextBlock.tag-chip-text">
+        <Setter Property="FontSize" Value="10.5" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTagTextBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    
+    <Style Selector="TextBlock.top-tabs-label">
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Padding" Value="16,0" />
+    </Style>
+
+    <!-- Option rows: title, and the muted description under it -->
+    <Style Selector="TextBlock.option-title">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+    </Style>
+    <Style Selector="TextBlock.option-description">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaMutedTextBrush}" />
+    </Style>
+</Styles>
+
+
+

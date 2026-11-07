@@ -18,7 +18,7 @@
                         </b:OptionTemplateSelector.BoolTemplate>
                         <b:OptionTemplateSelector.IntTemplate>
                             <DataTemplate>
-                                <Border Height="32" Margin="4,3" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="0.5" CornerRadius="16"
+                                <Border Height="32" Margin="4,3" BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="0.5" CornerRadius="16"
                                         ToolTip.Tip="{Binding Description}">
                                     <DockPanel>
                                         <TextBox DockPanel.Dock="Right" Width="120" CornerRadius="0,16,16,0" Watermark="{Binding Content}"
@@ -30,7 +30,7 @@
                         </b:OptionTemplateSelector.IntTemplate>
                         <b:OptionTemplateSelector.StringTemplate>
                             <DataTemplate>
-                                <Border Height="32" Margin="4,3" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="0.5" CornerRadius="16"
+                                <Border Height="32" Margin="4,3" BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="0.5" CornerRadius="16"
                                         ToolTip.Tip="{Binding Description}">
                                     <DockPanel>
                                         <TextBox DockPanel.Dock="Right" Width="120" CornerRadius="0,16,16,0" Watermark="{Binding Content}"

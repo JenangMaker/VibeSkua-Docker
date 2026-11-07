@@ -1,0 +1,244 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Design.PreviewWith>
+        <Border Padding="20">
+            <!-- Add Controls for Previewer Here -->
+        </Border>
+    </Design.PreviewWith>
+    
+    <Style Selector="Border.shell">
+        <Setter Property="Background" Value="{DynamicResource SkuaPageBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    
+    <Style Selector="Border.gap-bottom-8">
+        <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+    
+    <Style Selector="Border.account-row">
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
+    <Style Selector="Border.account-row-list">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
+    <Style Selector="Border.account-row-list:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SkuaNavHoverBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderStrongBrush}" />
+    </Style>
+
+    <Style Selector="Border.account-row-list.selected">
+        <Setter Property="Background" Value="{DynamicResource SkuaAccentTintBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaAccentBrush}" />
+    </Style>
+
+    <Style Selector="Border.account-row-grid">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
+    <Style Selector="Border.account-row-grid:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SkuaNavHoverBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderStrongBrush}" />
+    </Style>
+
+    <Style Selector="Border.account-row-grid.selected">
+        <Setter Property="Background" Value="{DynamicResource SkuaAccentTintBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaAccentBrush}" />
+    </Style>
+    
+    <Style Selector="Border.card">
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="10" />
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="Border.card-flat">
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="10" />
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="Border.section-panel">
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="Border.list-frame">
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Background" Value="{DynamicResource SkuaPageBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="Border.tag-chip">
+        <Setter Property="Background" Value="{DynamicResource SkuaTagBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaTagBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="8,1,8,1" />
+        <Setter Property="Margin" Value="0,1,4,2" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.12" Easing="CubicEaseOut" />
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.12" Easing="CubicEaseOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <Style Selector="Border.tag-chip:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SkuaTagBackgroundHoverBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaTagBorderHoverBrush}" />
+    </Style>
+
+    <Style Selector="Border.titlebar-app-badge">
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceAltBrush}" />
+    </Style>
+    
+    <Style Selector="Border.option-pill-container">
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="MaxHeight" Value="32" />
+        <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+    <!-- Chips: small pill labels for status and tags. Neutral by default; .accent, .success, .warning, .danger,
+         .gold tint the fill, outline and text. -->
+    <Style Selector="Border.chip">
+        <Setter Property="Height" Value="20" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.chip TextBlock">
+        <Setter Property="FontSize" Value="10.5" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaMutedTextBrush}" />
+    </Style>
+    <Style Selector="Border.chip.accent">
+        <Setter Property="Background" Value="{DynamicResource SkuaTagBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaTagBorderBrush}" />
+    </Style>
+    <Style Selector="Border.chip.accent TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTagTextBrush}" />
+    </Style>
+    <Style Selector="Border.chip.success">
+        <Setter Property="Background" Value="{DynamicResource SkuaSuccessTintBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaSuccessTintBorderBrush}" />
+    </Style>
+    <Style Selector="Border.chip.success TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource SkuaSuccessBrush}" />
+    </Style>
+    <Style Selector="Border.chip.warning">
+        <Setter Property="Background" Value="{DynamicResource SkuaWarningTintBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaWarningTintBorderBrush}" />
+    </Style>
+    <Style Selector="Border.chip.warning TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource SkuaWarningBrush}" />
+    </Style>
+    <Style Selector="Border.chip.danger">
+        <Setter Property="Background" Value="{DynamicResource SkuaDangerTintBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaDangerSoftBorderBrush}" />
+    </Style>
+    <Style Selector="Border.chip.danger TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource SkuaDangerBrush}" />
+    </Style>
+    <Style Selector="Border.chip.gold">
+        <Setter Property="Background" Value="{DynamicResource SkuaGoldTintBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaGoldTintBorderBrush}" />
+    </Style>
+    <Style Selector="Border.chip.gold TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource SkuaGoldBrush}" />
+    </Style>
+
+    <!-- Count badge: quantities and list counts -->
+    <Style Selector="Border.count">
+        <Setter Property="MinWidth" Value="18" />
+        <Setter Property="Height" Value="16" />
+        <Setter Property="Padding" Value="5,0" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Background" Value="{DynamicResource SkuaNavHoverBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.count TextBlock">
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaMutedTextBrush}" />
+    </Style>
+
+    <!-- Section label above a list: small caps-style muted heading -->
+    <Style Selector="TextBlock.section-label">
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaMutedTextBrush}" />
+    </Style>
+
+    <!-- Option lists (Game / Application / CoreBots options): one bordered list, a row per option with a 1px
+         line between rows, tinted section headers. Put the rows in a panel with Margin 0,0,0,-1 so the last row's
+         line hides under the list's own border. -->
+    <Style Selector="Border.option-list">
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+    <Style Selector="Border.option-row">
+        <Setter Property="MinHeight" Value="40" />
+        <Setter Property="Padding" Value="12,5" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+    </Style>
+    <Style Selector="Border.option-row:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SkuaNavHoverBrush}" />
+    </Style>
+    <Style Selector="Border.option-section">
+        <Setter Property="Padding" Value="12,10,12,7" />
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+    </Style>
+    <!-- A field with its Set button attached on the right edge (OptionItemControl builds it) -->
+    <Style Selector="Border.option-field">
+        <Setter Property="Height" Value="32" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceAltBrush}" />
+        <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+    <Style Selector="Border.option-field:pointerover">
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderStrongBrush}" />
+    </Style>
+    <Style Selector="Border.option-field:focus-within">
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaAccentBrush}" />
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceBrush}" />
+    </Style>
+</Styles>

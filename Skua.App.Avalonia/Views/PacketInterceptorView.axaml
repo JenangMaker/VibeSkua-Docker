@@ -29,13 +29,13 @@
         <Grid Grid.Row="2" Grid.Column="0" Margin="0,3,3,3" ColumnDefinitions="Auto,*,Auto">
             <ToggleButton Margin="3,0" Content="Log Packets" IsChecked="{Binding IsLogging}" />
             <StackPanel Grid.Column="1" HorizontalAlignment="Center" Orientation="Horizontal">
-                <Border Height="30" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="2,2,1,2" CornerRadius="4,0,0,4" Background="#33FFFF00">
+                <Border Height="30" BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="2,2,1,2" CornerRadius="4,0,0,4" Background="#33FFFF00">
                     <TextBlock Width="70" Margin="3,0" VerticalAlignment="Center" FontSize="14" Text="Outbound" TextAlignment="Center" />
                 </Border>
-                <Border Height="30" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="1,2,1,2" Background="#330000FF">
+                <Border Height="30" BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="1,2,1,2" Background="#330000FF">
                     <TextBlock Width="70" Margin="3,0" VerticalAlignment="Center" FontSize="14" Text="Inbound" TextAlignment="Center" />
                 </Border>
-                <Border Height="30" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="1,2,2,2" CornerRadius="0,4,4,0" Background="#33FF0000">
+                <Border Height="30" BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="1,2,2,2" CornerRadius="0,4,4,0" Background="#33FF0000">
                     <TextBlock Width="70" Margin="3,0" VerticalAlignment="Center" FontSize="14" Text="Blocked" TextAlignment="Center" />
                 </Border>
             </StackPanel>

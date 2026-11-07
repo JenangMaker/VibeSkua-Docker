@@ -30,7 +30,7 @@
                     <TextBox x:Name="SearchBox" Margin="3,0" Watermark="Search:" MinWidth="150" />
                 </DockPanel>
             </ScrollViewer>
-            <Border DockPanel.Dock="Bottom" Margin="0,6,0,0" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="1" CornerRadius="4">
+            <Border DockPanel.Dock="Bottom" Margin="0,6,0,0" BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="1" CornerRadius="4">
                 <StackPanel Orientation="Horizontal" Margin="6,4">
                     <TextBlock Text="Bot Scripts: " />
                     <TextBlock Text="{Binding BotScriptQuantity, FallbackValue=000}" />

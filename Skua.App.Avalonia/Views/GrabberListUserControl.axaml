@@ -28,7 +28,7 @@
                 </ListBox.ContextMenu>
             </ListBox>
             <GridSplitter Grid.Row="1" Grid.Column="1" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch" ResizeDirection="Columns" />
-            <Border Grid.Row="1" Grid.Column="2" Margin="3,3,0,3" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="1">
+            <Border Grid.Row="1" Grid.Column="2" Margin="3,3,0,3" BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="1">
                 <b:PropertyInspector SelectedObject="{Binding SelectedItem}" />
             </Border>
             <WrapPanel Grid.Row="2" Grid.ColumnSpan="3" Orientation="Horizontal">

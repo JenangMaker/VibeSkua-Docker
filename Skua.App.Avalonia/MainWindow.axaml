@@ -71,7 +71,7 @@
                  does not need when the window is wider than the game (and not
                  in Grid View). -->
             <Border x:Name="Dashboard" DockPanel.Dock="Right" Width="170" Padding="14,16" IsVisible="False"
-                    Background="#161616" BorderBrush="#2A2A2A" BorderThickness="1,0,0,0">
+                    Background="{DynamicResource SkuaSurfaceAltBrush}" BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="1,0,0,0">
                 <StackPanel VerticalAlignment="Center" Spacing="2">
                     <StackPanel.Styles>
                         <Style Selector="TextBlock.label">

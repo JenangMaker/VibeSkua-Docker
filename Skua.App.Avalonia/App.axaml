@@ -21,10 +21,11 @@
     </Application.Resources>
 
     <Application.Styles>
-        <FluentTheme DensityStyle="Compact" />
+        <FluentTheme />
         <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
         <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml" />
         <icons:MaterialIconStyles />
+        <StyleInclude Source="avares://Skua.App.Avalonia/Theming/BaseTheme.axaml" />
         <StyleInclude Source="avares://Skua.App.Avalonia/Styles.axaml" />
     </Application.Styles>
 </Application>

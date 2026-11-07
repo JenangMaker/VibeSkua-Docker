@@ -1,0 +1,65 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Modern Minimalist Neutral Dark Expander -->
+    <Style Selector="Expander">
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Margin" Value="0,0,0,6" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.12" Easing="CubicEaseOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <Style Selector="Expander:expanded">
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+    </Style>
+
+    <!-- Expander Header ToggleButton -->
+    <Style Selector="Expander /template/ ToggleButton#PART_Header, Expander /template/ ToggleButton">
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="12,10" />
+        <Setter Property="MinHeight" Value="40" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.12" Easing="CubicEaseOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton#PART_Header:pointerover, Expander /template/ ToggleButton:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceAltBrush}" />
+    </Style>
+
+    <Style Selector="Expander:expanded /template/ ToggleButton#PART_Header, Expander:expanded /template/ ToggleButton">
+        <Setter Property="CornerRadius" Value="8,8,0,0" />
+    </Style>
+
+    <!-- Expander Content Container -->
+    <Style Selector="Expander /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SkuaPageBrush}" />
+        <Setter Property="Padding" Value="10" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="CornerRadius" Value="0,0,8,8" />
+    </Style>
+
+    <!-- Header Text / Titles in Expander: inherited, so buttons inside keep their own text colour -->
+    <Style Selector="Expander">
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+    </Style>
+
+</Styles>

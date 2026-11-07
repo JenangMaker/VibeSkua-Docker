@@ -5,7 +5,7 @@
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="Skua.App.Avalonia.Views.OptionContainerUserControl">
     <Grid Grid.IsSharedSizeScope="True" RowDefinitions="*,Auto,Auto">
-        <Border Margin="6,6,6,3" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="1">
+        <Border Margin="6,6,6,3" BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="1">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <ItemsControl x:Name="Groups">
                     <ItemsControl.ItemTemplate>
@@ -55,7 +55,7 @@
                 </ItemsControl>
             </ScrollViewer>
         </Border>
-        <Border Grid.Row="1" Margin="6,3,6,6" BorderBrush="{DynamicResource SkuaPrimaryBrush}" BorderThickness="1">
+        <Border Grid.Row="1" Margin="6,3,6,6" BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="1">
             <StackPanel>
                 <TextBlock Margin="6,3" FontSize="14" FontWeight="Bold" Text="{Binding SelectedOption.Option.DisplayName}" />
                 <TextBlock Margin="6,3" Text="{Binding SelectedOption.Option.Description}" TextWrapping="Wrap" />

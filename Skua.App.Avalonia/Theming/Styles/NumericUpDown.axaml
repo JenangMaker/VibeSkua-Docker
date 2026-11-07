@@ -1,0 +1,74 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Base Modern NumericUpDown Styling -->
+    <Style Selector="NumericUpDown">
+        <Setter Property="Height" Value="32" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.12" Easing="CubicEaseOut" />
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.12" Easing="CubicEaseOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <Style Selector="NumericUpDown:pointerover">
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderStrongBrush}" />
+    </Style>
+
+    <Style Selector="NumericUpDown:focus, NumericUpDown:focus-within">
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaAccentBrush}" />
+    </Style>
+
+    <Style Selector="NumericUpDown ButtonSpinner">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <!-- Compact stepper buttons inside the field instead of two full-size buttons -->
+    <Style Selector="NumericUpDown:not(:skua-never) /template/ ButtonSpinner /template/ RepeatButton">
+        <Setter Property="Width" Value="22" />
+        <Setter Property="MinWidth" Value="22" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaMutedTextBrush}" />
+    </Style>
+    <Style Selector="NumericUpDown /template/ ButtonSpinner /template/ RepeatButton:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SkuaNavHoverBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+    </Style>
+    <Style Selector="NumericUpDown /template/ ButtonSpinner /template/ RepeatButton:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SkuaPressedBrush}" />
+    </Style>
+    <!-- At the minimum or maximum the button is disabled: no grey Fluent box, just a faded glyph -->
+    <Style Selector="NumericUpDown /template/ ButtonSpinner /template/ RepeatButton:disabled /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Opacity" Value="0.45" />
+    </Style>
+
+    <!-- .bottom-line (rule editors) is now the regular boxed field; its Tag is shown as a muted label inside it -->
+    <Style Selector="NumericUpDown.bottom-line">
+        <Setter Property="InnerLeftContent">
+            <Template>
+                <TextBlock Text="{Binding $parent[NumericUpDown].Tag}"
+                           Foreground="{DynamicResource SkuaMutedTextBrush}"
+                           FontSize="11"
+                           FontWeight="Normal"
+                           VerticalAlignment="Center"
+                           Margin="10,0,0,0" />
+            </Template>
+        </Setter>
+    </Style>
+
+</Styles>
