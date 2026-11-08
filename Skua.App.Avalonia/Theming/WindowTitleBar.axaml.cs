@@ -57,7 +57,16 @@ public partial class WindowTitleBar : UserControl
         PointerPressed += OnTitleBarPointerPressed;
         MinimizeButton.Click += (_, _) => { if (_window is not null) _window.WindowState = WindowState.Minimized; };
         MaximizeButton.Click += (_, _) => ToggleMaximized();
-        CloseButton.Click += (_, _) => _window?.Close();
+        // Close() from code is a programmatic close, which a kept window (HostWindow.HideOnClose:
+        // Logs and the other menu windows) does not hide on, so it really closed and opening it
+        // again threw "Cannot re-show a closed window". Ours closes as the system button would.
+        CloseButton.Click += (_, _) =>
+        {
+            if (_window is HostWindow { HideOnClose: true } kept)
+                kept.Hide();
+            else
+                _window?.Close();
+        };
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)

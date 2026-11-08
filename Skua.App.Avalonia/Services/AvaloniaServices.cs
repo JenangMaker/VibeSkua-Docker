@@ -188,6 +188,9 @@ public sealed class AvaloniaWindowService(IServiceProvider services) : IWindowSe
                 HideOnClose = true,
             };
             _managed[key] = window;
+            // Closed after all (the app closing it from code): a new one next time, since a
+            // closed window can't be shown again.
+            window.Closed += (_, _) => { if (_managed.TryGetValue(key, out var w) && ReferenceEquals(w, window)) _managed.Remove(key); };
         }
         window.Show();
         window.Activate();
