@@ -548,7 +548,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
         var type = (request.QueryString["type"] ?? "script").ToLowerInvariant() switch
         {
             "debug" => LogType.Debug,
-            "flash" => LogType.Flash,
+            "flash" or "ruffle" => LogType.Flash,
             _ => LogType.Script,
         };
         int since = int.TryParse(request.QueryString["since"], out int s) ? s : 0;

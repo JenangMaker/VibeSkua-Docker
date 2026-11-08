@@ -15,7 +15,9 @@ internal static class LogTabs
         {
             Create("Debug", LogType.Debug),
             Create("Script", LogType.Script),
-            Create("Flash", LogType.Flash)
+            // The game runs in Ruffle, not Flash: this tab shows the player's own log lines
+            // (Skua.Linux/NativeGame.cs) and the game calls that failed.
+            Create("Ruffle", LogType.Flash)
         };
 
         LogTabViewModel Create(string title, LogType logType) => new(title, logService, dispatcherService, logType);
