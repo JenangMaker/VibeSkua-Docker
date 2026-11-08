@@ -70,10 +70,11 @@ App.Runtime = SkuaRuntime.Create(services =>
 App.StartRuntime = App.Mode != AppMode.TabHost;
 // Avalonia's warnings and errors into the log as [ui] lines (UiDiagnostics.cs).
 Avalonia.Logging.Logger.Sink = new UiLogSink();
-// SKUA_UI_GPU=0 draws Skua's windows in software instead of OpenGL (GLX), Avalonia's
-// default when a GPU is reachable. The games are not affected. Under VNC the pixels go to
-// memory anyway, and each window held a GL context next to the games' Vulkan ones.
-bool uiGpu = SkuaRuntime.EnvRaw("SKUA_UI_GPU")?.Trim().ToLowerInvariant() is not ("0" or "false" or "no");
+// Skua's windows draw in software; SKUA_UI_GPU=1 uses OpenGL (GLX), Avalonia's default when a
+// GPU is reachable. The games are not affected. Measured on two tabs under KasmVNC: software
+// took 2% CPU and 210 MB per Skua against 8% and 400 MB with GLX (the frames go back to memory
+// for VNC anyway, and each window held a GL context next to the games' Vulkan ones).
+bool uiGpu = SkuaRuntime.EnvRaw("SKUA_UI_GPU")?.Trim().ToLowerInvariant() is "1" or "true" or "yes";
 AppBuilder.Configure<App>()
     .UsePlatformDetect()
     .With(new X11PlatformOptions { RenderingMode = uiGpu ? new[] { X11RenderingMode.Glx, X11RenderingMode.Software } : new[] { X11RenderingMode.Software } })
