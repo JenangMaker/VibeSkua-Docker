@@ -70,7 +70,12 @@ App.Runtime = SkuaRuntime.Create(services =>
 App.StartRuntime = App.Mode != AppMode.TabHost;
 // Avalonia's warnings and errors into the log as [ui] lines (UiDiagnostics.cs).
 Avalonia.Logging.Logger.Sink = new UiLogSink();
+// SKUA_UI_GPU=0 draws Skua's windows in software instead of OpenGL (GLX), Avalonia's
+// default when a GPU is reachable. The games are not affected. Under VNC the pixels go to
+// memory anyway, and each window held a GL context next to the games' Vulkan ones.
+bool uiGpu = SkuaRuntime.EnvRaw("SKUA_UI_GPU")?.Trim().ToLowerInvariant() is not ("0" or "false" or "no");
 AppBuilder.Configure<App>()
     .UsePlatformDetect()
+    .With(new X11PlatformOptions { RenderingMode = uiGpu ? new[] { X11RenderingMode.Glx, X11RenderingMode.Software } : new[] { X11RenderingMode.Software } })
     .WithInterFont()
     .StartWithClassicDesktopLifetime(args);
