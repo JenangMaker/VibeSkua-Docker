@@ -18,15 +18,18 @@ internal sealed class UiLogSink : ILogSink
 {
     private readonly ConcurrentDictionary<string, int> _seen = new();
 
+    // DBus (menus, tray, accessibility) and the X session manager are absent in the
+    // container and not needed: Avalonia reports both once per process at start.
     public bool IsEnabled(LogEventLevel level, string area) =>
-        level >= LogEventLevel.Error || (level == LogEventLevel.Warning && area != LogArea.Binding);
+        area is not ("DBUS" or "SMLib")
+        && (level >= LogEventLevel.Error || (level == LogEventLevel.Warning && area != LogArea.Binding));
 
     public void Log(LogEventLevel level, string area, object? source, string messageTemplate) =>
         Log(level, area, source, messageTemplate, Array.Empty<object?>());
 
     public void Log(LogEventLevel level, string area, object? source, string messageTemplate, params object?[] propertyValues)
     {
-        if (!IsEnabled(level, area))
+        if (!IsEnabled(level, area) || messageTemplate.Contains("SMLib/ICELib", StringComparison.Ordinal))
             return;
         int n = _seen.AddOrUpdate(area + "|" + messageTemplate, 1, (_, c) => c + 1);
         if (n > 5 && n % 100 != 0)
