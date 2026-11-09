@@ -82,5 +82,7 @@ jobs:
           IMAGE="${REGISTRY:-gitea.jenangmaker.cloud}/jenangmaker/vibeskua-manager:${TAG}"
           docker image rm "$IMAGE" || true
           docker image prune -f || true
+          # setup-buildx makes its own builder current; the host's cache is in "default".
+          docker builder prune -f --builder default --filter until=72h || true
           docker builder prune -f --filter until=72h || true
           docker system df || true
