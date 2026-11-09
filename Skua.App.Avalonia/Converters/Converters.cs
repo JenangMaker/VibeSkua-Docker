@@ -117,17 +117,6 @@ public sealed class BoolTextConverter : IValueConverter
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => BindingOperations.DoNothing;
 }
 
-/// <summary>Script repository row tint: [Downloaded, Outdated] -> brush, as ScriptRepoView's row triggers.</summary>
-public sealed class ScriptRowBrushConverter : IMultiValueConverter
-{
-    private static readonly IBrush Downloaded = new SolidColorBrush(Color.Parse("#456796"), 0.2);
-    private static readonly IBrush Missing = new SolidColorBrush(Colors.Red, 0.2);
-    private static readonly IBrush Outdated = new SolidColorBrush(Colors.Yellow, 0.2);
-
-    public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture) =>
-        values.ElementAtOrDefault(1) is true ? Outdated : values.ElementAtOrDefault(0) is true ? Downloaded : Missing;
-}
-
 /// <summary>Packet interceptor row tint: Outbound true/false/null -> yellow/blue/red, as its triggers.</summary>
 public sealed class PacketDirectionBrushConverter : IValueConverter
 {
@@ -164,4 +153,65 @@ public sealed class IntToSelectionModeConverter : IValueConverter
         value is int i && i != 0 ? global::Avalonia.Controls.SelectionMode.Multiple : global::Avalonia.Controls.SelectionMode.Single;
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => BindingOperations.DoNothing;
+}
+
+/// <summary>
+/// Main menu header -> its 2.x icon (upstream VibeSkua 2.1.2's MainWindow.CreateMainMenuItem
+/// list). ConverterParameter "has": whether the header has one (for IsVisible).
+/// </summary>
+public sealed class MenuIconConverter : IValueConverter
+{
+    private static readonly Dictionary<string, string> Icons = new()
+    {
+        ["Scripts"] = "ScriptTextOutline", ["Options"] = "CogOutline", ["Tools & Helpers"] = "WrenchOutline",
+        ["Combat"] = "SwordCross", ["Bank"] = "BankOutline", ["Diagnostics"] = "BugOutline", ["Plugins"] = "PuzzleOutline",
+        ["Script Loader"] = "ScriptOutline", ["Scheduler"] = "CalendarClock", ["Game"] = "GamepadVariantOutline",
+        ["Application"] = "ApplicationCogOutline", ["CoreBots"] = "RobotOutline", ["Application Themes"] = "PaletteOutline",
+        ["HotKeys"] = "KeyboardOutline", ["Loadouts Manager"] = "AccountSwitchOutline", ["Fast Travel"] = "CompassOutline",
+        ["Loader"] = "DownloadOutline", ["Grabber"] = "HandBackRightOutline", ["Current Drops"] = "GiftOutline",
+        ["Junk Items"] = "DeleteSweepOutline", ["Skills"] = "LightningBoltOutline", ["Stats"] = "ChartLine",
+        ["Notification Center"] = "BellOutline", ["Runtime"] = "PlayNetworkOutline", ["Logs"] = "FileDocumentOutline",
+        ["Console"] = "Console", ["Spammer"] = "SendClockOutline", ["Logger"] = "TextSearch",
+        ["Interceptor"] = "ShieldBugOutline",
+        // Ours
+        ["View Plugins"] = "PuzzleOutline", ["Reset Scripts..."] = "Restore",
+    };
+
+    private static Material.Icons.MaterialIconKind? Kind(object? header) =>
+        header is string h && Icons.TryGetValue(h, out string? name)
+            && Enum.TryParse(name, out Material.Icons.MaterialIconKind kind) ? kind : null;
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        parameter as string == "has" ? Kind(value) is not null : Kind(value) ?? Material.Icons.MaterialIconKind.CircleSmall;
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
+/// <summary>
+/// Option rows (2.x look): the "* " prefix that marks a restart-only option becomes a "restart"
+/// chip. Parameter "title": the name without it; "restart": whether it has it; "action": the
+/// button word for an action option ("Clear Flash Cache" -> "Clear"); "desc": whether the
+/// description says more than the title (binds the option itself).
+/// </summary>
+public sealed class OptionLabelConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (parameter as string == "desc")
+            return value is Skua.Core.ViewModels.DisplayOptionItemViewModelBase o
+                && !string.IsNullOrWhiteSpace(o.Description) && o.Description != o.Content;
+        string text = value as string ?? "";
+        bool restart = text.StartsWith("* ", StringComparison.Ordinal);
+        string title = restart ? text[2..] : text;
+        return parameter as string switch
+        {
+            "restart" => restart,
+            "action" => title.Split(' ', 2)[0],
+            _ => title,
+        };
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
 }

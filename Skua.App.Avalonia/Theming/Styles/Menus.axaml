@@ -1,0 +1,268 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia">
+
+    <!-- Topbar Menu Container -->
+    <Style Selector="Menu.top-toolbar">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="MaxHeight" Value="28" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <!-- Topbar Root Menu Items (Scripts, Options, Tools & Helpers, Combat, Bank, Diagnostics, Plugins) -->
+    <Style Selector="Menu > MenuItem, Menu.top-toolbar > MenuItem, MenuItem.top-nav-item">
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+        <Setter Property="Padding" Value="10,4" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="MaxHeight" Value="28" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Margin" Value="1,0" />
+        <Setter Property="Template">
+            <ControlTemplate TargetType="MenuItem">
+                <Panel>
+                    <Border x:Name="PART_LayoutRoot"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <ContentPresenter x:Name="PART_IconPresenter"
+                                              Grid.Column="0"
+                                              Content="{TemplateBinding Icon}"
+                                              Margin="0,0,6,0"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Center"
+                                              IsVisible="{TemplateBinding Icon, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                            <ContentPresenter x:Name="PART_HeaderPresenter"
+                                              Grid.Column="1"
+                                              Content="{TemplateBinding Header}"
+                                              ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Left"
+                                              RecognizesAccessKey="True" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Top-level Dropdown Popup -->
+                    <Popup x:Name="PART_Popup"
+                           IsOpen="{TemplateBinding IsSubMenuOpen, Mode=TwoWay}"
+                           Placement="Bottom"
+                           PlacementTarget="{Binding ElementName=PART_LayoutRoot}"
+                           IsLightDismissEnabled="True"
+                           WindowManagerAddShadowHint="False">
+                        <Border Background="{DynamicResource SkuaSurfaceBrush}"
+                                BorderBrush="{DynamicResource SkuaBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="4"
+                                Margin="0,2,0,0"
+                                BoxShadow="0 8 24 #30000000">
+                            <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                                          VerticalScrollBarVisibility="Auto"
+                                          MaxHeight="520">
+                                <ItemsPresenter x:Name="PART_ItemsPresenter"
+                                                ItemsPanel="{TemplateBinding ItemsPanel}" />
+                            </ScrollViewer>
+                        </Border>
+                    </Popup>
+                </Panel>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+
+    <Style Selector="Menu > MenuItem:pointerover, Menu.top-toolbar > MenuItem:pointerover, MenuItem.top-nav-item:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SkuaNavHoverBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+    </Style>
+
+    <Style Selector="Menu > MenuItem:selected, Menu > MenuItem:submenuopen,
+                   Menu.top-toolbar > MenuItem:selected, Menu.top-toolbar > MenuItem:submenuopen,
+                   MenuItem.top-nav-item:selected, MenuItem.top-nav-item:submenuopen">
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceAltBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+    </Style>
+
+    <!-- Dropdown / Popup Menus (ContextMenu, MenuFlyoutPresenter, FlyoutPresenter) -->
+    <Style Selector="MenuFlyoutPresenter">
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="4" />
+        <Setter Property="MinWidth" Value="220" />
+    </Style>
+
+    <Style Selector="FlyoutPresenter">
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="8" />
+    </Style>
+
+    <Style Selector="ContextMenu">
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="4" />
+        <Setter Property="MinWidth" Value="220" />
+    </Style>
+
+    <Style Selector="MenuFlyoutPresenter Separator, ContextMenu Separator, Menu Separator">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Background" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="Margin" Value="4,3" />
+    </Style>
+
+    <!-- Submenu Item (Inside Dropdown) Sleek Custom ControlTemplate -->
+    <Style Selector="MenuItem MenuItem, ContextMenu MenuItem, MenuFlyoutPresenter MenuItem">
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Height" Value="30" />
+        <Setter Property="MinHeight" Value="30" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="Margin" Value="0,1" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Template">
+            <ControlTemplate TargetType="MenuItem">
+                <Panel>
+                    <Border x:Name="PART_LayoutRoot"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                            <!-- Check mark for ToggleType="CheckBox"/"Radio" items (shown by the :toggle/:radio styles) -->
+                            <Panel x:Name="PART_ToggleHost"
+                                   Grid.Column="0"
+                                   Width="16"
+                                   Margin="0,0,6,0"
+                                   IsVisible="False">
+                                <materialIcons:MaterialIcon x:Name="PART_ToggleCheck"
+                                                            Kind="Check"
+                                                            Width="14" Height="14"
+                                                            Opacity="0"
+                                                            Foreground="{DynamicResource SkuaAccentBrush}" />
+                            </Panel>
+
+                            <!-- Icon Presenter -->
+                            <ContentPresenter x:Name="PART_IconPresenter"
+                                              Grid.Column="1"
+                                              Content="{TemplateBinding Icon}"
+                                              Margin="0,0,8,0"
+                                              Width="16" Height="16"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Center"
+                                              IsVisible="{TemplateBinding Icon, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+                            <!-- Header / Title -->
+                            <ContentPresenter x:Name="PART_HeaderPresenter"
+                                              Grid.Column="2"
+                                              Content="{TemplateBinding Header}"
+                                              ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Left"
+                                              RecognizesAccessKey="True" />
+
+                            <!-- Input Gesture Shortcut Text -->
+                            <TextBlock x:Name="PART_InputGestureText"
+                                       Grid.Column="3"
+                                       Text="{TemplateBinding InputGesture}"
+                                       Margin="16,0,4,0"
+                                       VerticalAlignment="Center"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource SkuaMutedTextBrush}"
+                                       IsVisible="{TemplateBinding InputGesture, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+                            <!-- Nested Submenu Chevron Arrow -->
+                            <materialIcons:MaterialIcon x:Name="PART_Chevron"
+                                                        Grid.Column="4"
+                                                        Kind="ChevronRight"
+                                                        Width="14" Height="14"
+                                                        Margin="8,0,0,0"
+                                                        VerticalAlignment="Center"
+                                                        Foreground="{DynamicResource SkuaMutedTextBrush}" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Nested Submenu Dropdown Popup (Seamlessly connected, no light-dismiss conflict) -->
+                    <Popup x:Name="PART_Popup"
+                           IsOpen="{TemplateBinding IsSubMenuOpen, Mode=TwoWay}"
+                           Placement="RightEdgeAlignedTop"
+                           PlacementTarget="{Binding ElementName=PART_LayoutRoot}"
+                           WindowManagerAddShadowHint="False">
+                        <Border Background="{DynamicResource SkuaSurfaceBrush}"
+                                BorderBrush="{DynamicResource SkuaBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="4"
+                                Margin="0"
+                                BoxShadow="0 8 24 #30000000">
+                            <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                                          VerticalScrollBarVisibility="Auto"
+                                          MaxHeight="520">
+                                <ItemsPresenter x:Name="PART_ItemsPresenter"
+                                                ItemsPanel="{TemplateBinding ItemsPanel}" />
+                            </ScrollViewer>
+                        </Border>
+                    </Popup>
+                </Panel>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+
+    <Style Selector="MenuItem:empty /template/ materialIcons|MaterialIcon#PART_Chevron">
+        <Setter Property="IsVisible" Value="False" />
+    </Style>
+
+    <Style Selector="MenuItem materialIcons|MaterialIcon,
+                   ContextMenu materialIcons|MaterialIcon,
+                   MenuFlyoutPresenter materialIcons|MaterialIcon">
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+    </Style>
+
+    <Style Selector="MenuItem MenuItem:pointerover, ContextMenu MenuItem:pointerover, MenuFlyoutPresenter MenuItem:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SkuaNavHoverBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+    </Style>
+
+    <Style Selector="MenuItem MenuItem:pointerover materialIcons|MaterialIcon,
+                   ContextMenu MenuItem:pointerover materialIcons|MaterialIcon,
+                   MenuFlyoutPresenter MenuItem:pointerover materialIcons|MaterialIcon">
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+    </Style>
+
+    <Style Selector="MenuItem MenuItem:selected, ContextMenu MenuItem:selected, MenuFlyoutPresenter MenuItem:selected">
+        <Setter Property="Background" Value="{DynamicResource SkuaNavHoverBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+    </Style>
+
+    <Style Selector="MenuItem MenuItem:selected materialIcons|MaterialIcon,
+                   ContextMenu MenuItem:selected materialIcons|MaterialIcon,
+                   MenuFlyoutPresenter MenuItem:selected materialIcons|MaterialIcon">
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+    </Style>
+
+    <!-- Checkbox / radio items (e.g. Misc Options submenu) -->
+    <Style Selector="MenuItem:toggle /template/ Panel#PART_ToggleHost, MenuItem:radio /template/ Panel#PART_ToggleHost">
+        <Setter Property="IsVisible" Value="True" />
+    </Style>
+    <Style Selector="MenuItem:checked /template/ materialIcons|MaterialIcon#PART_ToggleCheck">
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+</Styles>

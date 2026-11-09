@@ -1,37 +1,136 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:b="clr-namespace:Skua.App.Avalonia"
-             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="Skua.App.Avalonia.Views.CBOClassSelectUserControl">
-    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
-        <HeaderedContentControl Classes="card" Grid.Row="0" Grid.Column="0" Margin="0,0,3,0" Header="Solo Class">
-            <StackPanel Spacing="3">
-                <ComboBox DropDownOpened="ClassBox_DropDownOpened" HorizontalAlignment="Stretch" PlaceholderText="Class" ItemsSource="{Binding PlayerClasses}" SelectedItem="{Binding SelectedSoloClass}" />
-                <ComboBox HorizontalAlignment="Stretch" PlaceholderText="Mode" ItemsSource="{Binding SoloModeStrings}" SelectedItem="{Binding SelectedSoloModeString}" />
-                <CheckBox HorizontalAlignment="Stretch" Content="Specify Equipment" IsChecked="{Binding UseSoloEquipment}" />
-            </StackPanel>
-        </HeaderedContentControl>
-        <HeaderedContentControl Classes="card" Grid.Row="0" Grid.Column="1" Margin="3,0,0,0" Header="Farm Class">
-            <StackPanel Spacing="3">
-                <ComboBox DropDownOpened="ClassBox_DropDownOpened" HorizontalAlignment="Stretch" PlaceholderText="Class" ItemsSource="{Binding PlayerClasses}" SelectedItem="{Binding SelectedFarmClass}" />
-                <ComboBox HorizontalAlignment="Stretch" PlaceholderText="Mode" ItemsSource="{Binding FarmModeStrings}" SelectedItem="{Binding SelectedFarmModeString}" />
-                <CheckBox HorizontalAlignment="Stretch" Content="Specify Equipment" IsChecked="{Binding UseFarmEquipment}" />
-            </StackPanel>
-        </HeaderedContentControl>
-        <HeaderedContentControl Classes="card" Grid.Row="1" Grid.Column="0" Margin="0,6,3,0" Header="Dodge Class">
-            <StackPanel Spacing="3">
-                <ComboBox DropDownOpened="ClassBox_DropDownOpened" HorizontalAlignment="Stretch" PlaceholderText="Class" ItemsSource="{Binding PlayerClasses}" SelectedItem="{Binding SelectedDodgeClass}" />
-                <ComboBox HorizontalAlignment="Stretch" PlaceholderText="Mode" ItemsSource="{Binding DodgeModeStrings}" SelectedItem="{Binding SelectedDodgeModeString}" />
-                <CheckBox HorizontalAlignment="Stretch" Content="Specify Equipment" IsChecked="{Binding UseDodgeEquipment}" />
-            </StackPanel>
-        </HeaderedContentControl>
-        <HeaderedContentControl Classes="card" Grid.Row="1" Grid.Column="1" Margin="3,6,0,0" Header="Boss Class">
-            <StackPanel Spacing="3">
-                <ComboBox DropDownOpened="ClassBox_DropDownOpened" HorizontalAlignment="Stretch" PlaceholderText="Class" ItemsSource="{Binding PlayerClasses}" SelectedItem="{Binding SelectedBossClass}" />
-                <ComboBox HorizontalAlignment="Stretch" PlaceholderText="Mode" ItemsSource="{Binding BossModeStrings}" SelectedItem="{Binding SelectedBossModeString}" />
-                <CheckBox HorizontalAlignment="Stretch" Content="Specify Equipment" IsChecked="{Binding UseBossEquipment}" />
-            </StackPanel>
-        </HeaderedContentControl>
+    <!-- 2.x layout (upstream 2.1.2 CBOClassSelectView): a header bar with Reload Classes, then
+         the four class cards. Tag chips use the theme chip colours instead of fixed hex values. -->
+    <UserControl.Styles>
+        <Style Selector="Border.cbo-card">
+            <Setter Property="Background" Value="{DynamicResource SkuaSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="14,12" />
+        </Style>
+        <Style Selector="TextBlock.cbo-label">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="Foreground" Value="{DynamicResource SkuaMutedTextBrush}" />
+        </Style>
+    </UserControl.Styles>
+    <Grid RowDefinitions="Auto,*" RowSpacing="12">
+        <Border Grid.Row="0" Background="{DynamicResource SkuaSurfaceAltBrush}" BorderBrush="{DynamicResource SkuaBorderBrush}"
+                BorderThickness="1" CornerRadius="8" Padding="12,8">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <icons:MaterialIcon Kind="AccountStarOutline" Width="16" Height="16" Foreground="{DynamicResource SkuaAccentBrush}" />
+                    <TextBlock Text="Combat Class &amp; Skill Configurations" FontWeight="Bold" FontSize="12" VerticalAlignment="Center" />
+                </StackPanel>
+                <Button Grid.Column="1" Classes="skua-button" Height="28" Padding="10,0"
+                        Command="{Binding RefreshClassesCommand}" ToolTip.Tip="Refresh player classes from the current inventory">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <icons:MaterialIcon Kind="Refresh" Width="13" Height="13" />
+                        <TextBlock Text="Reload Classes" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+        <Grid Grid.Row="1" RowDefinitions="Auto,Auto" ColumnDefinitions="*,*" RowSpacing="10" ColumnSpacing="10">
+            <Border Grid.Row="0" Grid.Column="0" Classes="cbo-card">
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <icons:MaterialIcon Kind="SwordCross" Width="16" Height="16" Foreground="{DynamicResource SkuaSuccessBrush}" />
+                            <TextBlock Text="Solo Class" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Border Grid.Column="2" Classes="chip success">
+                            <TextBlock Text="SINGLE TARGET" FontSize="9" FontWeight="Bold" />
+                        </Border>
+                    </Grid>
+                    <StackPanel Spacing="3">
+                        <TextBlock Classes="cbo-label" Text="Selected Class" />
+                        <ComboBox DropDownOpened="ClassBox_DropDownOpened" HorizontalAlignment="Stretch" PlaceholderText="Class"
+                                  ItemsSource="{Binding PlayerClasses}" SelectedItem="{Binding SelectedSoloClass}" />
+                    </StackPanel>
+                    <StackPanel Spacing="3">
+                        <TextBlock Classes="cbo-label" Text="Skill Rule / Preset" />
+                        <ComboBox HorizontalAlignment="Stretch" PlaceholderText="Mode"
+                                  ItemsSource="{Binding SoloModeStrings}" SelectedItem="{Binding SelectedSoloModeString}" />
+                    </StackPanel>
+                    <CheckBox Content="Use Dedicated Equipment Loadout" FontSize="11" IsChecked="{Binding UseSoloEquipment}" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Row="0" Grid.Column="1" Classes="cbo-card">
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <icons:MaterialIcon Kind="SproutOutline" Width="16" Height="16" Foreground="{DynamicResource SkuaWarningBrush}" />
+                            <TextBlock Text="Farm Class" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Border Grid.Column="2" Classes="chip warning">
+                            <TextBlock Text="AOE FARMING" FontSize="9" FontWeight="Bold" />
+                        </Border>
+                    </Grid>
+                    <StackPanel Spacing="3">
+                        <TextBlock Classes="cbo-label" Text="Selected Class" />
+                        <ComboBox DropDownOpened="ClassBox_DropDownOpened" HorizontalAlignment="Stretch" PlaceholderText="Class"
+                                  ItemsSource="{Binding PlayerClasses}" SelectedItem="{Binding SelectedFarmClass}" />
+                    </StackPanel>
+                    <StackPanel Spacing="3">
+                        <TextBlock Classes="cbo-label" Text="Skill Rule / Preset" />
+                        <ComboBox HorizontalAlignment="Stretch" PlaceholderText="Mode"
+                                  ItemsSource="{Binding FarmModeStrings}" SelectedItem="{Binding SelectedFarmModeString}" />
+                    </StackPanel>
+                    <CheckBox Content="Use Dedicated Equipment Loadout" FontSize="11" IsChecked="{Binding UseFarmEquipment}" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Row="1" Grid.Column="0" Classes="cbo-card">
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <icons:MaterialIcon Kind="ShieldAccountOutline" Width="16" Height="16" Foreground="{DynamicResource SkuaAccentBrush}" />
+                            <TextBlock Text="Dodge Class" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Border Grid.Column="2" Classes="chip accent">
+                            <TextBlock Text="SURVIVABILITY" FontSize="9" FontWeight="Bold" />
+                        </Border>
+                    </Grid>
+                    <StackPanel Spacing="3">
+                        <TextBlock Classes="cbo-label" Text="Selected Class" />
+                        <ComboBox DropDownOpened="ClassBox_DropDownOpened" HorizontalAlignment="Stretch" PlaceholderText="Class"
+                                  ItemsSource="{Binding PlayerClasses}" SelectedItem="{Binding SelectedDodgeClass}" />
+                    </StackPanel>
+                    <StackPanel Spacing="3">
+                        <TextBlock Classes="cbo-label" Text="Skill Rule / Preset" />
+                        <ComboBox HorizontalAlignment="Stretch" PlaceholderText="Mode"
+                                  ItemsSource="{Binding DodgeModeStrings}" SelectedItem="{Binding SelectedDodgeModeString}" />
+                    </StackPanel>
+                    <CheckBox Content="Use Dedicated Equipment Loadout" FontSize="11" IsChecked="{Binding UseDodgeEquipment}" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Row="1" Grid.Column="1" Classes="cbo-card">
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <icons:MaterialIcon Kind="CrownOutline" Width="16" Height="16" Foreground="{DynamicResource SkuaGoldBrush}" />
+                            <TextBlock Text="Boss Class" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Border Grid.Column="2" Classes="chip gold">
+                            <TextBlock Text="HEAVY BOSS" FontSize="9" FontWeight="Bold" />
+                        </Border>
+                    </Grid>
+                    <StackPanel Spacing="3">
+                        <TextBlock Classes="cbo-label" Text="Selected Class" />
+                        <ComboBox DropDownOpened="ClassBox_DropDownOpened" HorizontalAlignment="Stretch" PlaceholderText="Class"
+                                  ItemsSource="{Binding PlayerClasses}" SelectedItem="{Binding SelectedBossClass}" />
+                    </StackPanel>
+                    <StackPanel Spacing="3">
+                        <TextBlock Classes="cbo-label" Text="Skill Rule / Preset" />
+                        <ComboBox HorizontalAlignment="Stretch" PlaceholderText="Mode"
+                                  ItemsSource="{Binding BossModeStrings}" SelectedItem="{Binding SelectedBossModeString}" />
+                    </StackPanel>
+                    <CheckBox Content="Use Dedicated Equipment Loadout" FontSize="11" IsChecked="{Binding UseBossEquipment}" />
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>

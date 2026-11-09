@@ -76,6 +76,7 @@ public partial class GrabberListViewModel : ObservableRecipient
         IsBusy = true;
         ProgressReportMessage = "Working...";
         ShowMessage = true;
+        bool succeeded = false;
         try
         {
             IEnumerable<object> items = await Task.Run(() => _grabberService.Grab(_grabType));
@@ -83,12 +84,19 @@ public partial class GrabberListViewModel : ObservableRecipient
             {
                 GrabbedItems.ReplaceRange(items);
             }
+            succeeded = true;
+        }
+        catch (Exception ex)
+        {
+            // Said, not swallowed: it used to end with "Finished." either way.
+            ProgressReportMessage = $"Grab failed: {ex.Message}";
         }
         finally
         {
             IsBusy = false;
-            ProgressReportMessage = "Finished.";
-            await Task.Delay(1000);
+            if (succeeded)
+                ProgressReportMessage = "Finished.";
+            await Task.Delay(succeeded ? 1000 : 4000);
             ShowMessage = false;
             ProgressReportMessage = string.Empty;
         }

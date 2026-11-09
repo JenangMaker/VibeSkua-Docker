@@ -3,6 +3,7 @@ import flash.external.ExternalInterface;
 
 import skua.api.Auras;
 import skua.api.Combat;
+import skua.api.Inventory;
 import skua.api.Monster;
 import skua.api.Player;
 import skua.api.Server;
@@ -42,10 +43,18 @@ public class Externalizer {
         this.addCallback("questTreeStamp", Main.questTreeStamp);
         this.addCallback("bagSlots", Main.bagSlots);
         this.addCallback("isFavoriteItem", Main.isFavoriteItem);
+        this.addCallback("hasInventoryCategories", Inventory.hasInventoryCategories);
+        this.addCallback("inventoryBagUsedSlots", Inventory.inventoryBagUsedSlots);
+        this.addCallback("inventoryMiscSlots", Inventory.inventoryMiscSlots);
+        this.addCallback("inventoryMiscUsedSlots", Inventory.inventoryMiscUsedSlots);
+        this.addCallback("inventoryPool", Inventory.inventoryPool);
+        this.addCallback("inventoryHasSpaceFor", Inventory.inventoryHasSpaceFor);
 
         // Server
         this.addCallback("connectToServer", Server.connectToServer);
         this.addCallback("clickServer", Server.clickServer);
+        this.addCallback("killLoginModals", Server.killLoginModals);
+        this.addCallback("getActiveModalMessage", Server.getActiveModalMessage);
 
         // Player
         this.addCallback("isLoggedIn", Player.isLoggedIn);
@@ -90,6 +99,7 @@ public class Externalizer {
         this.addCallback("buyItemByID", Shop.buyItemByID);
         this.addCallback("getShopItem", Shop.getShopItem);
         this.addCallback("getShopItemByID", Shop.getShopItemByID);
+        this.addCallback("getUnmetPurchaseRequirements", Shop.getUnmetPurchaseRequirements);
 
         // Auras
         this.addCallback("getSubjectAuras", Auras.getSubjectAuras);
@@ -99,6 +109,7 @@ public class Externalizer {
         this.addCallback("GetMonsterAuraByID", Auras.GetMonsterAuraByID);
         this.addCallback("rebuildAuraArray", Auras.rebuildAuraArray);
         this.addCallback("GetAurasValue", Auras.GetAurasValue);
+        this.addCallback("GetAuraSnapshots", Auras.GetAuraSnapshots);
         this.addCallback("rebuilduoTree", Auras.rebuilduoTree);
         this.addCallback("rebuildmonTree", Auras.rebuildmonTree);
 

@@ -1,12 +1,30 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:b="clr-namespace:Skua.App.Avalonia"
-             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             Background="{DynamicResource SkuaPageBrush}"
              x:Class="Skua.App.Avalonia.Views.ConsoleView">
-    <Grid Margin="6" RowDefinitions="*,Auto">
-        <TextBox Grid.Row="0" VerticalContentAlignment="Top" AcceptsReturn="True" AcceptsTab="True"
-                 FontFamily="{DynamicResource MonoFont}" Text="{Binding SnippetText}" />
-        <Button Grid.Row="1" Margin="0,6,0,0" HorizontalAlignment="Stretch" Command="{Binding RunCommand}" Content="Run" />
+    <!-- 2.x layout (upstream 2.1.2 ConsoleView): a C# snippet editor with Clear and Run. -->
+    <Grid Margin="12" RowDefinitions="Auto,*,Auto" RowSpacing="10">
+        <TextBlock VerticalAlignment="Center">
+            <Run Classes="section" Text="C# SNIPPET" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource SkuaMutedTextBrush}" />
+            <Run Text="  runs inside " FontSize="11" Foreground="{DynamicResource SkuaMutedTextBrush}" />
+            <Run Text="ScriptMain(IScriptInterface Bot)" FontSize="11" FontWeight="Bold" FontFamily="{DynamicResource MonoFont}" />
+        </TextBlock>
+        <TextBox x:Name="Snippet" Grid.Row="1" VerticalContentAlignment="Top" AcceptsReturn="True" AcceptsTab="True" Padding="10"
+                 TextWrapping="NoWrap" FontFamily="{DynamicResource MonoFont}" Text="{Binding SnippetText}" />
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Classes="skua-button w84" Click="Clear_Click" ToolTip.Tip="Clear the snippet">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="BackspaceOutline" Width="15" Height="15" />
+                    <TextBlock Text="Clear" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <Button Classes="skua-button skua-primary w84" Command="{Binding RunCommand}" ToolTip.Tip="Compile and run the snippet">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="Play" Width="16" Height="16" />
+                    <TextBlock Text="Run" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </StackPanel>
     </Grid>
 </UserControl>

@@ -111,10 +111,12 @@ internal class Grabber
             }
             p.Report("Map items acquired");
         }
-        catch
+        catch (Exception ex)
         {
             if (t.IsCancellationRequested)
                 p.Report("Task cancelled.");
+            else
+                p.Report($"Operation failed: {ex.Message}");
         }
     }
 
@@ -132,10 +134,12 @@ internal class Grabber
         {
             await Task.Run(() => map.Jump(monster.Cell, "Left"), t);
         }
-        catch
+        catch (Exception ex)
         {
             if (t.IsCancellationRequested)
                 p.Report("Task cancelled.");
+            else
+                p.Report($"Operation failed: {ex.Message}");
         }
     }
 
@@ -169,10 +173,12 @@ internal class Grabber
                 }
             }, t);
         }
-        catch
+        catch (Exception ex)
         {
             if (t.IsCancellationRequested)
                 p.Report("Task cancelled.");
+            else
+                p.Report($"Operation failed: {ex.Message}");
         }
 
         return;
@@ -251,12 +257,12 @@ internal class Grabber
             await Task.Run(() => Ioc.Default.GetService<IScriptQuest>()!.UpdateQuest(questId), t);
             p.Report($"Fake completed {questName}.");
         }
-        catch
+        catch (Exception ex)
         {
             if (t.IsCancellationRequested)
                 p.Report("Task cancelled.");
             else
-                p.Report("Failed to complete quest.");
+                p.Report($"Failed to complete quest: {ex.Message}");
         }
     }
 
@@ -284,10 +290,12 @@ internal class Grabber
                 p.Report("Finished.");
             }
         }
-        catch
+        catch (Exception ex)
         {
             if (t.IsCancellationRequested)
                 p.Report("Task cancelled.");
+            else
+                p.Report($"Operation failed: {ex.Message}");
         }
     }
 
@@ -305,10 +313,12 @@ internal class Grabber
             await Task.Run(() => Ioc.Default.GetService<IScriptShop>()!.Load(shopInfo.ID), t);
             p.Report($"Shop {shopInfo.Name} [{shopInfo.ID}] loaded.");
         }
-        catch
+        catch (Exception ex)
         {
             if (t.IsCancellationRequested)
                 p.Report("Task cancelled.");
+            else
+                p.Report($"Operation failed: {ex.Message}");
         }
     }
 
@@ -358,10 +368,12 @@ internal class Grabber
                 p.Report($"Bought {result} {item.Name}");
                 return;
             }
-            catch
+            catch (Exception ex)
             {
                 if (t.IsCancellationRequested)
                     p.Report("Task cancelled.");
+                else
+                    p.Report($"Operation failed: {ex.Message}");
             }
         }
 
@@ -397,10 +409,12 @@ internal class Grabber
                     await Task.Delay(1000, t);
             }
         }
-        catch
+        catch (Exception ex)
         {
             if (t.IsCancellationRequested)
                 p.Report("Task cancelled.");
+            else
+                p.Report($"Operation failed: {ex.Message}");
         }
 
         return;
@@ -449,10 +463,12 @@ internal class Grabber
             await Task.Run(() => shop.SellItem(item.ID, result), t);
             p.Report($"Sold {result} {item.Name}");
         }
-        catch
+        catch (Exception ex)
         {
             if (t.IsCancellationRequested)
                 p.Report("Task cancelled.");
+            else
+                p.Report($"Operation failed: {ex.Message}");
         }
     }
 
@@ -484,10 +500,12 @@ internal class Grabber
             await Task.Run(() => shop.SellItem(item.ID), t);
             p.Report($"Sold {quantity} {item.Name}");
         }
-        catch
+        catch (Exception ex)
         {
             if (t.IsCancellationRequested)
                 p.Report("Task cancelled.");
+            else
+                p.Report($"Operation failed: {ex.Message}");
         }
     }
 
@@ -527,10 +545,12 @@ internal class Grabber
                     await Task.Delay(1000, token);
             }
         }
-        catch
+        catch (Exception ex)
         {
             if (token.IsCancellationRequested)
                 p.Report("Task cancelled.");
+            else
+                p.Report($"Operation failed: {ex.Message}");
         }
     }
 }

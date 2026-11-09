@@ -206,6 +206,8 @@ public partial class ScriptRepoViewModel : BotControlViewModelBase
 
         if (_getScriptsService?.Scripts != null)
         {
+            string sortBy = SortBy;
+            bool sortDescending = SortDescending;
             List<ScriptInfoViewModel> scriptViewModels = await Task.Run(() =>
             {
                 List<ScriptInfoViewModel> viewModels = new();
@@ -301,6 +303,9 @@ public partial class ScriptRepoViewModel : BotControlViewModelBase
                     return SortDescending ? viewModels.OrderByDescending(x => x.FileName).ToList() : viewModels.OrderBy(x => x.FileName).ToList();
             });
             _scripts.ReplaceRange(scriptViewModels);
+            // Sort changed during the rebuild: that change sorted the old list (upstream 716b9b4).
+            if (sortBy != SortBy || sortDescending != SortDescending)
+                ApplySort();
         }
 
         OnPropertyChanged(nameof(Scripts));

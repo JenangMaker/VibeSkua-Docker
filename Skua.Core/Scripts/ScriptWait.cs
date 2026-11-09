@@ -313,7 +313,15 @@ public class ScriptWait : IScriptWait
     private void WaitIfScriptThreadPaused()
     {
         if (Thread.CurrentThread.Name == "Script Thread")
-            Manager.ScriptPauseEvent.Wait();
+        {
+            try
+            {
+                Manager.ScriptPauseEvent.Wait(Manager.ScriptCts?.Token ?? CancellationToken.None);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
     }
 
     public bool ForActionCooldown(GameActions action, int timeout = 40)

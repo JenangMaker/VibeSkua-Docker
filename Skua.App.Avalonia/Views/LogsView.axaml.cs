@@ -9,4 +9,8 @@ public partial class LogsView : UserControl
     {
         InitializeComponent();
     }
+
+    // The header's Copy / Deselect act on the log shown below.
+    private void Copy_Click(object? sender, RoutedEventArgs e) => LogTabUserControl.In(this)?.Copy();
+    private void Deselect_Click(object? sender, RoutedEventArgs e) => LogTabUserControl.In(this)?.Deselect();
 }

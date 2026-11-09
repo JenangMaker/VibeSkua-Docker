@@ -23,6 +23,7 @@ public sealed record RunToAreaMessage(string Zone);
 public sealed record ItemDroppedMessage(ItemBase Item, bool AddedToInv = false, int QuantityNow = 0);
 public sealed record ShopLoadedMessage(ShopInfo Info);
 public sealed record BankLoadedMessage();
+public sealed record DropPickupResultMessage(int ItemID, bool Success);
 public sealed record ItemBoughtMessage(int CharItemID);
 public sealed record ItemSoldMessage(int CharItemID, int QuantitySold, int CurrentQuantity, int Cost, bool IsAC);
 public sealed record ScriptStartedMessage();

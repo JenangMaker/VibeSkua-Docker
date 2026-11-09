@@ -1,24 +1,135 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:b="clr-namespace:Skua.App.Avalonia"
-             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             Background="{DynamicResource SkuaPageBrush}"
              x:Class="Skua.App.Avalonia.Views.ScriptStatsUserControl">
-    <Grid Grid.IsSharedSizeScope="True" Margin="6" ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
-        <v:StatItemUserControl Grid.Row="0" Grid.Column="0" Icon="Sword" Label="Kills:" Value="{Binding ScriptStats.Kills}" />
-        <v:StatItemUserControl Grid.Row="1" Grid.Column="0" Icon="EmoticonDead" Label="Deaths:" Value="{Binding ScriptStats.Deaths}" />
-        <v:StatItemUserControl Grid.Row="2" Grid.Column="0" Icon="ProgressQuestion" Label="Accepted:" Value="{Binding ScriptStats.QuestsAccepted}" />
-        <v:StatItemUserControl Grid.Row="3" Grid.Column="0" Icon="QuestionMarkCircle" Label="Completed:" Value="{Binding ScriptStats.QuestsCompleted}" />
-        <v:StatItemUserControl Grid.Row="4" Grid.Column="0" Icon="Backpack" Label="Pickups:" Value="{Binding ScriptStats.Drops}" />
-        <v:StatItemUserControl Grid.Row="5" Grid.Column="0" Icon="Reload" Label="Re-logins:" Value="{Binding ScriptStats.Relogins}" />
-        <v:StatItemUserControl Grid.Row="6" Grid.Column="0" Icon="TimerSand" Label="Time:" Value="{Binding ScriptStats.Time, StringFormat='{}{0:hh\\:mm\\:ss}'}" />
-        <v:StatItemUserControl Grid.Row="0" Grid.Column="1" Icon="Backpack" Label="Inventory Free" Value="{Binding ScriptStats.InventoryFreeSpace}" />
-        <v:StatItemUserControl Grid.Row="1" Grid.Column="1" Label="Inventory Used" Value="{Binding ScriptStats.InventoryFilledSpace}" />
-        <v:StatItemUserControl Grid.Row="2" Grid.Column="1" Label="Inventory Max" Value="{Binding ScriptStats.InventorySpace}" />
-        <v:StatItemUserControl Grid.Row="4" Grid.Column="1" Icon="Bank" Label="Bank Free" Value="{Binding ScriptStats.BankFreeSpace}" />
-        <v:StatItemUserControl Grid.Row="5" Grid.Column="1" Label="Bank Used" Value="{Binding ScriptStats.BankFilledSpace}" />
-        <v:StatItemUserControl Grid.Row="6" Grid.Column="1" Label="Bank Max" Value="{Binding ScriptStats.BankSpace}" />
-        <Button Grid.Row="7" Grid.Column="0" Margin="1,3,2,0" HorizontalAlignment="Stretch" Command="{Binding ResetStatsCommand}" Content="Reset" />
-        <Button Grid.Row="7" Grid.Column="1" Margin="2,3,1,0" HorizontalAlignment="Stretch" Command="{Binding GetSpaceCommand}" Content="Get Space" />
+    <!-- 2.x layout (upstream 2.1.2 ScriptStatsView): script time and Reset, six stat cards, then
+         inventory and bank space as bars with Get space. -->
+    <UserControl.Styles>
+        <Style Selector="Border.stat">
+            <Setter Property="Background" Value="{DynamicResource SkuaSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="10,8" />
+        </Style>
+        <Style Selector="Border.stat TextBlock.name">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{DynamicResource SkuaMutedTextBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.stat TextBlock.value">
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+        <Style Selector="TextBlock.space">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </UserControl.Styles>
+    <Grid Margin="12" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
+            <icons:MaterialIcon Kind="ClockOutline" Width="16" Height="16" VerticalAlignment="Center"
+                                Foreground="{DynamicResource SkuaMutedTextBrush}" />
+            <TextBlock Grid.Column="1" VerticalAlignment="Center">
+                <Run Text="{Binding ScriptStats.Time, StringFormat='{}{0:hh\\:mm\\:ss}'}" FontWeight="Bold" FontFamily="{DynamicResource MonoFont}" />
+                <Run Text=" script time" FontSize="11" Foreground="{DynamicResource SkuaMutedTextBrush}" />
+            </TextBlock>
+            <Button Grid.Column="3" Classes="skua-button small" Command="{Binding ResetStatsCommand}" ToolTip.Tip="Reset the stats">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                    <icons:MaterialIcon Kind="Restore" Width="14" Height="14" />
+                    <TextBlock Text="Reset" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </Grid>
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+            <Border Grid.Row="0" Grid.Column="0" Classes="stat">
+                <StackPanel Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <icons:MaterialIcon Kind="Sword" Width="14" Height="14" Foreground="{DynamicResource SkuaSuccessBrush}" />
+                        <TextBlock Classes="name" Text="KILLS" />
+                    </StackPanel>
+                    <TextBlock Classes="value" Text="{Binding ScriptStats.Kills}" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Row="0" Grid.Column="1" Classes="stat">
+                <StackPanel Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <icons:MaterialIcon Kind="Skull" Width="14" Height="14" Foreground="{DynamicResource SkuaDangerBrush}" />
+                        <TextBlock Classes="name" Text="DEATHS" />
+                    </StackPanel>
+                    <TextBlock Classes="value" Text="{Binding ScriptStats.Deaths}" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Row="0" Grid.Column="2" Classes="stat">
+                <StackPanel Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <icons:MaterialIcon Kind="GiftOutline" Width="14" Height="14" Foreground="{DynamicResource SkuaGoldBrush}" />
+                        <TextBlock Classes="name" Text="PICKUPS" />
+                    </StackPanel>
+                    <TextBlock Classes="value" Text="{Binding ScriptStats.Drops}" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Row="1" Grid.Column="0" Classes="stat">
+                <StackPanel Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <icons:MaterialIcon Kind="ClipboardCheckOutline" Width="14" Height="14" Foreground="{DynamicResource SkuaAccentBrush}" />
+                        <TextBlock Classes="name" Text="ACCEPTED" />
+                    </StackPanel>
+                    <TextBlock Classes="value" Text="{Binding ScriptStats.QuestsAccepted}" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Row="1" Grid.Column="1" Classes="stat">
+                <StackPanel Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <icons:MaterialIcon Kind="CheckCircleOutline" Width="14" Height="14" Foreground="{DynamicResource SkuaSuccessBrush}" />
+                        <TextBlock Classes="name" Text="COMPLETED" />
+                    </StackPanel>
+                    <TextBlock Classes="value" Text="{Binding ScriptStats.QuestsCompleted}" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Row="1" Grid.Column="2" Classes="stat">
+                <StackPanel Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <icons:MaterialIcon Kind="Reload" Width="14" Height="14" Foreground="{DynamicResource SkuaWarningBrush}" />
+                        <TextBlock Classes="name" Text="RE-LOGINS" />
+                    </StackPanel>
+                    <TextBlock Classes="value" Text="{Binding ScriptStats.Relogins}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
+            <TextBlock Classes="section-label" Text="STORAGE" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Classes="skua-button small" Command="{Binding GetSpaceCommand}" ToolTip.Tip="Read inventory and bank space from the game">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                    <icons:MaterialIcon Kind="Refresh" Width="14" Height="14" />
+                    <TextBlock Text="Get space" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </Grid>
+
+        <Border Grid.Row="3" Classes="stat">
+            <Grid ColumnDefinitions="Auto,90,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="6">
+                <icons:MaterialIcon Grid.Row="0" Kind="BagPersonalOutline" Width="15" Height="15" Foreground="{DynamicResource SkuaSuccessBrush}" />
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="Inventory" VerticalAlignment="Center" />
+                <ProgressBar Grid.Row="0" Grid.Column="2" MinWidth="0" Height="4" VerticalAlignment="Center"
+                             Maximum="{Binding ScriptStats.InventorySpace}" Value="{Binding ScriptStats.InventoryFilledSpace}" />
+                <TextBlock Grid.Row="0" Grid.Column="3" Classes="space">
+                    <Run Text="{Binding ScriptStats.InventoryFilledSpace}" /><Run Text=" / " /><Run Text="{Binding ScriptStats.InventorySpace}" />
+                </TextBlock>
+                <icons:MaterialIcon Grid.Row="1" Kind="Bank" Width="15" Height="15" Foreground="{DynamicResource SkuaGoldBrush}" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="Bank" VerticalAlignment="Center" />
+                <ProgressBar Grid.Row="1" Grid.Column="2" MinWidth="0" Height="4" VerticalAlignment="Center"
+                             Maximum="{Binding ScriptStats.BankSpace}" Value="{Binding ScriptStats.BankFilledSpace}" />
+                <TextBlock Grid.Row="1" Grid.Column="3" Classes="space">
+                    <Run Text="{Binding ScriptStats.BankFilledSpace}" /><Run Text=" / " /><Run Text="{Binding ScriptStats.BankSpace}" />
+                </TextBlock>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>

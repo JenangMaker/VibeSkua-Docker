@@ -1,3 +1,5 @@
+using Skua.Core.Models.Shops;
+using Newtonsoft.Json;
 using Skua.Core.Flash;
 using Skua.Core.Interfaces;
 using Skua.Core.Models;
@@ -77,6 +79,19 @@ public partial class ScriptInventory : IScriptInventory
         }
     }
 
+    public bool HasCategories => Flash.Call<bool>("hasInventoryCategories");
+    public int MiscSlots => Flash.Call<int>("inventoryMiscSlots");
+    public int MiscUsedSlots => Flash.Call<int>("inventoryMiscUsedSlots");
+    public int MiscFreeSlots => MiscSlots - MiscUsedSlots;
+
+    public string GetPool(ItemBase item) => Flash.Call<string>("inventoryPool", JsonConvert.SerializeObject(item)) ?? "bag";
+
+    // As Skua 1.x: if the check is unavailable, let the game decide.
+    public bool HasSpaceFor(ItemBase item, int quantity = 1) =>
+        !bool.TryParse(Flash.Call("inventoryHasSpaceFor", JsonConvert.SerializeObject(item), quantity, item is ShopItem), out bool hasSpace) || hasSpace;
+
+    public bool CanBank(InventoryItem item) => item.Category != ItemCategory.Class || !HasCategories;
+
     public bool IsFavorited(int itemId) => Flash.Call<bool>("isFavoriteItem", itemId);
 
     public void EquipItem(int id)
@@ -107,6 +122,8 @@ public partial class ScriptInventory : IScriptInventory
 
     public bool ToBank(InventoryItem item)
     {
+        if (!CanBank(item))
+            return false;
         Send.Packet($"%xt%zm%bankFromInv%{Map.RoomID}%{item.ID}%{item.CharItemID}%");
         Wait.ForInventoryToBank(item.Name);
         return !((IScriptInventory)this).Contains(item.Name);
@@ -115,6 +132,8 @@ public partial class ScriptInventory : IScriptInventory
     public bool EnsureToBank(string name)
     {
         if (!((IScriptInventory)this).TryGetItem(name, out InventoryItem? item))
+            return false;
+        if (!CanBank(item!))
             return false;
         int i = 0;
         while (!ToBank(item!) && !Manager.ShouldExit && Player.Playing && ++i < Options.MaximumTries)
@@ -126,6 +145,8 @@ public partial class ScriptInventory : IScriptInventory
     public bool EnsureToBank(int id)
     {
         if (!((IScriptInventory)this).TryGetItem(id, out InventoryItem? item))
+            return false;
+        if (!CanBank(item!))
             return false;
         int i = 0;
         while (!ToBank(item!) && !Manager.ShouldExit && Player.Playing && ++i < Options.MaximumTries)

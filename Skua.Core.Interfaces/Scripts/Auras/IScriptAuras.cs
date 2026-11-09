@@ -17,6 +17,15 @@ public interface IScriptAuras
     /// </summary>
     List<Aura> Auras { get; }
 
+    /// <summary>The current HUD aura snapshots, including effects received through auSnap.</summary>
+    List<AuraSnapshot> Snapshots { get; }
+
+    /// <summary>Gets a HUD aura snapshot by name, or null when it is absent.</summary>
+    AuraSnapshot? GetAuraSnapshot(string auraName);
+
+    /// <summary>Gets the HUD stack count, or zero when the aura is absent.</summary>
+    int GetAuraStacks(string auraName);
+
     /// <summary>
     /// Checks if the subtype has active <paramref name="auraName"/>.
     /// </summary>

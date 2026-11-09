@@ -3,7 +3,7 @@
 public class ApplicationOptionsViewModel : BotControlViewModelBase
 {
     public ApplicationOptionsViewModel(List<DisplayOptionItemViewModelBase> appOptions)
-        : base("Application Options", 420, 0)
+        : base("Application Options", 580, 650)
     {
         ApplicationOptions = appOptions;
     }

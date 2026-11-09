@@ -4,15 +4,16 @@
              xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="Skua.App.Avalonia.Views.MessageBoxDialog">
-    <StackPanel>
+    <!-- 2.x dialog: the message, then OK or No / Yes on the right, Yes as the primary button. -->
+    <StackPanel Spacing="12">
         <ScrollViewer MaxHeight="700" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-            <SelectableTextBlock Margin="6" Text="{Binding Message}" TextWrapping="Wrap" />
+            <SelectableTextBlock Text="{Binding Message}" TextWrapping="Wrap" LineHeight="20" />
         </ScrollViewer>
-        <Button Margin="6" HorizontalAlignment="Stretch" Content="OK" IsDefault="True" IsCancel="True"
-                Click="No_Click" IsVisible="{Binding !YesAndNo}" />
-        <Grid ColumnDefinitions="*,*" IsVisible="{Binding YesAndNo}">
-            <Button Grid.Column="0" Margin="6" HorizontalAlignment="Stretch" Content="Yes" IsDefault="True" Click="Yes_Click" />
-            <Button Grid.Column="1" Margin="6" HorizontalAlignment="Stretch" Content="No" IsCancel="True" Click="No_Click" />
-        </Grid>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Classes="skua-button skua-primary w84" HorizontalContentAlignment="Center" Content="OK" IsDefault="True" IsCancel="True"
+                    Click="No_Click" IsVisible="{Binding !YesAndNo}" />
+            <Button Classes="skua-button w84" HorizontalContentAlignment="Center" Content="No" IsCancel="True" Click="No_Click" IsVisible="{Binding YesAndNo}" />
+            <Button Classes="skua-button skua-primary w84" HorizontalContentAlignment="Center" Content="Yes" IsDefault="True" Click="Yes_Click" IsVisible="{Binding YesAndNo}" />
+        </StackPanel>
     </StackPanel>
 </UserControl>

@@ -50,15 +50,22 @@ public partial class JumpViewModel : BotControlViewModelBase
     {
         _suppressAutoJump = true;
         (string? cell, string? pad) = _mapService.GetCurrentCell();
-        SelectedCell = cell;
-        SelectedPad = pad;
+        SelectedCell = cell ?? string.Empty;
+        SelectedPad = pad ?? string.Empty;
         _suppressAutoJump = false;
     }
 
     [RelayCommand]
     private async Task JumpTo()
     {
-        await Task.Run(() => _mapService.Jump(SelectedCell, SelectedPad));
+        try
+        {
+            await Task.Run(() => _mapService.Jump(SelectedCell, SelectedPad));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.WriteLine($"Jump menu jump failed: {ex}");
+        }
     }
 
     [RelayCommand]

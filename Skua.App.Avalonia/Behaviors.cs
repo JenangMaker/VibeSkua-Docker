@@ -144,14 +144,23 @@ public static class Behave
             a.Handled = true;
     }
 
-    private static void CopySelected(ListBox l)
+    internal static async void CopySelected(ListBox l)
     {
         if (l.SelectedItems is null || TopLevel.GetTopLevel(l)?.Clipboard is not { } clipboard)
             return;
         StringBuilder text = new();
         foreach (object? item in l.SelectedItems)
             text.AppendLine(item?.ToString());
-        _ = clipboard.SetTextAsync(text.ToString());
+        // Another program holding the clipboard makes this throw (upstream 2c5f5e8): a missed
+        // copy, not a crash.
+        try
+        {
+            await clipboard.SetTextAsync(text.ToString());
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine($"[clipboard] copy failed: {e.Message}");
+        }
     }
 
     /// <summary>

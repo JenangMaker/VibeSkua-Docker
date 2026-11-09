@@ -1,19 +1,42 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:b="clr-namespace:Skua.App.Avalonia"
-             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             Background="{DynamicResource SkuaPageBrush}"
              x:Class="Skua.App.Avalonia.Views.PluginsView">
-    <Grid RowDefinitions="Auto,*">
-        <DockPanel Grid.Row="0" Margin="6,6,6,0">
-            <Button DockPanel.Dock="Right" Margin="3,0,0,0" Command="{Binding UnloadAllPluginsCommand}" Content="Unload All"
-                    ToolTip.Tip="Loads all plugins from the plugin folder if they weren't loaded yet." />
-            <Button DockPanel.Dock="Right" Margin="3,0" Command="{Binding LoadPluginCommand}" Content="Load"
-                    ToolTip.Tip="Load the selected plugin .dll file." />
-            <TextBox x:Name="SearchBox" Margin="0,0,3,0" />
-        </DockPanel>
-        <ScrollViewer Grid.Row="1" Margin="0,6" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-            <ItemsControl Grid.IsSharedSizeScope="True" ItemsSource="{Binding Plugins}" />
-        </ScrollViewer>
+    <!-- 2.x layout (upstream 2.1.2 PluginsView): search and Load, the loaded count and Unload
+         all, then a row per plugin. -->
+    <Grid Margin="12" RowDefinitions="Auto,Auto,*" RowSpacing="10">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox x:Name="SearchBox" Watermark="Search plugins">
+                <TextBox.InnerLeftContent>
+                    <icons:MaterialIcon Kind="Magnify" Width="15" Height="15" Margin="10,0,0,0" Foreground="{DynamicResource SkuaMutedTextBrush}" />
+                </TextBox.InnerLeftContent>
+            </TextBox>
+            <Button Grid.Column="1" Classes="skua-button skua-primary w112" Command="{Binding LoadPluginCommand}" ToolTip.Tip="Load a plugin .dll file">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="FolderOpenOutline" Width="15" Height="15" />
+                    <TextBlock Text="Load..." VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </Grid>
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="6">
+            <TextBlock Classes="section-label" Text="LOADED" VerticalAlignment="Center" />
+            <Border Grid.Column="1" Classes="count"><TextBlock Text="{Binding Plugins.Count}" /></Border>
+            <Button Grid.Column="3" Classes="skua-button small skua-danger-soft" Command="{Binding UnloadAllPluginsCommand}" ToolTip.Tip="Unload every plugin">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                    <icons:MaterialIcon Kind="Cancel" Width="14" Height="14" />
+                    <TextBlock Text="Unload all" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </Grid>
+        <Border Grid.Row="2" Classes="option-list">
+            <Panel>
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="PluginList" />
+                </ScrollViewer>
+                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource SkuaMutedTextBrush}"
+                           Text="No plugins loaded." IsVisible="{Binding !Plugins.Count}" />
+            </Panel>
+        </Border>
     </Grid>
 </UserControl>

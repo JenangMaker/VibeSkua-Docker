@@ -4,15 +4,30 @@
              xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="Skua.App.Avalonia.Views.AdvancedSkillEditorUserControl">
-    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,350,Auto">
-        <HeaderedContentControl Classes="card" Grid.Row="0" Grid.Column="0" Margin="6,6,3,3" Header="Set SkillTimeout">
-            <TextBox Margin="3" Watermark="SkillTimeout" UseFloatingWatermark="True" Text="{Binding CurrentSkillTimeout}" b:Behave.OnlyNumbers="True">
+    <!-- 2.x cards (upstream 2.1.2 skill editor): timeout, use mode, sequence and use rules. -->
+    <UserControl.Styles>
+        <Style Selector="Border.skill-card">
+            <Setter Property="Background" Value="{DynamicResource SkuaSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+    </UserControl.Styles>
+    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,340,Auto" Margin="6">
+        <Border Classes="skill-card" Grid.Row="0" Grid.Column="0" Margin="6,6,3,3">
+            <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Classes="section-label" Margin="0,0,0,8" Text="SKILL TIMEOUT" />
+            <TextBox Margin="3" Watermark="Timeout" Text="{Binding CurrentSkillTimeout}" b:Behave.OnlyNumbers="True">
                 <ToolTip.Tip>
                     <TextBlock>The maximum time it will wait for a skill in multiples of the SkillTimer (default 100ms). Default SkillTimeout is 100 (10000 ms).<LineBreak />Note that the skill timeout is only used when Wait for Cooldown is enable.</TextBlock>
                 </ToolTip.Tip>
             </TextBox>
-        </HeaderedContentControl>
-        <HeaderedContentControl Classes="card" Grid.Row="0" Grid.Column="1" Margin="3,6,6,3" Header="Use Mode">
+                    </DockPanel>
+        </Border>
+        <Border Classes="skill-card" Grid.Row="0" Grid.Column="1" Margin="3,6,6,3">
+            <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Classes="section-label" Margin="0,0,0,8" Text="USE MODE" />
             <WrapPanel>
                 <CheckBox Margin="3,3,12,3" Content="Wait for Cooldown" IsChecked="{Binding UseWaitModeBool}">
                     <ToolTip.Tip>
@@ -24,8 +39,11 @@
                 <CheckBox Margin="3" Content="Reset on Target Change" IsChecked="{Binding ResetComboOnTargetChange}"
                           ToolTip.Tip="Reset skill combo sequence when the target changes or is lost" />
             </WrapPanel>
-        </HeaderedContentControl>
-        <HeaderedContentControl Classes="card" Grid.Row="1" Grid.Column="0" Margin="6,3,3,3" Header="Skills">
+                    </DockPanel>
+        </Border>
+        <Border Classes="skill-card" Grid.Row="1" Grid.Column="0" Margin="6,3,3,3">
+            <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Classes="section-label" Margin="0,0,0,8" Text="SKILLS SEQUENCE" />
             <Grid RowDefinitions="*,Auto">
                 <ListBox x:Name="SkillsList" Grid.Row="0" ItemsSource="{Binding CurrentSkillsList}"
                          SelectedIndex="{Binding SelectedSkillIndex}" SelectedItem="{Binding SelectedSkill}"
@@ -46,36 +64,40 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
                 <DockPanel Grid.Row="1" Margin="0,3,0,0" LastChildFill="False">
-                    <Button Classes="flat" Command="{Binding SelectSkillUpCommand}"><icons:MaterialIcon Kind="ArrowUp" /></Button>
-                    <Button Classes="flat" Command="{Binding MoveSkillUpCommand}"><icons:MaterialIcon Kind="ArrowUpBold" /></Button>
-                    <Button Classes="flat" Margin="5,0,0,0" Command="{Binding SelectSkillDownCommand}"><icons:MaterialIcon Kind="ArrowDown" /></Button>
-                    <Button Classes="flat" Command="{Binding MoveSkillDownCommand}"><icons:MaterialIcon Kind="ArrowDownBold" /></Button>
-                    <Button Classes="flat" DockPanel.Dock="Right" Command="{Binding RemoveSkillCommand}"><icons:MaterialIcon Kind="Minus" /></Button>
-                    <Button Classes="flat" DockPanel.Dock="Right" Command="{Binding EditSkillCommand}"><icons:MaterialIcon Kind="Edit" /></Button>
+                    <Button Classes="icon icon-muted" Width="28" Height="28" Command="{Binding SelectSkillUpCommand}"><icons:MaterialIcon Kind="ArrowUp" /></Button>
+                    <Button Classes="icon icon-muted" Width="28" Height="28" Command="{Binding MoveSkillUpCommand}"><icons:MaterialIcon Kind="ArrowUpBold" /></Button>
+                    <Button Classes="icon icon-muted" Width="28" Height="28" Margin="5,0,0,0" Command="{Binding SelectSkillDownCommand}"><icons:MaterialIcon Kind="ArrowDown" /></Button>
+                    <Button Classes="icon icon-muted" Width="28" Height="28" Command="{Binding MoveSkillDownCommand}"><icons:MaterialIcon Kind="ArrowDownBold" /></Button>
+                    <Button Classes="icon icon-muted" Width="28" Height="28" DockPanel.Dock="Right" Command="{Binding RemoveSkillCommand}"><icons:MaterialIcon Kind="Minus" /></Button>
+                    <Button Classes="icon icon-muted" Width="28" Height="28" DockPanel.Dock="Right" Command="{Binding EditSkillCommand}"><icons:MaterialIcon Kind="Edit" /></Button>
                 </DockPanel>
             </Grid>
-        </HeaderedContentControl>
-        <HeaderedContentControl Classes="card" Grid.Row="1" Grid.Column="1" Margin="3,3,6,3" Header="Use Rules">
+                    </DockPanel>
+        </Border>
+        <Border Classes="skill-card" Grid.Row="1" Grid.Column="1" Margin="3,3,6,3">
+            <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Classes="section-label" Margin="0,0,0,8" Text="USE RULES" />
             <Grid RowDefinitions="*,Auto">
                 <v:SkillRuleUserControl DataContext="{Binding UseRules}" />
                 <StackPanel Grid.Row="1" HorizontalAlignment="Center" Orientation="Horizontal" Spacing="6">
                     <ToolTip.Tip>
                         <TextBlock>Adds the skill index with specified use rules.<LineBreak />Note that the numbers reflect only skills<LineBreak />and not the auto attack, so 1 is your in-game skill 2.</TextBlock>
                     </ToolTip.Tip>
-                    <Button Classes="accent" Command="{Binding AddSkillToCurrentCommand}" CommandParameter="0" Content="0" />
-                    <Button Classes="accent" Command="{Binding AddSkillToCurrentCommand}" CommandParameter="1" Content="1" />
-                    <Button Classes="accent" Command="{Binding AddSkillToCurrentCommand}" CommandParameter="2" Content="2" />
-                    <Button Classes="accent" Command="{Binding AddSkillToCurrentCommand}" CommandParameter="3" Content="3" />
-                    <Button Classes="accent" Command="{Binding AddSkillToCurrentCommand}" CommandParameter="4" Content="4" />
-                    <Button Classes="accent" Command="{Binding AddSkillToCurrentCommand}" CommandParameter="5"><icons:MaterialIcon Kind="BottleTonicPlus" /></Button>
+                    <Button Classes="skua-button" Width="36" Padding="0" HorizontalContentAlignment="Center" Command="{Binding AddSkillToCurrentCommand}" CommandParameter="0" Content="0" />
+                    <Button Classes="skua-button" Width="36" Padding="0" HorizontalContentAlignment="Center" Command="{Binding AddSkillToCurrentCommand}" CommandParameter="1" Content="1" />
+                    <Button Classes="skua-button" Width="36" Padding="0" HorizontalContentAlignment="Center" Command="{Binding AddSkillToCurrentCommand}" CommandParameter="2" Content="2" />
+                    <Button Classes="skua-button" Width="36" Padding="0" HorizontalContentAlignment="Center" Command="{Binding AddSkillToCurrentCommand}" CommandParameter="3" Content="3" />
+                    <Button Classes="skua-button" Width="36" Padding="0" HorizontalContentAlignment="Center" Command="{Binding AddSkillToCurrentCommand}" CommandParameter="4" Content="4" />
+                    <Button Classes="skua-button" Width="36" Padding="0" HorizontalContentAlignment="Center" Command="{Binding AddSkillToCurrentCommand}" CommandParameter="5"><icons:MaterialIcon Kind="BottleTonicPlus" /></Button>
                 </StackPanel>
             </Grid>
-        </HeaderedContentControl>
+                    </DockPanel>
+        </Border>
         <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnDefinitions="2*,*,*">
-            <TextBox Grid.Column="0" Margin="6,3,3,6" Watermark="Class Name" UseFloatingWatermark="True" Text="{Binding CurrentClassName}" />
+            <TextBox Grid.Column="0" Margin="6,3,3,6" Watermark="Class name" Text="{Binding CurrentClassName}" />
             <ComboBox Grid.Column="1" Margin="3,3,3,6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" PlaceholderText="Class Use Mode"
                       ItemsSource="{Binding ClassUseModes}" SelectedIndex="{Binding SelectedClassUseMode}" />
-            <Button Grid.Column="2" Margin="3,3,6,6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Command="{Binding SaveSkillsCommand}" Content="Save">
+            <Button Grid.Column="2" Margin="3,3,6,6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Classes="skua-button skua-primary" HorizontalContentAlignment="Center" Command="{Binding SaveSkillsCommand}" Content="Save skill">
                 <ToolTip.Tip>
                     <TextBlock><Bold>Note:</Bold> It will override existing skills with the same class name and use mode.</TextBlock>
                 </ToolTip.Tip>

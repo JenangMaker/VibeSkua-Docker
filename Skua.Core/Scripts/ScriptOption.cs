@@ -133,6 +133,11 @@ public partial class ScriptOption : ObservableRecipient, IScriptOption, IOptionD
     [ObservableProperty]
     private bool _autoReloginAny;
 
+    // Off: auto relogin only goes back to the preferred or Relogin Server (and keeps retrying it).
+    // On: it may end on any free server. Deliberately not on IScriptOption: a UI setting only.
+    [ObservableProperty]
+    private bool _reloginFallback;
+
     [ObservableProperty]
     private bool _retryRelogin = true;
 
@@ -291,7 +296,7 @@ public partial class ScriptOption : ObservableRecipient, IScriptOption, IOptionD
     private int _actionDelay = 800;
 
     [ObservableProperty]
-    private int _privateNumber = 0;
+    private int _privateNumber = 100000;
 
     [ObservableProperty]
     private int _joinMapTries = 3;

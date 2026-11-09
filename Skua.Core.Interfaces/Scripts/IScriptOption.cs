@@ -225,7 +225,7 @@ public interface IScriptOption : INotifyPropertyChanged
     int WalkSpeed { get; set; }
 
     /// <summary>
-    /// Delay in milliseconds that the bot will take to perform some actions.
+    /// Room number joined when <see cref="PrivateRooms"/> is on (map-number); 0 or less joins room 100000.
     /// </summary>
     int PrivateNumber { get; set; }
 

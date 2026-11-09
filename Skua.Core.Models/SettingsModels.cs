@@ -225,6 +225,9 @@ public class ClientSettings
     [JsonPropertyName("WebhookNotifyRelogged")]
     public bool WebhookNotifyRelogged { get; set; } = true;
 
+    [JsonPropertyName("ReloginWatchdog")]
+    public bool ReloginWatchdog { get; set; } = true;
+
     [JsonPropertyName("WebhookNotifyItemDrops")]
     public bool WebhookNotifyItemDrops { get; set; } = false;
 

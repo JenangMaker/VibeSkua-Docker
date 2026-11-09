@@ -5,8 +5,8 @@
              x:Class="Skua.App.Avalonia.App"
              RequestedThemeVariant="Dark"
              Name="VibeSkua">
-    <!-- Skua.App.WPF used MaterialDesign, dark, primary BlueGrey, secondary
-         Red; this is Fluent in those colours. -->
+    <!-- Fluent with the 2.x colour tokens (Theming/Colors.axaml); the accent
+         comes from the saved theme (AvaloniaThemeService). -->
     <Application.DataTemplates>
         <local:ViewLocator />
     </Application.DataTemplates>
@@ -14,16 +14,18 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://Skua.App.Avalonia/Theming/Colors.axaml" />
                 <ResourceInclude Source="avares://Skua.App.Avalonia/Resources.axaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
 
     <Application.Styles>
-        <FluentTheme DensityStyle="Compact" />
+        <FluentTheme />
         <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
         <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml" />
         <icons:MaterialIconStyles />
+        <StyleInclude Source="avares://Skua.App.Avalonia/Theming/BaseTheme.axaml" />
         <StyleInclude Source="avares://Skua.App.Avalonia/Styles.axaml" />
     </Application.Styles>
 </Application>

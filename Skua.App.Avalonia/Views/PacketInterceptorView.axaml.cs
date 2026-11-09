@@ -35,7 +35,17 @@ public partial class PacketInterceptorView : UserControl
             filter.PropertyChanged += Filter_PropertyChanged;
         PacketsList.ItemsSource = _packets.Items;
         FiltersList.ItemsSource = _filters.Items;
+        UpdateShowCount();
     }
+
+    // "Show 18 / 18": ticked packet types out of all of them.
+    private void UpdateShowCount()
+    {
+        if (_vm is not null)
+            ShowCount.Text = $"{_vm.PacketFilters.Count(f => f.IsChecked)} / {_vm.PacketFilters.Count}";
+    }
+
+    private void Copy_Click(object? sender, RoutedEventArgs e) => Behave.CopySelected(PacketsList);
 
     private void Detach()
     {
@@ -50,8 +60,10 @@ public partial class PacketInterceptorView : UserControl
     // Unticking a filter hides the packets it matches.
     private void Filter_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(PacketLogFilterViewModel.IsChecked))
-            _packets?.Refresh();
+        if (e.PropertyName != nameof(PacketLogFilterViewModel.IsChecked))
+            return;
+        _packets?.Refresh();
+        UpdateShowCount();
     }
 
     private bool Search(InterceptedPacketViewModel packet)

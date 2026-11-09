@@ -303,6 +303,8 @@ public sealed class NativeGame
     private static readonly System.Text.RegularExpressions.Regex Noise = new(
         @"\x1b\[[0-9;]*m|^\S*\d{4}-\d\d-\d\dT[0-9:.]+Z\s*", System.Text.RegularExpressions.RegexOptions.Compiled);
 
+    private Skua.Core.Interfaces.ILogService? _logs;
+
     private async Task Forward(StreamReader reader)
     {
         string? last = null;
@@ -335,7 +337,14 @@ public sealed class NativeGame
                 dropped++;
                 continue;
             }
-            Console.Error.WriteLine("[game] " + (line.Length > 500 ? line[..500] : line));
+            string shown = line.Length > 500 ? line[..500] : line;
+            Console.Error.WriteLine("[game] " + shown);
+            // And into the Logs window's Ruffle tab (same limits as above).
+            if (shown.Length > 0)
+            {
+                _logs ??= CommunityToolkit.Mvvm.DependencyInjection.Ioc.Default.GetService<Skua.Core.Interfaces.ILogService>();
+                _logs?.FlashLog($"{DateTime.Now:HH:mm:ss} {shown}");
+            }
         }
     }
 }

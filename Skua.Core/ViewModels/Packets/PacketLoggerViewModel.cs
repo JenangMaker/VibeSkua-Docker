@@ -9,7 +9,7 @@ namespace Skua.Core.ViewModels;
 public partial class PacketLoggerViewModel : BotControlViewModelBase
 {
     public PacketLoggerViewModel(IEnumerable<PacketLogFilterViewModel> filters, IFlashUtil flash, IFileDialogService fileDialog, IDispatcherService dispatcherService)
-        : base("Packet Logger")
+        : base("Packet Logger", 800, 450)
     {
         _flash = flash;
         _fileDialog = fileDialog;

@@ -13,7 +13,7 @@ namespace Skua.Core.Models.Auras;
 public class Aura
 {
     /// <summary>
-    /// The aura's stack value/count.
+    /// The aura's effect value. This is separate from the HUD snapshot's stack count.
     /// </summary>
     [JsonProperty("val")]
     public float Value { get; set; } = 1;

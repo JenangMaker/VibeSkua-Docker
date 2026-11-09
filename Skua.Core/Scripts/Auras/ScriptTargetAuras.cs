@@ -37,6 +37,27 @@ public partial class ScriptTargetAuras : IScriptTargetAuras
         }
     }
 
+    public List<AuraSnapshot> Snapshots
+    {
+        get
+        {
+            string? data = Flash.Call("GetAuraSnapshots", nameof(SubjectType.Target));
+            try
+            {
+                return JsonConvert.DeserializeObject<List<AuraSnapshot>>(data ?? "[]") ?? new();
+            }
+            catch (JsonException)
+            {
+                return new();
+            }
+        }
+    }
+
+    public AuraSnapshot? GetAuraSnapshot(string auraName) =>
+        Snapshots.FirstOrDefault(a => a.Name.Equals(auraName, StringComparison.OrdinalIgnoreCase));
+
+    public int GetAuraStacks(string auraName) => GetAuraSnapshot(auraName)?.Stacks ?? 0;
+
     public Aura? GetAura(string auraName)
     {
         return Auras.FirstOrDefault(a => a.Name.Equals(auraName, StringComparison.OrdinalIgnoreCase));

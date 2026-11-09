@@ -11,6 +11,8 @@ public partial class JunkItemsUserControl : UserControl
         InitializeComponent();
         DataContextChanged += (_, _) => Attach();
         SearchBox.TextChanged += (_, _) => _items?.Refresh();
+        CategoryFilter.SelectionChanged += (_, _) => _items?.Refresh();
+        AcFilter.SelectionChanged += (_, _) => _items?.Refresh();
     }
 
     private UiMirror<JunkItemEntry>? _items;
@@ -24,9 +26,14 @@ public partial class JunkItemsUserControl : UserControl
         ItemsList.ItemsSource = _items.Items;
     }
 
-    // By ID, name or category.
+    // By ID, name or category, then the category and AC filters.
     private bool Filter(JunkItemEntry entry)
     {
+        if (CategoryFilter.SelectedItem is string category && category != JunkItemsViewModel.AllCategories
+            && !string.Equals(entry.Category, category, StringComparison.OrdinalIgnoreCase))
+            return false;
+        if ((AcFilter.SelectedIndex == 1 && !entry.IsAc) || (AcFilter.SelectedIndex == 2 && entry.IsAc))
+            return false;
         string search = SearchBox.Text?.Trim() ?? "";
         if (search.Length == 0)
             return true;

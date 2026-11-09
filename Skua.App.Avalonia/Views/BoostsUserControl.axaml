@@ -1,33 +1,73 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:b="clr-namespace:Skua.App.Avalonia"
-             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="Skua.App.Avalonia.Views.BoostsUserControl">
-    <Grid ColumnDefinitions="*,70" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
-        <Grid.Styles>
-            <Style Selector="CheckBox"><Setter Property="Margin" Value="0,3,3,3" /></Style>
-            <Style Selector="TextBlock.boostId">
-                <Setter Property="Margin" Value="3,3,0,3" />
-                <Setter Property="VerticalAlignment" Value="Center" />
-                <Setter Property="ToolTip.Tip" Value="ID of the Boost." />
-            </Style>
-        </Grid.Styles>
-        <DockPanel Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,3">
-            <Button DockPanel.Dock="Right" CornerRadius="0,2,2,0" Command="{Binding SetBoostIDsCommand}" CommandParameter="{StaticResource TrueValue}"
-                    Content="Bank" ToolTip.Tip="Search the inventory and bank for all available boosts, unbanks if found." />
-            <Button Margin="0,0,2,0" CornerRadius="2,0,0,2" HorizontalAlignment="Stretch" Command="{Binding SetBoostIDsCommand}" CommandParameter="{StaticResource FalseValue}"
-                    Content="Search Boosts in Inventory" ToolTip.Tip="Search the inventory for all available boosts." />
-        </DockPanel>
-        <CheckBox Grid.Row="1" Content="Class Boost" IsChecked="{Binding Boosts.UseClassBoost}" />
-        <TextBlock Grid.Row="1" Grid.Column="1" Classes="boostId" Text="{Binding Boosts.ClassBoostID}" />
-        <CheckBox Grid.Row="2" Content="Gold Boost" IsChecked="{Binding Boosts.UseGoldBoost}" />
-        <TextBlock Grid.Row="2" Grid.Column="1" Classes="boostId" Text="{Binding Boosts.GoldBoostID}" />
-        <CheckBox Grid.Row="3" Content="Experience Boost" IsChecked="{Binding Boosts.UseExperienceBoost}" />
-        <TextBlock Grid.Row="3" Grid.Column="1" Classes="boostId" Text="{Binding Boosts.ExperienceBoostID}" />
-        <CheckBox Grid.Row="4" Content="Reputation Boost" IsChecked="{Binding Boosts.UseReputationBoost}" />
-        <TextBlock Grid.Row="4" Grid.Column="1" Classes="boostId" Text="{Binding Boosts.ReputationBoostID}" />
-        <ToggleButton Grid.Row="5" Grid.ColumnSpan="2" Margin="0,3,0,0" HorizontalAlignment="Stretch"
-                      Command="{Binding ToggleBoostsCommand}" Content="Use Boosts" IsChecked="{Binding Boosts.Enabled, Mode=OneWay}" />
-    </Grid>
+    <!-- 2.x card (upstream 2.1.2 runtime "Boosts helper"): search inventory / bank, the four
+         boosts with their IDs, then Use boosts. -->
+    <UserControl.Styles>
+        <Style Selector="Border.helper">
+            <Setter Property="Background" Value="{DynamicResource SkuaSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+        <Style Selector="ListBox.helper-list">
+            <Setter Property="Background" Value="{DynamicResource SkuaPageBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="0,4" />
+        </Style>
+    </UserControl.Styles>
+    <Border Classes="helper">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8">
+            <TextBlock Classes="section-label" Text="BOOSTS HELPER" />
+            <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Button Classes="skua-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                        Command="{Binding SetBoostIDsCommand}" CommandParameter="{StaticResource FalseValue}"
+                        Content="Search inventory" ToolTip.Tip="Search the inventory for the boosts" />
+                <Button Grid.Column="1" Classes="skua-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                        Command="{Binding SetBoostIDsCommand}" CommandParameter="{StaticResource TrueValue}"
+                        Content="Search bank" ToolTip.Tip="Search the inventory and bank for the boosts; unbanks them when found" />
+            </Grid>
+            <Border Grid.Row="2" Background="{DynamicResource SkuaPageBrush}" BorderBrush="{DynamicResource SkuaBorderBrush}"
+                    BorderThickness="1" CornerRadius="8">
+                <StackPanel>
+                    <Border Classes="option-row" Padding="10,3">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <CheckBox Content="Class Boost" IsChecked="{Binding Boosts.UseClassBoost}" />
+                            <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="11" FontFamily="{DynamicResource MonoFont}"
+                                       Foreground="{DynamicResource SkuaMutedTextBrush}" Text="{Binding Boosts.ClassBoostID, StringFormat='ID: {0}'}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="option-row" Padding="10,3">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <CheckBox Content="Gold Boost" IsChecked="{Binding Boosts.UseGoldBoost}" />
+                            <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="11" FontFamily="{DynamicResource MonoFont}"
+                                       Foreground="{DynamicResource SkuaMutedTextBrush}" Text="{Binding Boosts.GoldBoostID, StringFormat='ID: {0}'}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="option-row" Padding="10,3">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <CheckBox Content="Experience Boost" IsChecked="{Binding Boosts.UseExperienceBoost}" />
+                            <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="11" FontFamily="{DynamicResource MonoFont}"
+                                       Foreground="{DynamicResource SkuaMutedTextBrush}" Text="{Binding Boosts.ExperienceBoostID, StringFormat='ID: {0}'}" />
+                        </Grid>
+                    </Border>
+                    <Border Classes="option-row" BorderThickness="0" Padding="10,3">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <CheckBox Content="Reputation Boost" IsChecked="{Binding Boosts.UseReputationBoost}" />
+                            <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="11" FontFamily="{DynamicResource MonoFont}"
+                                       Foreground="{DynamicResource SkuaMutedTextBrush}" Text="{Binding Boosts.ReputationBoostID, StringFormat='ID: {0}'}" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+            <Button Grid.Row="3" Classes="skua-button" Classes.skua-primary="{Binding Boosts.Enabled}" HorizontalAlignment="Left"
+                    Command="{Binding ToggleBoostsCommand}"
+                    Content="{Binding Boosts.Enabled, Converter={StaticResource BoolText}, ConverterParameter='Using boosts|Use boosts'}" />
+        </Grid>
+    </Border>
 </UserControl>

@@ -1,16 +1,53 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:b="clr-namespace:Skua.App.Avalonia"
-             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             Background="{DynamicResource SkuaPageBrush}"
              x:Class="Skua.App.Avalonia.Views.CurrentDropsUserControl">
-    <Grid Margin="6" RowDefinitions="Auto,*,Auto">
-        <TextBox x:Name="SearchBox" Grid.Row="0" Margin="0,0,0,6" Watermark="Search" UseFloatingWatermark="True" />
-        <ListBox x:Name="CurrentDropsListBox" Grid.Row="1" SelectionMode="Multiple" SelectedItem="{Binding SelectedDrop}" />
-        <Grid Grid.Row="2" Margin="0,6,0,0" ColumnDefinitions="*,*,*">
-            <Button Grid.Column="0" Margin="0,0,3,0" HorizontalAlignment="Stretch" Click="PickupSelected_Click" Content="Pickup Selected" />
-            <Button Grid.Column="1" Margin="3,0" HorizontalAlignment="Stretch" Command="{Binding PickupAllCommand}" Content="Pickup All" />
-            <Button Grid.Column="2" Margin="3,0,0,0" HorizontalAlignment="Stretch" Command="{Binding PickupACCommand}" Content="Pickup AC" />
+    <!-- 2.x layout (upstream 2.1.2 CurrentDropsView): search and the drop count, the drop list,
+         then the selection count and the pick-up actions. -->
+    <Grid Margin="12" RowDefinitions="Auto,*,Auto" RowSpacing="10">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox x:Name="SearchBox" Watermark="Search drops">
+                <TextBox.InnerLeftContent>
+                    <icons:MaterialIcon Kind="Magnify" Width="15" Height="15" Margin="10,0,0,0" Foreground="{DynamicResource SkuaMutedTextBrush}" />
+                </TextBox.InnerLeftContent>
+            </TextBox>
+            <Border Grid.Column="1" Classes="chip" VerticalAlignment="Center">
+                <TextBlock Text="{Binding CurrentDrops.Count, StringFormat='{}{0} drops'}" />
+            </Border>
+        </Grid>
+        <Border Grid.Row="1" Classes="option-list">
+            <ListBox x:Name="CurrentDropsListBox" SelectionMode="Multiple" SelectedItem="{Binding SelectedDrop}"
+                     Background="Transparent" BorderThickness="0" Padding="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="12,6" />
+                        <Setter Property="CornerRadius" Value="0" />
+                    </Style>
+                </ListBox.Styles>
+            </ListBox>
+        </Border>
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+            <TextBlock x:Name="SelectedText" Text="None selected" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource SkuaMutedTextBrush}" />
+            <Button Grid.Column="1" Classes="skua-button" Command="{Binding PickupACCommand}" ToolTip.Tip="Pick up the AC drops only">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="Star" Width="15" Height="15" Foreground="{DynamicResource SkuaGoldBrush}" />
+                    <TextBlock Text="AC only" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <Button Grid.Column="2" Classes="skua-button" Command="{Binding PickupAllCommand}" ToolTip.Tip="Pick up every drop">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="SelectAll" Width="15" Height="15" />
+                    <TextBlock Text="Pick up all" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <Button x:Name="PickupSelected" Grid.Column="3" Classes="skua-button skua-primary" Click="PickupSelected_Click" IsEnabled="False"
+                    ToolTip.Tip="Pick up the selected drops">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <icons:MaterialIcon Kind="HandBackRightOutline" Width="15" Height="15" />
+                    <TextBlock Text="Pick up selected" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
         </Grid>
     </Grid>
 </UserControl>

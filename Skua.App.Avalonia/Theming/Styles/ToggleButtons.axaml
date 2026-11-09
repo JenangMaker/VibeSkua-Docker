@@ -1,0 +1,217 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        xmlns:buttons="using:Skua.App.Avalonia.Theming">
+    <Design.PreviewWith>
+        <Border Padding="20">
+            <!-- Add Controls for Previewer Here -->
+        </Border>
+    </Design.PreviewWith>
+
+    <!-- Fluent colours a ToggleButton through state setters on its ContentPresenter, which win over
+         the control's own Background/Foreground. Every state a class changes is therefore restyled on
+         "/template/ ContentPresenter#PART_ContentPresenter", not on the ToggleButton itself. -->
+
+    <Style Selector="ToggleButton.header-gap">
+        <Setter Property="Margin" Value="0,0,4,0" />
+    </Style>
+
+    <Style Selector="ToggleButton.gap-left-8">
+        <Setter Property="Margin" Value="8,0,0,0" />
+    </Style>
+
+    <Style Selector="ToggleButton.gap-right-8">
+        <Setter Property="Margin" Value="0,0,8,0" />
+    </Style>
+
+    <!-- Boxed toggles: one look for toolbar toggles (.app-toggle, 26) and option booleans (.option-chip, 32).
+         Off = muted text in a neutral box; on = accent tint + accent border, white text. -->
+    <Style Selector="ToggleButton.app-toggle">
+        <Setter Property="Height" Value="26" />
+        <Setter Property="MinHeight" Value="26" />
+        <Setter Property="Padding" Value="10,0" />
+        <Setter Property="FontSize" Value="11" />
+    </Style>
+
+    <Style Selector="ToggleButton.app-toggle-compact">
+        <Setter Property="Height" Value="26" />
+        <Setter Property="MinWidth" Value="52" />
+    </Style>
+
+    <Style Selector="ToggleButton.app-toggle-filter">
+        <Setter Property="MinWidth" Value="56" />
+    </Style>
+
+    <Style Selector="ToggleButton.option-chip">
+        <Setter Property="Margin" Value="2" />
+        <Setter Property="Padding" Value="12,0" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <Style Selector="ToggleButton.app-toggle, ToggleButton.option-chip">
+        <Setter Property="buttons:HoverGlow.Enabled" Value="True" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaMutedTextBrush}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="ToggleButton.app-toggle /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.option-chip /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaMutedTextBrush}" />
+    </Style>
+    <!-- Off + hover: the cursor-following glow (Controls\Buttons\HoverGlow.cs); on + hover keeps its accent tint below -->
+    <Style Selector="ToggleButton.app-toggle:pointerover /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.option-chip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{CompiledBinding $parent[ToggleButton].(buttons:HoverGlow.Fill)}" />
+        <Setter Property="BorderBrush" Value="{CompiledBinding $parent[ToggleButton].(buttons:HoverGlow.Edge)}" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.app-toggle:pressed /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.option-chip:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SkuaPressedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderStrongBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.app-toggle:checked /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.option-chip:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SkuaAccentTintBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaAccentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+    </Style>
+    <!-- On + hover: the glow in accent over the stronger tint, with a white-lit accent border -->
+    <Style Selector="ToggleButton.app-toggle:checked, ToggleButton.option-chip:checked">
+        <Setter Property="buttons:HoverGlow.Base" Value="{DynamicResource SkuaAccentTintStrongBrush}" />
+        <Setter Property="buttons:HoverGlow.Light" Value="{DynamicResource SkuaAccentBrush}" />
+        <Setter Property="buttons:HoverGlow.Amount" Value="0.3" />
+        <Setter Property="buttons:HoverGlow.EdgeBase" Value="{DynamicResource SkuaAccentBrush}" />
+        <Setter Property="buttons:HoverGlow.EdgeLight" Value="White" />
+        <Setter Property="buttons:HoverGlow.EdgeAmount" Value="0.5" />
+    </Style>
+    <Style Selector="ToggleButton.app-toggle:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.option-chip:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{CompiledBinding $parent[ToggleButton].(buttons:HoverGlow.Fill)}" />
+        <Setter Property="BorderBrush" Value="{CompiledBinding $parent[ToggleButton].(buttons:HoverGlow.Edge)}" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.app-toggle:checked:pressed /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.option-chip:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SkuaAccentTintStrongBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaAccentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.app-toggle:checked materialIcons|MaterialIcon, ToggleButton.option-chip:checked materialIcons|MaterialIcon">
+        <Setter Property="Foreground" Value="{DynamicResource SkuaAccentBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.app-toggle:disabled, ToggleButton.option-chip:disabled">
+        <Setter Property="Opacity" Value="0.45" />
+    </Style>
+
+    <!-- Two-way choices drawn as a segmented control that shows both options: ≤ | ≥ and # | %.
+         Still one ToggleButton (IsChecked = the second option), so bindings don't change. -->
+    <Style Selector="ToggleButton.compare, ToggleButton.value-type">
+        <Setter Property="Height" Value="32" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="Padding" Value="2" />
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Background" Value="{DynamicResource SkuaSurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaMutedTextBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.compare">
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="{TemplateBinding CornerRadius}"
+                        Padding="{TemplateBinding Padding}">
+                    <Grid ColumnDefinitions="24,24" ColumnSpacing="2">
+                        <Border x:Name="PART_First" CornerRadius="4" BorderThickness="1" BorderBrush="Transparent">
+                            <TextBlock Text="≤" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <Border x:Name="PART_Second" Grid.Column="1" CornerRadius="4" BorderThickness="1" BorderBrush="Transparent">
+                            <TextBlock Text="≥" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </Grid>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="ToggleButton.value-type">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="{TemplateBinding CornerRadius}"
+                        Padding="{TemplateBinding Padding}">
+                    <Grid ColumnDefinitions="24,24" ColumnSpacing="2">
+                        <Border x:Name="PART_First" CornerRadius="4" BorderThickness="1" BorderBrush="Transparent">
+                            <TextBlock Text="#" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <Border x:Name="PART_Second" Grid.Column="1" CornerRadius="4" BorderThickness="1" BorderBrush="Transparent">
+                            <TextBlock Text="%" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </Grid>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="ToggleButton.compare:unchecked /template/ Border#PART_First, ToggleButton.compare:checked /template/ Border#PART_Second, ToggleButton.value-type:unchecked /template/ Border#PART_First, ToggleButton.value-type:checked /template/ Border#PART_Second">
+        <Setter Property="Background" Value="{DynamicResource SkuaAccentTintStrongBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaAccentBrush}" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource SkuaTextBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.compare:pointerover, ToggleButton.value-type:pointerover">
+        <Setter Property="BorderBrush" Value="{DynamicResource SkuaBorderStrongBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.compare:disabled, ToggleButton.value-type:disabled">
+        <Setter Property="Opacity" Value="0.45" />
+    </Style>
+
+    <!-- Ghost toggles: borderless top bar toggles. On = accent tint (so it reads differently from hover). -->
+    <Style Selector="ToggleButton.topbar-action">
+        <Setter Property="Height" Value="28" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="MinWidth" Value="50" />
+        <Setter Property="Padding" Value="10,0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaAccentBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="ToggleButton.topbar-action:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SkuaNavHoverBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaAccentBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.topbar-action:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SkuaPressedBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaAccentBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.topbar-action:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SkuaAccentTintBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaAccentBrush}" />
+    </Style>
+
+    <!-- Top bar toggles (Auto, Jump, Bot Window sidebar): ghost box like Button.top-nav-item; on = accent tint
+         with an accent icon -->
+    <Style Selector="ToggleButton.top-nav-item:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SkuaAccentTintBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.top-nav-item:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.top-nav-item:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SkuaAccentTintStrongBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SkuaTextBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.top-nav-item:checked materialIcons|MaterialIcon">
+        <Setter Property="Foreground" Value="{DynamicResource SkuaAccentBrush}" />
+    </Style>
+</Styles>

@@ -68,6 +68,26 @@ public partial class ScriptMap : IScriptMap
     [ObjectBinding("world.curRoom")]
     private int _roomID;
 
+    /// <summary>
+    /// Gets the numeric room number from the server-assigned current area name.
+    /// Returns 0 when the area name is unavailable or does not end in a numeric room suffix.
+    /// </summary>
+    public int RoomNumber
+    {
+        get
+        {
+            string? areaName = Flash.GetGameObject("world.strAreaName")?.Trim('"');
+            if (string.IsNullOrWhiteSpace(areaName))
+                return 0;
+
+            int separatorIndex = areaName.LastIndexOf('-');
+            if (separatorIndex < 0 || separatorIndex == areaName.Length - 1)
+                return 0;
+
+            return int.TryParse(areaName[(separatorIndex + 1)..], out int roomNumber) ? roomNumber : 0;
+        }
+    }
+
     [ObjectBinding("world.areaUsers.length")]
     private int _playerCount;
 
@@ -107,8 +127,9 @@ public partial class ScriptMap : IScriptMap
         int i = 0;
         while (Name != mapName && !Manager.ShouldExit && ++i < Options.JoinMapTries)
         {
+            // Private room: map-<Private Number>, or map-100000 while no number is set (0 or less)
             if ((Options.PrivateRooms && !map.Contains('-')) || map.Contains("-1e9"))
-                map = $"{mapName}{(Options.PrivateNumber != -1 ? Options.PrivateNumber : "-100000")}";
+                map = $"{mapName}-{(Options.PrivateNumber > 0 ? Options.PrivateNumber : 100000)}";
             Wait.ForActionCooldown(GameActions.Transfer);
             JoinPacket(map, cell, pad);
             Wait.ForMapLoad(map);
@@ -154,11 +175,32 @@ public partial class ScriptMap : IScriptMap
         Thread.Sleep(Options.ActionDelay);
     }
 
-    private Dictionary<string, List<MapItem>>? LoadSavedMapItems()
+    // Through a per-process temp file: tabs are separate processes sharing this file, and two
+    // writing it at once could leave it damaged.
+    private void WriteSavedMapItems()
     {
-        return !File.Exists(_savedCacheFilePath)
-            ? null
-            : (_savedMapItems = JsonConvert.DeserializeObject<Dictionary<string, List<MapItem>>>(File.ReadAllText(_savedCacheFilePath))!);
+        string temporaryFile = $"{_savedCacheFilePath}.{Environment.ProcessId}.tmp";
+        File.WriteAllText(temporaryFile, JsonConvert.SerializeObject(_savedMapItems, Formatting.Indented));
+        File.Move(temporaryFile, _savedCacheFilePath, true);
+    }
+
+    private Dictionary<string, List<MapItem>> LoadSavedMapItems()
+    {
+        if (!File.Exists(_savedCacheFilePath))
+            return _savedMapItems;
+
+        try
+        {
+            _savedMapItems = JsonConvert.DeserializeObject<Dictionary<string, List<MapItem>>>(File.ReadAllText(_savedCacheFilePath))
+                ?? new Dictionary<string, List<MapItem>>();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            // A damaged cache must not prevent the client from starting or map features from working.
+            _savedMapItems = new();
+        }
+
+        return _savedMapItems;
     }
 
     private readonly string _cachePath = Path.Combine(ClientFileSources.SkuaDIR, "cache");
@@ -195,7 +237,7 @@ public partial class ScriptMap : IScriptMap
                 _savedMapItems[FileName] = info;
             else
                 _savedMapItems.Add(FileName, info);
-            File.WriteAllText(_savedCacheFilePath, JsonConvert.SerializeObject(_savedMapItems, Formatting.Indented));
+            WriteSavedMapItems();
         }
 
         List<MapItem>? ParseMapSWFData()
@@ -366,7 +408,7 @@ public partial class ScriptMap : IScriptMap
             if (_savedMapItems.ContainsKey(specificMap))
             {
                 _savedMapItems.Remove(specificMap);
-                File.WriteAllText(_savedCacheFilePath, JsonConvert.SerializeObject(_savedMapItems, Formatting.Indented));
+                WriteSavedMapItems();
             }
         }
         else

@@ -137,8 +137,23 @@ public partial class ScriptQuest : ObservableRecipient, IScriptQuest
     private Dictionary<int, int> _questCompleteCooldowns = new();
     private Dictionary<int, int> _questAcceptCooldowns = new();
     private readonly object _registeredLock = new();
-    public IEnumerable<int> Registered => _registered.Items;
-    public IReadOnlyDictionary<int, int> RegisteredRewards => _registeredRewards;
+    public IEnumerable<int> Registered
+    {
+        get
+        {
+            lock (_registeredLock)
+                return _registered.Items.ToArray();
+        }
+    }
+
+    public IReadOnlyDictionary<int, int> RegisteredRewards
+    {
+        get
+        {
+            lock (_registeredLock)
+                return new Dictionary<int, int>(_registeredRewards);
+        }
+    }
 
     public void Load(params int[] ids)
     {
@@ -446,23 +461,30 @@ public partial class ScriptQuest : ObservableRecipient, IScriptQuest
 
     public void UnregisterQuests(params int[] ids)
     {
-        _registered.Remove(ids.Contains);
-        foreach (int id in ids)
+        lock (_registeredLock)
         {
-            _registeredRewards.Remove(id);
-            _questCompleteCooldowns.Remove(id);
-            _questAcceptCooldowns.Remove(id);
+            _registered.Remove(ids.Contains);
+            foreach (int id in ids)
+            {
+                _registeredRewards.Remove(id);
+                _questCompleteCooldowns.Remove(id);
+                _questAcceptCooldowns.Remove(id);
+            }
         }
+
         OnPropertyChanged(nameof(Registered));
         WeakReferenceMessenger.Default.Send(new PropertyChangedMessage<IEnumerable<int>>(this, nameof(Registered), Registered, Registered));
     }
 
     public void UnregisterAllQuests()
     {
-        _registered.Clear();
-        _registeredRewards.Clear();
-        _questCompleteCooldowns.Clear();
-        _questAcceptCooldowns.Clear();
+        lock (_registeredLock)
+        {
+            _registered.Clear();
+            _registeredRewards.Clear();
+            _questCompleteCooldowns.Clear();
+            _questAcceptCooldowns.Clear();
+        }
         OnPropertyChanged(nameof(Registered));
         WeakReferenceMessenger.Default.Send(new PropertyChangedMessage<IEnumerable<int>>(this, nameof(Registered), Registered, Registered));
 
@@ -481,10 +503,30 @@ public partial class ScriptQuest : ObservableRecipient, IScriptQuest
     private async Task _Poll(CancellationToken token)
     {
         _lastComplete = Environment.TickCount;
+
         while (!token.IsCancellationRequested)
         {
-            if (Player.Playing)
-                await _CompleteQuest(_registered.Items, token).ConfigureAwait(false);
+            try
+            {
+                if (Player.Playing)
+                {
+                    int[] registered;
+                    lock (_registeredLock)
+                        registered = _registered.Items.ToArray();
+
+                    if (registered.Length > 0)
+                        await _CompleteQuest(registered, token).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.WriteLine($"Quest processing iteration failed; it will retry: {ex}");
+            }
+
             await Task.Delay(RegisterCompleteInterval, token);
         }
     }
@@ -526,25 +568,32 @@ public partial class ScriptQuest : ObservableRecipient, IScriptQuest
         foreach (int quest in registered)
         {
             // Check cooldown - don't try to complete if we just tried within the last 3 seconds
-            if (_questCompleteCooldowns.TryGetValue(quest, out int lastAttempt))
+            lock (_registeredLock)
             {
-                if (currentTick - lastAttempt < 3000)
+                if (_questCompleteCooldowns.TryGetValue(quest, out int lastAttempt) &&
+                    currentTick - lastAttempt < 3000)
+                {
                     continue;
+                }
             }
 
             // Ensure quest is accepted
             if (!IsInProgress(quest))
             {
                 // Check accept cooldown
-                if (_questAcceptCooldowns.TryGetValue(quest, out int lastAccept))
+                lock (_registeredLock)
                 {
-                    if (currentTick - lastAccept < 2000)
+                    if (_questAcceptCooldowns.TryGetValue(quest, out int lastAccept) &&
+                        currentTick - lastAccept < 2000)
+                    {
                         continue;
+                    }
                 }
 
                 Wait.ForActionCooldown(GameActions.AcceptQuest);
                 Accept(quest);
-                _questAcceptCooldowns[quest] = Environment.TickCount;
+                lock (_registeredLock)
+                    _questAcceptCooldowns[quest] = Environment.TickCount;
 
                 // Invalidate cache to force fresh read
                 _cachedTree = null;
@@ -565,7 +614,9 @@ public partial class ScriptQuest : ObservableRecipient, IScriptQuest
             int turnIns = questData.Once || !string.IsNullOrEmpty(questData.Field) ? 1 :
                 Flash.CallGameFunction<int>("world.maximumQuestTurnIns", quest);
 
-            int rewardId = _registeredRewards.TryGetValue(quest, out int reward) ? reward : -1;
+            int rewardId;
+            lock (_registeredLock)
+                rewardId = _registeredRewards.TryGetValue(quest, out int reward) ? reward : -1;
 
             Wait.ForActionCooldown(GameActions.TryQuestComplete);
 
@@ -575,7 +626,8 @@ public partial class ScriptQuest : ObservableRecipient, IScriptQuest
 
             Send.Packet($"%xt%zm%tryQuestComplete%{Map.RoomID}%{quest}%{rewardId}%false%{turnIns}%wvz%");
 
-            _questCompleteCooldowns[quest] = Environment.TickCount;
+            lock (_registeredLock)
+                _questCompleteCooldowns[quest] = Environment.TickCount;
 
             // Invalidate cache to force fresh read
             _cachedTree = null;
@@ -589,7 +641,8 @@ public partial class ScriptQuest : ObservableRecipient, IScriptQuest
             {
                 Wait.ForActionCooldown(GameActions.AcceptQuest);
                 Accept(quest);
-                _questAcceptCooldowns[quest] = Environment.TickCount;
+                lock (_registeredLock)
+                    _questAcceptCooldowns[quest] = Environment.TickCount;
 
                 // Invalidate cache to force fresh read
                 _cachedTree = null;

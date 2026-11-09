@@ -4,17 +4,23 @@
              xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="Skua.App.Avalonia.Views.AssignHotKeyDialog">
-    <StackPanel Margin="6" Spacing="6">
-        <Button HorizontalAlignment="Stretch" Click="AssignKey" Content="{Binding KeyInput}" />
-        <TextBlock Foreground="OrangeRed" Text="{Binding InputHint}" TextWrapping="Wrap" />
-        <Grid ColumnDefinitions="*,*,*">
-            <ToggleButton Grid.Column="0" Margin="0,0,3,0" HorizontalAlignment="Stretch" Content="Ctrl" IsChecked="{Binding CtrlCheck}" />
-            <ToggleButton Grid.Column="1" Margin="3,0" HorizontalAlignment="Stretch" Content="Alt" IsChecked="{Binding AltCheck}" />
-            <ToggleButton Grid.Column="2" Margin="3,0,0,0" HorizontalAlignment="Stretch" Content="Shift" IsChecked="{Binding ShiftCheck}" />
-        </Grid>
-        <Grid ColumnDefinitions="*,*">
-            <Button Grid.Column="0" Margin="0,0,3,0" HorizontalAlignment="Stretch" Click="Save_Click" Content="Save" />
-            <Button Grid.Column="1" Margin="3,0,0,0" HorizontalAlignment="Stretch" Click="Cancel_Click" Content="Cancel" />
-        </Grid>
+    <!-- 2.x dialog: the key as a large pill (click, then press), the modifiers, then Cancel / Save on the right. -->
+    <StackPanel Spacing="10">
+        <TextBlock Classes="section-label" Text="KEY" />
+        <Button Classes="skua-button" Height="44" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                FontFamily="{DynamicResource MonoFont}" FontSize="15" Click="AssignKey" Content="{Binding KeyInput}"
+                ToolTip.Tip="Click, then press the key" />
+        <TextBlock FontSize="11" Foreground="{DynamicResource SkuaWarningBrush}" Text="{Binding InputHint}" TextWrapping="Wrap"
+                   IsVisible="{Binding InputHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <TextBlock Classes="section-label" Text="MODIFIERS" />
+        <UniformGrid Columns="3" ColumnSpacing="8">
+            <ToggleButton HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="Ctrl" IsChecked="{Binding CtrlCheck}" />
+            <ToggleButton HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="Alt" IsChecked="{Binding AltCheck}" />
+            <ToggleButton HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="Shift" IsChecked="{Binding ShiftCheck}" />
+        </UniformGrid>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,4,0,0">
+            <Button Classes="skua-button w84" HorizontalContentAlignment="Center" Content="Cancel" Click="Cancel_Click" />
+            <Button Classes="skua-button skua-primary w84" HorizontalContentAlignment="Center" Content="Save" Click="Save_Click" />
+        </StackPanel>
     </StackPanel>
 </UserControl>

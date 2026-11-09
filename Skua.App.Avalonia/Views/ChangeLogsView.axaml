@@ -1,14 +1,22 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:b="clr-namespace:Skua.App.Avalonia"
-             xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
              xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
-             x:Class="Skua.App.Avalonia.Views.ChangeLogsView" xmlns:md="https://github.com/whistyun/Markdown.Avalonia.Tight">
-    <Grid RowDefinitions="*,Auto">
-        <md:MarkdownScrollViewer x:Name="Markdownview" Grid.Row="0" Margin="20,10,0,20" Markdown="{Binding MarkdownDoc}" />
-        <StackPanel Grid.Row="1">
-            <TextBlock Margin="6,0" FontSize="16" TextWrapping="Wrap" Text="Donations can be made via Kofi you can click the button below." />
-            <Button Margin="6" HorizontalAlignment="Stretch" Command="{Binding OpenDonationLink}" Content="SharpTheNightmare Kofi" />
-        </StackPanel>
+             xmlns:md="https://github.com/whistyun/Markdown.Avalonia.Tight"
+             Background="{DynamicResource SkuaPageBrush}"
+             x:Class="Skua.App.Avalonia.Views.ChangeLogsView">
+    <!-- 2.x layout: the change log in a framed card, the donation note and link in a footer bar. -->
+    <Grid Margin="12" RowDefinitions="*,Auto" RowSpacing="10">
+        <Border Classes="option-list">
+            <md:MarkdownScrollViewer x:Name="Markdownview" Margin="14,8,4,8" Markdown="{Binding MarkdownDoc}" />
+        </Border>
+        <Border Grid.Row="1" Padding="12,8" CornerRadius="8" Background="{DynamicResource SkuaSurfaceBrush}"
+                BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="1">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                <icons:MaterialIcon Kind="HeartOutline" Width="16" Height="16" Foreground="{DynamicResource SkuaDangerBrush}" />
+                <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="11" TextWrapping="Wrap"
+                           Foreground="{DynamicResource SkuaMutedTextBrush}" Text="Donations can be made via Ko-fi." />
+                <Button Grid.Column="2" Classes="skua-button small" Command="{Binding OpenDonationLink}" Content="Ko-fi" ToolTip.Tip="SharpTheNightmare on Ko-fi" />
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>

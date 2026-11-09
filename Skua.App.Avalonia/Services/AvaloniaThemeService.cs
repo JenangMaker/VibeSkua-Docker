@@ -199,21 +199,11 @@ public sealed partial class AvaloniaThemeService : ObservableObject, IThemeServi
             if (Application.Current is not { } app)
                 return;
             app.RequestedThemeVariant = theme.IsDark ? ThemeVariant.Dark : ThemeVariant.Light;
-            var r = app.Resources;
-            r["SystemAccentColor"] = theme.PrimaryColor;
-            r["SkuaPrimaryBrush"] = new SolidColorBrush(Blend(theme.PrimaryColor, theme.IsDark ? Colors.White : Colors.Black, 0.35));
-            r["SkuaSecondaryBrush"] = new SolidColorBrush(theme.SecondaryColor);
-            r["SkuaPaperBrush"] = new SolidColorBrush(theme.IsDark ? Color.Parse("#303030") : Color.Parse("#FAFAFA"));
-            r["SkuaBarBrush"] = new SolidColorBrush(Blend(theme.PrimaryColor, theme.IsDark ? Colors.Black : Colors.White, 0.7));
-            r["SkuaDividerBrush"] = new SolidColorBrush(theme.IsDark ? Color.Parse("#1FFFFFFF") : Color.Parse("#1F000000"));
+            // The 2.x accent keys; surfaces, text and borders come from Theming/Colors.axaml
+            // per theme variant.
+            ThemeBrushes.Apply(app, theme.PrimaryColor, theme.PrimaryForegroundColor, theme.IsDark);
         });
         if (save)
             _settings.Set("CurrentTheme", theme.Format());
     }
-
-    private static Color Blend(Color a, Color b, double t) => Color.FromArgb(
-        255,
-        (byte)(a.R + (b.R - a.R) * t),
-        (byte)(a.G + (b.G - a.G) * t),
-        (byte)(a.B + (b.B - a.B) * t));
 }

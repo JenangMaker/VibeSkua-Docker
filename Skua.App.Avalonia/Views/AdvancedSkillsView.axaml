@@ -1,17 +1,21 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:b="clr-namespace:Skua.App.Avalonia"
              xmlns:v="clr-namespace:Skua.App.Avalonia.Views"
-             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             Background="{DynamicResource SkuaPageBrush}"
              x:Class="Skua.App.Avalonia.Views.AdvancedSkillsView">
-    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-        <StackPanel>
-            <Expander Margin="6,6,6,3" Header="Create/Edit Skill" IsExpanded="{Binding EditExpanded}" HorizontalAlignment="Stretch">
-                <v:AdvancedSkillEditorUserControl DataContext="{Binding EditViewModel}" />
-            </Expander>
-            <Expander Margin="6,3,6,6" Header="Saved Skills" IsExpanded="True" HorizontalAlignment="Stretch">
-                <v:SavedAdvancedSkillsUserControl DataContext="{Binding SavedViewModel}" />
-            </Expander>
-        </StackPanel>
-    </ScrollViewer>
+    <!-- 2.x layout (upstream 2.1.2 AdvancedSkillsView): Create / Edit and Saved as tabs instead of
+         two expanders. Editing a saved skill switches to the first tab (EditExpanded). -->
+    <Grid RowDefinitions="Auto,*">
+        <Border Margin="12,12,12,0" Padding="4" HorizontalAlignment="Left" CornerRadius="10" Background="{DynamicResource SkuaSurfaceBrush}"
+                BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="1">
+            <ListBox x:Name="Tabs" Classes="chips" SelectedIndex="0">
+                <ListBoxItem Content="Create / Edit Skill" />
+                <ListBoxItem Content="Saved Skills" />
+            </ListBox>
+        </Border>
+        <ScrollViewer x:Name="EditPage" Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <v:AdvancedSkillEditorUserControl DataContext="{Binding EditViewModel}" />
+        </ScrollViewer>
+        <v:SavedAdvancedSkillsUserControl x:Name="SavedPage" Grid.Row="1" IsVisible="False" DataContext="{Binding SavedViewModel}" />
+    </Grid>
 </UserControl>

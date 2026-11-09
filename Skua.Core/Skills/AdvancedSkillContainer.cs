@@ -4,6 +4,7 @@ using Skua.Core.Interfaces;
 using Skua.Core.Models;
 using Skua.Core.Models.Skills;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Skua.Core.Skills;
 
@@ -34,6 +35,70 @@ public class AdvancedSkillContainer : ObservableRecipient, IAdvancedSkillContain
             File.Copy(rootDefaultSkills, _defaultSkillsSetsPath, true);
         }
         LoadSkills();
+
+        // Refresh source skills in the background on startup so users receive new classes without deleting local files.
+        _ = RefreshDefaultSkillsAsync();
+    }
+
+    private async Task RefreshDefaultSkillsAsync()
+    {
+        try
+        {
+            ISettingsService settings = Ioc.Default.GetRequiredService<ISettingsService>();
+            if (!settings.Get<bool>("CheckAdvanceSkillSetsUpdates", false) ||
+                !settings.Get<bool>("AutoUpdateAdvanceSkillSetsUpdates", false))
+                return;
+
+            IGetScriptsService getScripts = Ioc.Default.GetRequiredService<IGetScriptsService>();
+            if (!await getScripts.UpdateSkillSetsFile() || !File.Exists(_defaultSkillsSetsPath))
+                return;
+
+            string defaultJson = await File.ReadAllTextAsync(_defaultSkillsSetsPath);
+            if (!File.Exists(_userSkillsSetsPath))
+            {
+                string? directory = Path.GetDirectoryName(_userSkillsSetsPath);
+                if (!string.IsNullOrEmpty(directory))
+                    Directory.CreateDirectory(directory);
+
+                await File.WriteAllTextAsync(_userSkillsSetsPath, defaultJson);
+            }
+            else
+            {
+                JsonObject defaults = JsonNode.Parse(defaultJson) as JsonObject
+                    ?? throw new JsonException("AdvancedSkills.json did not contain a JSON object.");
+                string userJson = await File.ReadAllTextAsync(_userSkillsSetsPath);
+                JsonObject user = JsonNode.Parse(userJson) as JsonObject
+                    ?? throw new JsonException("UserAdvancedSkills.json did not contain a JSON object.");
+
+                // Add newly published classes/modes while preserving existing user customizations.
+                foreach (KeyValuePair<string, JsonNode?> classEntry in defaults)
+                {
+                    if (classEntry.Value is not JsonObject defaultModes)
+                        continue;
+
+                    if (user[classEntry.Key] is not JsonObject userModes)
+                    {
+                        user[classEntry.Key] = defaultModes.DeepClone();
+                        continue;
+                    }
+
+                    foreach (KeyValuePair<string, JsonNode?> modeEntry in defaultModes)
+                    {
+                        if (userModes[modeEntry.Key] == null && modeEntry.Value != null)
+                            userModes[modeEntry.Key] = modeEntry.Value.DeepClone();
+                    }
+                }
+
+                string mergedJson = user.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(_userSkillsSetsPath, mergedJson);
+            }
+
+            LoadSkills();
+        }
+        catch
+        {
+            // Keep the last known-good local skills if the source cannot be reached or parsed.
+        }
     }
 
     public void Add(AdvancedSkill skill)

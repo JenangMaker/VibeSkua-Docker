@@ -6,7 +6,7 @@ namespace Skua.Core.ViewModels;
 public class ApplicationThemesViewModel : BotControlViewModelBase
 {
     public ApplicationThemesViewModel(IThemeService themeService, ThemeSettingsViewModel themeSettings, ColorSchemeEditorViewModel colorSchemeEditor, BackgroundThemeViewModel backgroundTheme)
-        : base("Application Themes")
+        : base("Application Themes", 620, 680)
     {
         ThemeService = themeService;
         ThemeSettings = themeSettings;

@@ -24,8 +24,10 @@ public partial class MapService : ObservableObject, IMapService
 
     public List<string> Cells => Map.Cells;
 
+    // Fast travel goes to a private room unless unticked (upstream ee476b4). Not saved: each
+    // session starts ticked.
     [ObservableProperty]
-    private bool _UsePrivateRoom;
+    private bool _UsePrivateRoom = true;
 
     [ObservableProperty]
     private int _PrivateRoomNumber = 111111;
@@ -44,24 +46,31 @@ public partial class MapService : ObservableObject, IMapService
 
     public void Travel(object? info)
     {
-        if (!Player.Playing || info is null)
+        if (!Player.Playing || info is not FastTravelItemViewModel vm)
             return;
-        Task.Run(() =>
+        // Background work: an exception here would go unobserved (upstream 0fa6145).
+        _ = Task.Run(() =>
         {
-            FastTravelItemViewModel vm = (info as FastTravelItemViewModel)!;
-            if (vm.MapName != "tercessuinotlim")
+            try
             {
-                Map.Join(UsePrivateRoom ? $"{vm.MapName}-{PrivateRoomNumber}" : vm.MapName, vm.Cell, vm.Pad);
-                return;
-            }
+                if (vm.MapName != "tercessuinotlim")
+                {
+                    Map.Join(UsePrivateRoom ? $"{vm.MapName}-{PrivateRoomNumber}" : vm.MapName, vm.Cell, vm.Pad);
+                    return;
+                }
 
-            if (Map.Name == "tercessuinotlim")
-            {
-                Map.Jump(vm.Cell, vm.Pad);
-                return;
+                if (Map.Name == "tercessuinotlim")
+                {
+                    Map.Jump(vm.Cell, vm.Pad);
+                    return;
+                }
+                Map.Jump("m22", "Left");
+                Map.Join(UsePrivateRoom ? $"tercessuinotlim-{PrivateRoomNumber}" : "tercessuinotlim", vm.Cell, vm.Pad);
             }
-            Map.Jump("m22", "Left");
-            Map.Join(UsePrivateRoom ? $"tercessuinotlim-{PrivateRoomNumber}" : "tercessuinotlim", vm.Cell, vm.Pad);
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.WriteLine($"Fast travel failed: {ex}");
+            }
         });
     }
 

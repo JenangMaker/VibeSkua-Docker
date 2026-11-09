@@ -1,0 +1,108 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <Styles.Resources>
+        <x:Double x:Key="ScrollBarThickness">6</x:Double>
+        <x:Double x:Key="ScrollBarThumbThickness">5</x:Double>
+        <x:Double x:Key="ScrollBarButtonSize">0</x:Double>
+    </Styles.Resources>
+
+    <Style Selector="ScrollViewer">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <!-- Sleek, Minimalist Modern Scrollbar -->
+    <Style Selector="ScrollBar">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="AllowAutoHide" Value="False" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <Style Selector="ScrollBar:vertical">
+        <Setter Property="Width" Value="6" />
+        <Setter Property="MinWidth" Value="6" />
+        <Setter Property="MaxWidth" Value="6" />
+    </Style>
+
+    <Style Selector="ScrollBar:horizontal">
+        <Setter Property="Height" Value="6" />
+        <Setter Property="MinHeight" Value="6" />
+        <Setter Property="MaxHeight" Value="6" />
+    </Style>
+
+    <!-- Template parts constraint -->
+    <Style Selector="ScrollBar:vertical /template/ Border#Root">
+        <Setter Property="Width" Value="6" />
+        <Setter Property="MinWidth" Value="6" />
+        <Setter Property="MaxWidth" Value="6" />
+    </Style>
+
+    <Style Selector="ScrollBar:horizontal /template/ Border#Root">
+        <Setter Property="Height" Value="6" />
+        <Setter Property="MinHeight" Value="6" />
+        <Setter Property="MaxHeight" Value="6" />
+    </Style>
+
+    <Style Selector="ScrollBar:vertical /template/ Track#PART_Track">
+        <Setter Property="Width" Value="6" />
+        <Setter Property="MinWidth" Value="6" />
+        <Setter Property="MaxWidth" Value="6" />
+    </Style>
+
+    <Style Selector="ScrollBar:horizontal /template/ Track#PART_Track">
+        <Setter Property="Height" Value="6" />
+        <Setter Property="MinHeight" Value="6" />
+        <Setter Property="MaxHeight" Value="6" />
+    </Style>
+
+    <!-- ScrollBar Thumb: Sleek modern pill -->
+    <Style Selector="ScrollBar /template/ Thumb#PART_Thumb, ScrollBar /template/ Thumb">
+        <Setter Property="Background" Value="{DynamicResource SkuaScrollThumbBrush}" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.12" Easing="CubicEaseOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <Style Selector="ScrollBar:vertical /template/ Thumb#PART_Thumb, ScrollBar:vertical /template/ Thumb">
+        <Setter Property="Width" Value="5" />
+        <Setter Property="MinWidth" Value="5" />
+        <Setter Property="MaxWidth" Value="5" />
+        <Setter Property="MinHeight" Value="16" />
+        <Setter Property="CornerRadius" Value="2.5" />
+    </Style>
+
+    <Style Selector="ScrollBar:horizontal /template/ Thumb#PART_Thumb, ScrollBar:horizontal /template/ Thumb">
+        <Setter Property="Height" Value="5" />
+        <Setter Property="MinHeight" Value="5" />
+        <Setter Property="MaxHeight" Value="5" />
+        <Setter Property="MinWidth" Value="16" />
+        <Setter Property="CornerRadius" Value="2.5" />
+    </Style>
+
+    <Style Selector="ScrollBar /template/ Thumb#PART_Thumb:pointerover, ScrollBar /template/ Thumb:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SkuaScrollThumbHoverBrush}" />
+    </Style>
+
+    <Style Selector="ScrollBar /template/ Thumb#PART_Thumb:pressed, ScrollBar /template/ Thumb:pressed">
+        <Setter Property="Background" Value="{DynamicResource SkuaScrollThumbPressedBrush}" />
+    </Style>
+
+    <!-- Hide the arrow buttons. The page buttons (the track either side of the thumb) stay, so a click on
+         the track still pages; Fluent draws them transparent. -->
+    <Style Selector="ScrollBar /template/ RepeatButton#PART_LineUpButton,
+                     ScrollBar /template/ RepeatButton#PART_LineDownButton,
+                     ScrollBar /template/ RepeatButton#PART_LineLeftButton,
+                     ScrollBar /template/ RepeatButton#PART_LineRightButton">
+        <Setter Property="IsVisible" Value="False" />
+        <Setter Property="Width" Value="0" />
+        <Setter Property="Height" Value="0" />
+        <Setter Property="Opacity" Value="0" />
+    </Style>
+
+</Styles>

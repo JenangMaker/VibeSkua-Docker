@@ -217,38 +217,44 @@ public partial class ScriptLoaderViewModel : BotControlViewModelBase
 
         ToggleScriptEnabled = false;
 
-        if (ScriptManager.ScriptRunning)
+        // A throwing stop or start used to leave Start/Stop disabled (async void: the exception
+        // was lost); now it is shown and the controls come back (upstream 9fe8c4e).
+        try
         {
-            if (Path.GetFileName(ScriptManager.LoadedScript) != msgPathFileName)
+            if (ScriptManager.ScriptRunning)
             {
-                runningScriptMessage = $"{LoadedScript} is running. Do you want to stop it and start {msgPathFileName}?";
-                startNew = true;
-            }
-
-            DialogResult dialogResult = _dialogService.ShowMessageBox(runningScriptMessage, "Script Error", "No", "Yes");
-
-            if (dialogResult.Text == "Yes")
-            {
-                ToggleScriptEnabled = false;
-                await ScriptManager.StopScript();
-
-                if (startNew)
+                if (!string.Equals(Path.GetFileName(ScriptManager.LoadedScript), msgPathFileName, StringComparison.OrdinalIgnoreCase))
                 {
-                    LoadedScript = Path.GetFileName(message.Path) ?? string.Empty;
-                    await Task.Delay(5000);
-                    await recipient.StartScriptAsync(message.Path);
+                    runningScriptMessage = $"{LoadedScript} is running. Do you want to stop it and start {msgPathFileName}?";
+                    startNew = true;
                 }
+
+                DialogResult dialogResult = _dialogService.ShowMessageBox(runningScriptMessage, "Script Error", "No", "Yes");
+                if (dialogResult.Text != "Yes")
+                    return;
+
+                await ScriptManager.StopScript();
+                if (!startNew)
+                    return;
+
+                LoadedScript = msgPathFileName;
+                await Task.Delay(5000);
+            }
+            else
+            {
+                LoadedScript = msgPathFileName;
             }
 
-            ToggleScriptEnabled = true;
-            return;
+            await recipient.StartScriptAsync(message.Path);
         }
-        else
+        catch (Exception ex)
         {
-            LoadedScript = Path.GetFileName(message.Path) ?? string.Empty;
+            _dialogService.ShowMessageBox($"Failed to start script: {ex.Message}", "Script Error");
         }
-
-        await recipient.StartScriptAsync(message.Path);
+        finally
+        {
+            ToggleScriptEnabled = true;
+        }
     }
 
 

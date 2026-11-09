@@ -48,6 +48,9 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
     private string _password;
 
     public string LastIP { get; set; } = string.Empty;
+    public bool IsIntentionalLogout { get; set; }
+    // A banned or disabled account: no more relogin tries until a login is asked for again.
+    private volatile bool _accountLockoutDetected;
     public string LastName { get; set; } = string.Empty;
     public string? CachedUsername => _loginInfoSetted && !string.IsNullOrWhiteSpace(_username) ? _username : (!string.IsNullOrWhiteSpace(Player.Username) && Player.Username != "loginInfo.strUsername" ? Player.Username : null);
 
@@ -62,21 +65,41 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
 
     // Flash Methods Binding
 
-    [MethodCallBinding("login", GameFunction = true)]
+    [MethodCallBinding("login", RunMethodPre = true, GameFunction = true)]
     private void _login(string username, string password)
-    { }
+    {
+        IsIntentionalLogout = false;
+    }
 
     [MethodCallBinding("logout", RunMethodPost = true, GameFunction = true)]
     private void _logout()
     {
-        if (IsConnected)
-            Flash.CallGameFunction("sfc.disconnect");
-        Flash.CallGameFunction("gotoAndPlay", "Login");
+        IsIntentionalLogout = true;
+        DisconnectToLogin();
+    }
+
+    public void DisconnectForRelogin()
+    {
+        IsIntentionalLogout = false;
+        DisconnectToLogin();
+    }
+
+    private void DisconnectToLogin()
+    {
+        try
+        {
+            if (IsConnected)
+                Flash.CallGameFunction("sfc.disconnect");
+        }
+        catch { }
+        try { Flash.Call("killLoginModals"); } catch { }
+        try { Flash.CallGameFunction("gotoAndPlay", "Login"); } catch { }
     }
 
     [MethodCallBinding("connectTo", RunMethodPost = true, GameFunction = true)]
     private bool _connectIP(string ip)
     {
+        IsIntentionalLogout = false;
         Wait.ForTrue(() => !Manager.ShouldExit && Player.Playing && Flash.IsWorldLoaded, LoginWaitMs / 100);
         return Player.Playing;
     }
@@ -84,6 +107,7 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
     [MethodCallBinding("connectTo", RunMethodPost = true, GameFunction = true)]
     private bool _connectIP(string ip, int port)
     {
+        IsIntentionalLogout = false;
         Wait.ForTrue(() => !Manager.ShouldExit && Player.Playing && Flash.IsWorldLoaded, LoginWaitMs / 100);
         return Player.Playing;
     }
@@ -91,6 +115,7 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
     [MethodCallBinding("connectToServer", RunMethodPost = true)]
     private bool _connectToServer(string server)
     {
+        IsIntentionalLogout = false;
         Wait.ForTrue(() => !Manager.ShouldExit && Player.Playing && Flash.IsWorldLoaded, LoginWaitMs / 100);
         return Player.Playing;
     }
@@ -175,12 +200,12 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
         return false;
     }
 
-    private bool IsServerBlacklistedForRelogin(Server server)
+    private static bool IsServerBlacklistedForRelogin(Server server, bool isNonMemberAccount)
     {
         if (!IsValidReloginServerData(server))
             return true;
         string serverName = server.Name ?? string.Empty;
-        bool memberOnly = server.Upgrade && IsNonMemberAccount();
+        bool memberOnly = server.Upgrade && isNonMemberAccount;
         return !server.Online
             || serverName.Contains("Test", StringComparison.OrdinalIgnoreCase)
             || IsServerFull(server)
@@ -205,8 +230,10 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
     private List<Server> BuildReloginCandidates()
     {
         List<Server> candidates = new();
-        AddReloginCandidates(candidates, CachedServers);
-        AddReloginCandidates(candidates, ServerList);
+        // Read once per list: it is up to two game calls.
+        bool isNonMemberAccount = IsNonMemberAccount();
+        AddReloginCandidates(candidates, CachedServers, isNonMemberAccount);
+        AddReloginCandidates(candidates, ServerList, isNonMemberAccount);
         return candidates;
     }
 
@@ -223,11 +250,11 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
         }
     }
 
-    private void AddReloginCandidates(List<Server> candidates, List<Server> source)
+    private void AddReloginCandidates(List<Server> candidates, List<Server> source, bool isNonMemberAccount)
     {
         foreach (Server server in source)
         {
-            if (IsServerBlacklistedForRelogin(server))
+            if (IsServerBlacklistedForRelogin(server, isNonMemberAccount))
                 continue;
 
             if (candidates.Exists(x => string.Equals(x.Name, server.Name, StringComparison.OrdinalIgnoreCase)))
@@ -254,6 +281,9 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
             && (attemptedServers is null || !attemptedServers.Contains(x.Name ?? string.Empty)));
     }
 
+    // Not on IScriptOption, so anything that isn't the concrete ScriptOption counts as off.
+    private bool ReloginFallbackEnabled => Options is ScriptOption { ReloginFallback: true };
+
     private Server? SelectReloginServer(string? preferredName = null, HashSet<string>? attemptedServers = null)
     {
         List<Server> candidates = BuildReloginCandidates();
@@ -261,6 +291,17 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
             return null;
 
         HashSet<string> triedServers = attemptedServers ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (!ReloginFallbackEnabled)
+        {
+            // Without Relogin Fallback there is no hop to whichever server is free (an army must stay
+            // on one server): the preferred and Relogin Server picks are retried even after a failed
+            // attempt, and null makes the caller wait and retry.
+            Server? preferredServer = FindByName(candidates, preferredName, true);
+            if (preferredServer is null && Options.AutoReloginAny)
+                preferredServer = candidates.Find(x => x.IP != LastIP && !triedServers.Contains(x.Name ?? string.Empty));
+            return preferredServer ?? FindByName(candidates, Options.ReloginServer, true);
+        }
 
         Server? selectedServer = FindByName(candidates, preferredName, true, triedServers);
         if (selectedServer is not null)
@@ -346,34 +387,40 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
         }
         bool autoRelogSwitch = Options.AutoRelogin;
         Options.AutoRelogin = false;
-        ReloginLog($"Relogging using IP {ip}.");
-
-        Thread.Sleep(2000);
-        Logout();
-        WaitForLoginForm();
-
-        Stats.Relogins++;
-        if (_loginInfoSetted)
-            Login(_username, _password);
-        else
-            Login(Player.Username, Player.Password);
-
-        ReloginLog($"Waiting for server list screen before connecting to IP {ip}...");
-        if (!WaitForServerListReady(CancellationToken.None).GetAwaiter().GetResult())
+        // Auto Relogin comes back on every way out, an exception included.
+        try
         {
-            ReloginLog($"Authentication timed out or froze while connecting to IP {ip}.");
-            Options.AutoRelogin = autoRelogSwitch;
-            return false;
+            ReloginLog($"Relogging using IP {ip}.");
+
+            Thread.Sleep(2000);
+            DisconnectForRelogin();
+            WaitForLoginForm();
+
+            Stats.Relogins++;
+            if (_loginInfoSetted)
+                Login(_username, _password);
+            else
+                Login(Player.Username, Player.Password);
+
+            ReloginLog($"Waiting for server list screen before connecting to IP {ip}...");
+            if (!WaitForServerListReady(CancellationToken.None).GetAwaiter().GetResult())
+            {
+                ReloginLog($"Authentication timed out or froze while connecting to IP {ip}.");
+                return false;
+            }
+
+            Thread.Sleep(1000);
+            ConnectIP(ip);
+
+            Wait.ForTrue(() => Player.Playing && Flash.IsWorldLoaded, LoginWaitMs / 100);
+            bool connected = Player.Playing;
+            ReloginLog(connected ? "Relogin by IP successful." : "Relogin by IP failed.");
+            return connected;
         }
-
-        Thread.Sleep(1000);
-        ConnectIP(ip);
-
-        Wait.ForTrue(() => Player.Playing && Flash.IsWorldLoaded, LoginWaitMs / 100);
-        Options.AutoRelogin = autoRelogSwitch;
-        bool connected = Player.Playing;
-        ReloginLog(connected ? "Relogin by IP successful." : "Relogin by IP failed.");
-        return connected;
+        finally
+        {
+            Options.AutoRelogin = autoRelogSwitch;
+        }
     }
 
     public bool Relogin(string serverName)
@@ -396,33 +443,38 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
         }
         bool autoRelogSwitch = Options.AutoRelogin;
         Options.AutoRelogin = false;
-        ReloginLog($"Relogging on server {server.Name} [{server.PlayerCount}/{server.MaxPlayers}].");
-
-        Logout();
-        WaitForLoginForm();
-        Stats.Relogins++;
-
-        if (_loginInfoSetted)
-            Login(_username, _password);
-        else
-            Login(Player.Username, Player.Password);
-
-        ReloginLog($"Waiting for server list screen before connecting to {server.Name}...");
-        if (!WaitForServerListReady(CancellationToken.None).GetAwaiter().GetResult())
+        try
         {
-            ReloginLog($"Authentication timed out or froze while connecting to {server.Name}.");
-            Options.AutoRelogin = autoRelogSwitch;
-            return false;
+            ReloginLog($"Relogging on server {server.Name} [{server.PlayerCount}/{server.MaxPlayers}].");
+
+            DisconnectForRelogin();
+            WaitForLoginForm();
+            Stats.Relogins++;
+
+            if (_loginInfoSetted)
+                Login(_username, _password);
+            else
+                Login(Player.Username, Player.Password);
+
+            ReloginLog($"Waiting for server list screen before connecting to {server.Name}...");
+            if (!WaitForServerListReady(CancellationToken.None).GetAwaiter().GetResult())
+            {
+                ReloginLog($"Authentication timed out or froze while connecting to {server.Name}.");
+                return false;
+            }
+
+            Thread.Sleep(1000);
+            ConnectToServer(JsonConvert.SerializeObject(server));
+
+            Wait.ForTrue(() => Player.Playing && Flash.IsWorldLoaded, LoginWaitMs / 100);
+            bool connected = Player.Playing;
+            ReloginLog(connected ? $"Relogin successful on {server.Name}." : $"Relogin failed on {server.Name}.");
+            return connected;
         }
-
-        Thread.Sleep(1000);
-        ConnectToServer(JsonConvert.SerializeObject(server));
-
-        Wait.ForTrue(() => Player.Playing && Flash.IsWorldLoaded, LoginWaitMs / 100);
-        Options.AutoRelogin = autoRelogSwitch;
-        bool connected = Player.Playing;
-        ReloginLog(connected ? $"Relogin successful on {server.Name}." : $"Relogin failed on {server.Name}.");
-        return connected;
+        finally
+        {
+            Options.AutoRelogin = autoRelogSwitch;
+        }
     }
 
     public bool EnsureRelogin(string serverName)
@@ -441,32 +493,53 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
 
     public async Task<bool> EnsureRelogin(CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
+        _accountLockoutDetected = false;
+        IsIntentionalLogout = false;
         await GetServers(true);
         Server? server = SelectReloginServer();
+        string? preferredName = server?.Name;
         if (server is null)
         {
-            ReloginLog("No eligible servers available for auto relogin.");
-            return false;
+            if (ReloginFallbackEnabled)
+            {
+                ReloginLog("No eligible servers available for auto relogin.");
+                return false;
+            }
+
+            // Without the fallback the Relogin Server being full or offline is expected: keep trying for it.
+            preferredName = Options.ReloginServer;
+            ReloginLog($"Relogin server {preferredName} is not eligible right now; retrying until it is or the tries run out.");
+        }
+        else
+        {
+            ReloginLog($"Auto relogin started. Preferred server: {server.Name}.");
         }
 
-        ReloginLog($"Auto relogin started. Preferred server: {server.Name}.");
-
-        return await EnsureLogin(server, token);
+        return await EnsureLogin(preferredName, token);
     }
 
     public async Task<bool> EnsureRelogin(string serverName, CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
+        _accountLockoutDetected = false;
+        IsIntentionalLogout = false;
         await GetServers(true);
         Server? server = SelectReloginServerByName(serverName, true) ?? SelectReloginServer();
-        if (server is null)
+        if (server is null && ReloginFallbackEnabled)
         {
             ReloginLog($"No eligible servers available for requested relogin target {serverName}.");
             return false;
         }
 
-        ReloginLog($"Auto relogin started for target {serverName}. Preferred server: {server.Name}.");
+        // Without the fallback the requested server stays the target for every retry, eligible now or not.
+        string? preferredName = ReloginFallbackEnabled ? server?.Name : serverName;
+        if (server is null)
+            ReloginLog($"Requested relogin target {serverName} is not eligible right now; retrying until it is or the tries run out.");
+        else
+            ReloginLog($"Auto relogin started for target {serverName}. Preferred server: {server.Name}.");
 
-        return await EnsureLogin(server, token);
+        return await EnsureLogin(preferredName, token);
     }
 
     private async Task WaitReloginDelay(CancellationToken token)
@@ -511,6 +584,27 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
         {
             while (!token.IsCancellationRequested && !Manager.ShouldExit && !waitServerList.IsCancellationRequested)
             {
+                // A dialog ("already logged in", "invalid password", a ban) instead of the server
+                // list: clear it and retry now instead of waiting out the timeout.
+                string? modalText = Flash.Call<string>("getActiveModalMessage");
+                if (!string.IsNullOrWhiteSpace(modalText) && modalText != "null")
+                {
+                    string trimmedModal = modalText.Trim();
+                    if (trimmedModal.Contains("banned", StringComparison.OrdinalIgnoreCase) ||
+                        trimmedModal.Contains("disabled", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // The dialog stays up so whoever looks at the tab sees why.
+                        ReloginLog($"Account lockout detected ('{trimmedModal}'). Stopping auto re-login.");
+                        IsIntentionalLogout = true;
+                        _accountLockoutDetected = true;
+                        return false;
+                    }
+
+                    ReloginLog($"Login dialog: '{trimmedModal}'. Clearing it.");
+                    try { Flash.Call("killLoginModals"); } catch { }
+                    return false;
+                }
+
                 bool loginVisible = Flash.GetGameObject<bool>("mcLogin.visible", false);
                 bool serverListExists = !Flash.IsNull("mcLogin.sl.iList");
                 int serverEntries = Flash.GetGameObject<int>("mcLogin.sl.iList.numChildren", 0);
@@ -521,6 +615,8 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
             }
         }
         catch { }
+        if (_accountLockoutDetected)
+            return false;
         bool finalLoginVisible = Flash.GetGameObject<bool>("mcLogin.visible", false);
         bool finalServerListExists = !Flash.IsNull("mcLogin.sl.iList");
         int finalServerEntries = Flash.GetGameObject<int>("mcLogin.sl.iList.numChildren", 0);
@@ -530,6 +626,7 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
             ReloginLog("Server list screen failed to load (authentication timeout or freeze). Resetting login UI.");
             try
             {
+                Flash.Call("killLoginModals");
                 Flash.CallGameFunction("gotoAndPlay", "Login");
             }
             catch { }
@@ -537,14 +634,14 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
         return success;
     }
 
-    private async Task<bool> EnsureLogin(Server server, CancellationToken token)
+    private async Task<bool> EnsureLogin(string? preferredName, CancellationToken token)
     {
         int tries = 0;
         HashSet<string> attemptedServers = new(StringComparer.OrdinalIgnoreCase);
-        string? preferredServerName = server.Name;
+        string? preferredServerName = preferredName;
         try
         {
-            while (!token.IsCancellationRequested && !Manager.ShouldExit && !Player.Playing && tries < Options.ReloginTries)
+            while (!token.IsCancellationRequested && !Manager.ShouldExit && !_accountLockoutDetected && !Player.Playing && tries < Options.ReloginTries)
             {
                 tries++;
                 await GetServers(true);
@@ -564,7 +661,7 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
 
                 if (IsConnected || tries > 1)
                 {
-                    Logout();
+                    DisconnectForRelogin();
                     await Task.Delay(2000, token);
                 }
                 await Task.Run(WaitForLoginForm, token);
@@ -577,7 +674,10 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
                 if (!await WaitForServerListReady(token))
                 {
                     ReloginLog($"Attempt {tries}/{Options.ReloginTries}: server list screen not ready.");
-                    preferredServerName = null;
+                    if (_accountLockoutDetected)
+                        break;
+                    if (ReloginFallbackEnabled)
+                        preferredServerName = null;
                     if (tries < Options.ReloginTries)
                         await WaitReloginDelay(token);
                     continue;
@@ -607,7 +707,8 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
                 }
 
                 ReloginLog($"Attempt {tries}/{Options.ReloginTries} failed on {targetServer.Name}.");
-                preferredServerName = null;
+                if (ReloginFallbackEnabled)
+                    preferredServerName = null;
 
                 if (tries < Options.ReloginTries)
                     await WaitReloginDelay(token);
@@ -615,7 +716,7 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
         }
         catch { }
 
-        if (!Player.Playing)
+        if (!Player.Playing && !_accountLockoutDetected)
             ReloginLog("Unable to reconnect within configured retries.");
         return Player.Playing;
     }

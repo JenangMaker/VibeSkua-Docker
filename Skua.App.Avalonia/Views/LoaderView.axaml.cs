@@ -13,7 +13,13 @@ public partial class LoaderView : UserControl
         InitializeComponent();
         DataContextChanged += (_, _) => Attach();
         SearchBox.TextChanged += (_, _) => _quests?.Refresh();
-        QuestIDsListBox.SelectionChanged += (_, _) => FakeComplete.IsEnabled = QuestIDsListBox.SelectedItems?.Count == 1;
+        QuestIDsListBox.SelectionChanged += (_, _) =>
+        {
+            int n = QuestIDsListBox.SelectedItems?.Count ?? 0;
+            FakeComplete.IsEnabled = n == 1;
+            LoadSelected.IsEnabled = n > 0;
+            SelectedText.Text = n == 0 ? "None selected" : $"{n} selected";
+        };
         QuestIDsListBox.KeyDown += (_, e) =>
         {
             if (DataContext is not LoaderViewModel vm || !e.KeyModifiers.HasFlag(KeyModifiers.Control))
