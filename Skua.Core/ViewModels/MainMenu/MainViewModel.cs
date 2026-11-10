@@ -55,7 +55,8 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (_titleUpdateTimer == null)
         {
-            _titleUpdateTimer = new System.Timers.Timer(1000);
+            // The name only changes at login: every 5 s is soon enough (it was a game read a second).
+            _titleUpdateTimer = new System.Timers.Timer(5000);
             _titleUpdateTimer.Elapsed += (s, e) => CheckAndUpdateTitle();
             _titleUpdateTimer.AutoReset = true;
             _titleUpdateTimer.Start();
@@ -87,30 +88,39 @@ public sealed partial class MainViewModel : ObservableObject
 
     private void CheckAndUpdateTitle()
     {
+        if (_settingsService == null)
+            return;
+        // Read on the timer's thread: a game call waits for the game, and on the UI thread
+        // that wait froze the window. Only a change goes to the UI thread.
+        bool showUsername;
+        string? currentUsername;
+        try
+        {
+            showUsername = _settingsService.Get<bool>("ShowUsernameInTitle");
+            currentUsername = GetPlayerUsername();
+        }
+        catch
+        {
+            return;
+        }
+        if (showUsername == _showUsernameInTitle && currentUsername == _lastUsername)
+            return;
+
         var dispatcher = Ioc.Default.GetService<IDispatcherService>();
         if (dispatcher == null)
         {
-            DoCheckAndUpdate();
+            DoUpdate();
             return;
         }
 
-        dispatcher.Invoke(DoCheckAndUpdate);
+        dispatcher.Invoke(DoUpdate);
 
-        void DoCheckAndUpdate()
+        void DoUpdate()
         {
-            if (_settingsService == null)
-                return;
-
             try
             {
-                bool showUsername = _settingsService.Get<bool>("ShowUsernameInTitle");
-                string? currentUsername = GetPlayerUsername();
-
-                if (showUsername != _showUsernameInTitle || currentUsername != _lastUsername)
-                {
-                    _showUsernameInTitle = showUsername;
-                    UpdateTitle();
-                }
+                _showUsernameInTitle = showUsername;
+                UpdateTitle();
             }
             catch { }
         }

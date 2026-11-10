@@ -330,9 +330,10 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
                 });
 
                 // Its timeouts are seconds long: 500 ms is soon enough, and saves
-                // ~480 isNull calls a minute.
-                _limit.LimitedRun("connDetail", 500, () => (lastConnChange, lastConnDetail) = CheckStuckonLoading(lastConnChange, lastConnDetail));
-                _limit.LimitedRun("loginStuck", 500, CheckStuckOnLogin);
+                // ~480 isNull calls a minute. Once a second with no script running.
+                int stuckMs = Manager.ScriptRunning ? 500 : 1000;
+                _limit.LimitedRun("connDetail", stuckMs, () => (lastConnChange, lastConnDetail) = CheckStuckonLoading(lastConnChange, lastConnDetail));
+                _limit.LimitedRun("loginStuck", stuckMs, CheckStuckOnLogin);
 
                 if (Manager.ScriptRunning)
                     RunScriptHandlers();
