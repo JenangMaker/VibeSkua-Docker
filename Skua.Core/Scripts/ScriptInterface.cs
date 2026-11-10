@@ -429,6 +429,13 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
         {
             if (connDetail.Contains("loading map"))
             {
+                // Back to the area with its room ("escherion-9721"), read before leaving: LastMap
+                // is the bare map name, and a bare join lands in a public room (CoreBots turns
+                // Skua's private rooms off), where the script then stays, as its joins skip a map
+                // it is already on (seen 2026-11-10 after all tabs started at once).
+                // (Not Map.FullName: it is empty until the map has loaded.)
+                string area = Flash.GetGameObject("world.strAreaName")?.Trim('"') is { Length: > 0 } full && full.Contains('-') ? full : Map.LastMap;
+                Log($"Map load stuck for {Options.LoadTimeout / 1000} s; rejoining {area} through battleon.");
                 Map.Join("battleon");
                 Map.Reload();
                 Handlers.RegisterOnce(500, b =>
@@ -438,7 +445,7 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
                         LogoutStuck();
                         return;
                     }
-                    Map.Join(Map.LastMap);
+                    Map.Join(area);
                 });
             }
             else
