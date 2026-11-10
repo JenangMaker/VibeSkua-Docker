@@ -236,7 +236,11 @@ public sealed partial class HostApi
     {
         while (!token.IsCancellationRequested)
         {
-            try { await Task.Delay(100, token); }
+            // Fast only while a script runs: only scripts jump through cutscene cells, and a
+            // throttled tab is not one anybody plays by hand. Idle, once a second (it was 10
+            // reads a second on every idle tab: ~1,200 game calls a minute for nothing).
+            int wait = Get<IScriptManager>().ScriptRunning ? 100 : 1000;
+            try { await Task.Delay(wait, token); }
             catch (OperationCanceledException) { break; }
             try
             {

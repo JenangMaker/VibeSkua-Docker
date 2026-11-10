@@ -293,7 +293,9 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
 
                 // Everything below needs at most 4 answers a second; asking the game
                 // on every 20 ms pass cost about 250 bridge round trips a second.
-                _limit.LimitedRun("playing", 250, () =>
+                // With no script running, once a second is enough (options and the
+                // relogin watchdog only; the watchdog waits 2 s anyway).
+                _limit.LimitedRun("playing", Manager.ScriptRunning ? 250 : 1000, () =>
                 {
                     if (!Flash.IsWorldLoaded || !Player.LoggedIn)
                     {

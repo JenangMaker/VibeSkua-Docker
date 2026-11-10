@@ -190,6 +190,7 @@ public partial class MainWindow : Window
     }
 
     private int _statusBusy;
+    private int _statusTick;
 
     // The status line's values are calls to the game, each waiting for its
     // answer (up to the bridge's CallTimeout), so they are read on a pool
@@ -207,6 +208,9 @@ public partial class MainWindow : Window
             StatusText.Text = "Waiting for the game page to connect...";
             return;
         }
+        // Once a second, and not while the tab is out of view: these are six game calls each.
+        if (Skua.Linux.HostApi.IsShrunk || ++_statusTick % 2 != 0)
+            return;
         if (Interlocked.Exchange(ref _statusBusy, 1) == 1)
             return;
         _ = Task.Run(() =>
