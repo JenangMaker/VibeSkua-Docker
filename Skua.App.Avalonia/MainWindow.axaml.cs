@@ -167,7 +167,7 @@ public partial class MainWindow : Window
         else if (sync.FinishedAt != default && DateTime.UtcNow - sync.FinishedAt < TimeSpan.FromSeconds(15))
         {
             SyncText.Text = sync.Summary;
-            SyncProgress.IsVisible = false;
+            HideSyncProgress();
             bool bad = sync.Summary.Contains("fail", StringComparison.OrdinalIgnoreCase) || sync.Summary.StartsWith("Could not");
             SyncIcon.Kind = bad ? Material.Icons.MaterialIconKind.CloudAlert : Material.Icons.MaterialIconKind.CloudCheck;
             SyncPanel.IsVisible = true;
@@ -176,7 +176,17 @@ public partial class MainWindow : Window
         else
         {
             SyncPanel.IsVisible = false;
+            HideSyncProgress();
         }
+    }
+
+    // Hidden is not enough: an indeterminate ProgressBar keeps its animation running while
+    // hidden, and the window was then redrawn at full rate for good (tab 1, after the Script
+    // Updates question: ~30% of a core in software drawing).
+    private void HideSyncProgress()
+    {
+        SyncProgress.IsIndeterminate = false;
+        SyncProgress.IsVisible = false;
     }
 
     private int _statusBusy;

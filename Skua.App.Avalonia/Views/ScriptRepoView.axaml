@@ -173,7 +173,8 @@
                 <Border Background="{DynamicResource SkuaSurfaceBrush}" BorderBrush="{DynamicResource SkuaBorderBrush}" BorderThickness="1"
                         CornerRadius="12" Padding="28,24" HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="320" MaxWidth="450">
                     <StackPanel Spacing="16" HorizontalAlignment="Center">
-                        <ProgressBar IsIndeterminate="True" Height="4" Width="240" HorizontalAlignment="Center" />
+                        <!-- Animated only while busy: a hidden indeterminate bar still redraws the window nonstop. -->
+                        <ProgressBar IsIndeterminate="{Binding IsBusy}" Height="4" Width="240" HorizontalAlignment="Center" />
                         <TextBlock Text="{Binding ProgressReportMessage, FallbackValue='Processing...', TargetNullValue='Processing...'}"
                                    FontSize="12" FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap" />
                         <Button Classes="skua-button skua-danger w112" HorizontalAlignment="Center" Command="{Binding CancelTaskCommand}">
