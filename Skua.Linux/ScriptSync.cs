@@ -47,7 +47,10 @@ public sealed class ScriptSync(IServiceProvider services)
                 : "") +
             "Download them now?";
         Step($"{missing + outdated} script updates available: waiting for your choice");
-        DialogResult choice = Dialogs.ShowMessageBox(message, "Script Updates", "Update all", "Only missing", "Skip");
+        // Shown in every tab (SharedQuestion): any of them, or any tab's API, can answer.
+        string[] buttons = ["Update all", "Only missing", "Skip"];
+        int pressed = SharedQuestion.Ask(Dialogs, "Script Updates", message, buttons);
+        DialogResult choice = pressed >= 0 ? new(buttons[pressed], pressed) : new("Skip", -1);
         Scope scope = choice.Value switch { 0 => Scope.All, 1 => Scope.Missing, _ => Scope.None };
         Console.WriteLine($"[scripts] {missing} missing, {outdated} outdated; chose: {(choice.Value < 0 ? "Skip" : choice.Text)}");
         if (scope != Scope.None)
@@ -129,7 +132,7 @@ public sealed class ScriptSync(IServiceProvider services)
 
     // "pid start-time": a container restart reuses the same small pids, so a
     // marker left behind must not match whichever process has that pid now.
-    private static string ProcessStamp(int pid)
+    internal static string ProcessStamp(int pid)
     {
         try
         {
@@ -140,7 +143,9 @@ public sealed class ScriptSync(IServiceProvider services)
         }
         catch
         {
-            return pid.ToString();
+            // Windows (no /proc): the start time; a pid with no process gives -1.
+            try { using var p = System.Diagnostics.Process.GetProcessById(pid); return $"{pid} {p.StartTime.Ticks}"; }
+            catch { return $"{pid} -1"; }
         }
     }
 
@@ -158,7 +163,7 @@ public sealed class ScriptSync(IServiceProvider services)
         string? told = null;
         while (true)
         {
-            string? reason = Held(StartupMarker) ? "the script updates (answer the Script Updates question in tab 1)"
+            string? reason = Held(StartupMarker) ? "the script updates (answer the Script Updates question, in any tab)"
                 : Held(BusyMarker) ? "the script sync" : null;
             if (reason is null)
                 return true;

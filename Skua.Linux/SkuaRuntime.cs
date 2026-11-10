@@ -126,6 +126,8 @@ public sealed class SkuaRuntime
         provider.GetRequiredService<IPluginManager>().Initialize();
         Step("script sync, bridge, API");
         _ = Task.Run(Scripts.StartupAsync);
+        // Another tab's Script Updates question, shown here too (SharedQuestion).
+        _ = Task.Run(() => SharedQuestion.WatchAsync(provider.GetRequiredService<Skua.Core.Interfaces.IDialogService>()));
 
         Bridge.ConnectionChanged += up => Console.WriteLine(up ? "[host] page connected" : "[host] page disconnected");
         Bridge.Start();
