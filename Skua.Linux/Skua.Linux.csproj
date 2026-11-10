@@ -21,6 +21,7 @@
   <ItemGroup>
     <!-- POST /debug/trace: CPU-samples this process (TraceApi). -->
     <PackageReference Include="Microsoft.Diagnostics.NETCore.Client" Version="0.2.745401" />
+    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.1.16" />
   </ItemGroup>
 
 </Project>
