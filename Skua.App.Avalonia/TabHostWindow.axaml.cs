@@ -80,7 +80,13 @@ public partial class TabHostWindow : Window
             int accounts = Enumerable.Range(1, MaxTabs).LastOrDefault(n => SkuaRuntime.EnvRaw($"AQW_USER_{n}") is not null);
             int asked = int.TryParse(SkuaRuntime.EnvRaw("SKUA_TABS"), out int t) ? t : 1;
             int count = Math.Clamp(Math.Max(accounts, asked), 1, MaxTabs);
-            return Enumerable.Range(0, count).Union(AccountStore.Load().Select(a => a.Tab - 1)).Order();
+            var tabs = Enumerable.Range(0, count).Union(AccountStore.Load().Select(a => a.Tab - 1)).Order().ToList();
+            // Tabs closed on purpose stay closed (ScriptResume.ClosedTabs); one tab always opens.
+            var closed = ScriptResume.ClosedTabs;
+            var open = tabs.Where(n => !closed.Contains(n + 1)).ToList();
+            if (open.Count < tabs.Count)
+                Console.WriteLine($"[tabs] not opening tab(s) {string.Join(", ", tabs.Except(open).Select(n => n + 1))}: closed before the restart (open them from the tab strip or the API)");
+            return open.Count > 0 ? open : tabs.Take(1);
         }
     }
 
@@ -157,6 +163,7 @@ public partial class TabHostWindow : Window
         if (n is < 0 or >= MaxTabs || Tabs.Any(t => t.Number == n))
             return null;
         var tab = new SkuaTab(n) { Api = LocalBase(PrefixFor("SKUA_API_PREFIX", "http://127.0.0.1:8791/", n)) };
+        ScriptResume.Opened(n + 1);
         int at = Tabs.TakeWhile(t => t.Number < n).Count();
         Tabs.Insert(at, tab);
         _ = OpenGame(tab);

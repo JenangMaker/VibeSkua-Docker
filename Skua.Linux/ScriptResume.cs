@@ -34,6 +34,9 @@ public static class ScriptResume
     private sealed class FileModel
     {
         public Dictionary<string, Entry> Tabs { get; set; } = new();
+
+        /// <summary>Tabs (1-based) closed on purpose: not opened again at the next start.</summary>
+        public List<int>? ClosedTabs { get; set; }
     }
 
     public static readonly TimeSpan StopGrace = TimeSpan.FromMinutes(2);
@@ -173,17 +176,52 @@ public static class ScriptResume
     }
 
     /// <summary>
-    /// The tab was closed on purpose: its script is kept (loaded when it is
-    /// opened again) but not started.
+    /// Tabs (1-based) closed on purpose and not opened since. The tab host leaves them closed
+    /// when it starts (a redeploy or restart no longer logs them back in, which kicked the
+    /// same account logged in elsewhere). Kept whether or not SKUA_RESUME_SCRIPTS is on.
+    /// </summary>
+    public static IReadOnlyCollection<int> ClosedTabs
+    {
+        get
+        {
+            lock (Lock)
+                return Read().ClosedTabs?.ToArray() ?? [];
+        }
+    }
+
+    /// <summary>The tab was opened (from the tab strip, the API or the Manager): no longer closed.</summary>
+    public static void Opened(int tab)
+    {
+        lock (Lock)
+        {
+            var file = Read();
+            if (file.ClosedTabs?.Remove(tab) == true)
+            {
+                if (file.ClosedTabs.Count == 0)
+                    file.ClosedTabs = null;
+                Write(file);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The tab was closed on purpose: it stays closed at the next start, and its script is
+    /// kept (loaded when it is opened again) but not started.
     /// </summary>
     public static void Closed(int tab)
     {
-        if (!Enabled)
-            return;
         lock (Lock)
         {
-            StoppedSince.Remove(tab);
             var file = Read();
+            if (file.ClosedTabs?.Contains(tab) != true)
+            {
+                (file.ClosedTabs ??= []).Add(tab);
+                file.ClosedTabs.Sort();
+                Write(file);
+            }
+            if (!Enabled)
+                return;
+            StoppedSince.Remove(tab);
             if (file.Tabs.TryGetValue(tab.ToString(), out var entry) && entry.Running)
             {
                 entry.Running = false;
