@@ -66,7 +66,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
             string method = ctx.Request.HttpMethod;
             result = !ApiAuth.Allowed(ctx.Request) ? Unauthorized(out status) : (method, path) switch
             {
-                ("GET", "/status") => await Status(ctx.Request.QueryString["detail"] is "1" or "true"),
+                ("GET", "/status") => await Status(ctx.Request.QueryString["detail"] is "1" or "true", ctx.Request.QueryString["brief"] is "1" or "true"),
                 ("POST", "/script/load") => await LoadFromRequest(ctx.Request),
                 ("POST", "/script/start") => await StartFromRequest(ctx.Request),
                 ("POST", "/script/stop") => await Stop(),
@@ -184,11 +184,11 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
     // map join) a detail read takes seconds. Then the last read answers
     // (gameAgeMs says how old it is) and the fresh one finishes in the
     // background; only one runs at a time.
-    private async Task<object> Status(bool detail = false)
+    private async Task<object> Status(bool detail = false, bool brief = false)
     {
         GameRead read;
         if (!detail)
-            read = ReadGame(false);
+            read = ReadGame(false, brief);
         else
         {
             Task<GameRead> fresh;
@@ -236,7 +236,9 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
         }
     }
 
-    private GameRead ReadGame(bool detail)
+    // brief: only loggedIn, player and streamer, for the tab host's poll (every tab, every
+    // 1.5 s): the map, area, cell and HP reads were ~4 game calls a second per tab for nothing.
+    private GameRead ReadGame(bool detail, bool brief = false)
     {
         var bridge = services.GetRequiredService<RuffleBridge>();
         object? game = null, stats = null, combat = null, quests = null, equipment = null;
@@ -245,6 +247,8 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
             var bot = services.GetRequiredService<IScriptInterface>();
             var player = bot.Player;
             bool loggedIn = player.LoggedIn;
+            if (brief)
+                return new GameRead(true, new { loggedIn, player = loggedIn ? player.Username : null, streamer = bot.Options.StreamerMode }, null, null, null, null);
             // The room number, from the area name ("battleon-9721"), which
             // Streamer Mode does not rewrite.
             string? room = null;

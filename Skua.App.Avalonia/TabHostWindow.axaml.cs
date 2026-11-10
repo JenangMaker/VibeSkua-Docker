@@ -430,7 +430,7 @@ public partial class TabHostWindow : Window
     {
         try
         {
-            using var doc = JsonDocument.Parse(await _quick.GetStringAsync($"{tab.Api}/status"));
+            using var doc = JsonDocument.Parse(await _quick.GetStringAsync($"{tab.Api}/status?brief=1"));
             var game = doc.RootElement.GetProperty("game");
             bool loggedIn = game.ValueKind == JsonValueKind.Object && game.GetProperty("loggedIn").GetBoolean();
             string? player = loggedIn ? game.GetProperty("player").GetString() : null;
