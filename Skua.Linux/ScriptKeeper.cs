@@ -26,6 +26,14 @@ namespace Skua.Linux;
 /// 15 minutes, their countdowns long finished), and the script waits for the
 /// player to be alive forever. Asking again revived them at once, so after
 /// 15 s dead with no countdown running, this asks again.</item>
+/// <item><b>Map loads that never finish.</b> A script start moved tab 2 into its
+/// house (CoreBots' safe start) and the house never finished loading: the game
+/// kept its map load in progress with no loading screen, Skua's joins all
+/// returned at once ("Failed to join tercessuinotlim" every 5 minutes) and the
+/// bot sat there for 47 minutes. One room transfer ended it. So after 90 s of a
+/// map load in progress with no loading screen (the "loading map" screen has
+/// its own recovery in ScriptInterface), this sends one: back to the same area
+/// with its room, or to battleon (in SKUA_ROOM_NUMBER) from a house.</item>
 /// </list>
 /// </summary>
 public sealed class ScriptKeeper(IServiceProvider services, RuffleBridge bridge)
@@ -43,6 +51,50 @@ public sealed class ScriptKeeper(IServiceProvider services, RuffleBridge bridge)
         };
         _ = Task.Run(WatchTargets);
         _ = Task.Run(WatchRespawn);
+        _ = Task.Run(WatchMapLoad);
+    }
+
+    private async Task WatchMapLoad()
+    {
+        const int checkMs = 10000, stuckChecks = 9, backoffChecks = 6;
+        int streak = 0;
+        while (true)
+        {
+            await Task.Delay(checkMs);
+            try
+            {
+                var manager = services.GetRequiredService<IScriptManager>();
+                var bot = services.GetRequiredService<IScriptInterface>();
+                if (!bridge.IsConnected || !manager.ScriptRunning || manager.ScriptPaused || !bot.Player.LoggedIn)
+                {
+                    streak = 0;
+                    continue;
+                }
+                bool stuck = bot.Flash.GetGameObject<bool>("world.mapLoadInProgress") && bot.Flash.IsNull("mcConnDetail.stage");
+                if (!stuck)
+                {
+                    streak = Math.Min(streak, 0) + (streak < 0 ? 1 : 0);   // count down a backoff, else reset
+                    continue;
+                }
+                if (++streak < stuckChecks)
+                    continue;
+
+                string area = bot.Flash.GetGameObject("world.strAreaName")?.Trim('"') ?? string.Empty;
+                bool house = area.StartsWith("house", StringComparison.OrdinalIgnoreCase);
+                string target = area.Contains('-') && !house && area != "null" ? area
+                    : RoomNumber.Value is int room ? $"battleon-{room}" : "battleon";
+                string message = $"Map {(area is { Length: > 0 } and not "null" ? area : "?")} still loading after {stuckChecks * checkMs / 1000} s with no loading screen; moving to {target}.";
+                Console.WriteLine($"[host] {message}");
+                services.GetService<ILogService>()?.ScriptLog($"[VibeSkua] {message}");
+                bot.Map.JoinPacket(target);
+                streak = -backoffChecks;   // give it a minute before trying again
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine($"[host] map load watch: {e.Message}");
+                streak = 0;
+            }
+        }
     }
 
     private async Task WatchRespawn()
