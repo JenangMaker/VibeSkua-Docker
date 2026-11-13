@@ -143,6 +143,7 @@ public sealed partial class HostApi
         enhancement = i.EnhancementLevel > 0 ? EnhancementName(i.EnhancementPatternID) : null,
         level = i.EnhancementLevel,
         proc = ProcName(i.ProcID),
+        boosts = ItemBoosts(i.Meta),
     };
 
     private sealed record BankMoveInput(int Id, string? To);

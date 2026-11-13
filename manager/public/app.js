@@ -1389,6 +1389,33 @@ function showCboPane(pane) {
   if (pane === 'Inventory' && !cboInv && cboTab !== null) loadInventory();
 }
 
+// ---- Item chips shared by the Inventory and Bank tabs ------------------------------
+// The game's weapon types (Sword, Polearm...) filter as one "Weapon"; the type
+// stays as a tag. Enhancements get a color per kind (enh-*), forge specials and
+// weapon procs their own; boosts come from the item's sMeta (VibeSkua 1.3.1+).
+const WEAPON_TYPES = new Set(['Sword', 'Axe', 'Dagger', 'Gun', 'HandGun', 'Rifle', 'Bow', 'Mace', 'Gauntlet', 'Polearm', 'Staff', 'Wand', 'Whip']);
+const FORGE_ENH = new Set(['Forge', 'Absolution', 'Avarice', 'Vainglory', 'Penitence', 'Lament', 'Vim', 'Examen', 'Pneuma', 'Anima', 'Hearty', 'Depths']);
+const itemGroup = item => (WEAPON_TYPES.has(item.category) ? 'Weapon' : item.category);
+const groupOptions = items => [...new Set(items.map(itemGroup).filter(Boolean))].sort();
+const BOOST_NAMES = { dmgAll: 'all damage', gold: 'gold', xp: 'XP', rep: 'reputation', cp: 'class points' };
+function enhancementChips(item) {
+  const chips = [];
+  if (item.enhancement) {
+    const kind = FORGE_ENH.has(item.enhancement) ? 'forge' : item.enhancement.toLowerCase();
+    chips.push(h('span', { class: `tag enh enh-${kind}`, text: item.enhancement,
+      title: `${FORGE_ENH.has(item.enhancement) ? 'Forge enhancement' : 'Enhancement'}${item.level ? `, level ${item.level}` : ''}` }));
+  }
+  if (item.proc) chips.push(h('span', { class: 'tag enh enh-proc', text: item.proc, title: 'Weapon special (proc)' }));
+  for (const b of item.boosts || []) {
+    const pct = Math.round((b.value - 1) * 1000) / 10;
+    if (!pct) continue;
+    const what = BOOST_NAMES[b.name] || b.name;
+    chips.push(h('span', { class: 'tag boost', text: `${pct > 0 ? '+' : ''}${pct}% ${what}`,
+      title: b.name === 'dmgAll' ? 'Damage boost against everything' : `Boost: ${b.name} x${b.value}` }));
+  }
+  return chips;
+}
+
 // ---- Inventory tab (GET /inventory, POST /inventory/equip: VibeSkua after 1.3.0) ---
 // What the character wears, by slot, then the rest of the inventory; Equip and
 // Unequip as the game allows them (VibeSkua says why not: the class and the
@@ -1419,7 +1446,7 @@ async function loadInventory() {
 
 function renderInventory() {
   const d = cboInv;
-  const categories = [...new Set(d.items.map(i => i.category).filter(Boolean))].sort();
+  const categories = groupOptions(d.items);
   if (invFilter.category && !categories.includes(invFilter.category)) invFilter.category = '';
   const search = h('input', { type: 'search', placeholder: 'Search items', 'aria-label': 'Search items', value: invFilter.text, spellcheck: 'false', autocomplete: 'off' });
   const category = h('select', { 'aria-label': 'Category' },
@@ -1433,7 +1460,7 @@ function renderInventory() {
   const order = item => { const at = INV_SLOTS.indexOf(item.slot); return at < 0 ? INV_SLOTS.length : at; };
   const shows = item => {
     if (invFilter.text && !item.name.toLowerCase().includes(invFilter.text.toLowerCase())) return false;
-    if (invFilter.category && item.category !== invFilter.category) return false;
+    if (invFilter.category && itemGroup(item) !== invFilter.category) return false;
     return !invFilter.wearable || item.slot !== null;
   };
   const row = item => {
@@ -1442,7 +1469,7 @@ function renderInventory() {
       item.category && item.category !== item.slot ? h('span', { class: 'tag', text: item.category }) : null,
       item.ac ? h('span', { class: 'tag', text: 'AC' }) : null,
       item.member ? h('span', { class: 'tag', text: 'Member' }) : null,
-      item.enhancement ? h('span', { class: 'tag', text: item.proc ? `${item.enhancement}, ${item.proc}` : item.enhancement }) : null,
+      ...enhancementChips(item),
     ];
     let button = null;
     if (item.equipped || item.canEquip || item.why) {
@@ -1529,7 +1556,7 @@ async function loadBank(reload) {
 function renderBank() {
   const d = cboBank;
   const all = [...d.bank.items, ...d.inventory.items];
-  const categories = [...new Set(all.map(i => i.category).filter(Boolean))].sort();
+  const categories = groupOptions(all);
   if (bankFilter.category && !categories.includes(bankFilter.category)) bankFilter.category = '';
 
   const search = h('input', { type: 'search', placeholder: 'Search items', 'aria-label': 'Search items', value: bankFilter.text, spellcheck: 'false', autocomplete: 'off' });
@@ -1546,7 +1573,7 @@ function renderBank() {
     if (bankFilter.text && !item.name.toLowerCase().includes(bankFilter.text.toLowerCase())) return false;
     if (bankFilter.kind === 'ac' && !item.ac) return false;
     if (bankFilter.kind === 'nonac' && item.ac) return false;
-    return !bankFilter.category || item.category === bankFilter.category;
+    return !bankFilter.category || itemGroup(item) === bankFilter.category;
   };
   const bankFull = d.bank.used >= d.bank.slots;
   const invFull = d.inventory.used >= d.inventory.slots;
@@ -1556,7 +1583,7 @@ function renderBank() {
       item.category ? h('span', { class: 'tag', text: item.category }) : null,
       item.ac ? h('span', { class: 'tag', text: 'AC' }) : null,
       item.member ? h('span', { class: 'tag', text: 'Member' }) : null,
-      item.enhancement ? h('span', { class: 'tag', text: item.proc ? `${item.enhancement}, ${item.proc}` : item.enhancement }) : null,
+      ...enhancementChips(item),
       item.equipped ? h('span', { class: 'tag bank-worn', text: 'Equipped' }) : null,
     ];
     let button = null;

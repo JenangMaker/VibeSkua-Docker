@@ -383,6 +383,24 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
         _ => null,
     };
 
+    /// <summary>
+    /// An item's boosts from its sMeta ("dmgAll:1.3,Undead:1.1"): name and
+    /// multiplier, for the manager's inventory and bank lists. Empty if none.
+    /// </summary>
+    private static List<object> ItemBoosts(string? meta)
+    {
+        var list = new List<object>();
+        if (string.IsNullOrWhiteSpace(meta))
+            return list;
+        foreach (string part in meta.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            int colon = part.LastIndexOf(':');
+            if (colon > 0 && double.TryParse(part[(colon + 1)..], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double value))
+                list.Add(new { name = part[..colon].Trim(), value });
+        }
+        return list;
+    }
+
     private static string? ProcName(int id) => id switch
     {
         2 => "Spiral Carve", 3 => "Awe Blast", 4 => "Health Vamp", 5 => "Mana Vamp",

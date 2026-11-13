@@ -374,6 +374,31 @@ dialog:has(.wide) { width: min(820px, calc(100vw - 32px)); }
 .bank-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .bank-item .tag { background: var(--panel-2); }
 .bank-worn { color: var(--accent); }
+/* Enhancement chips: one hue per kind, tinted background in both themes. */
+.bank-item .tag.enh, .bank-item .tag.boost { color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); font-weight: 600; }
+.enh { --c: var(--muted); }
+.enh-lucky { --c: #a87900; }
+.enh-wizard { --c: #2f6fd6; }
+.enh-healer { --c: #1f9d55; }
+.enh-fighter { --c: #cf3b3b; }
+.enh-thief { --c: #8a4fd1; }
+.enh-hybrid { --c: #c8641a; }
+.enh-spellbreaker { --c: #138a8a; }
+.enh-forge { --c: #c2337a; }
+.enh-proc { --c: #6d5dfc; }
+.boost { --c: #0e7c66; }
+@media (prefers-color-scheme: dark) {
+  .enh-lucky { --c: #f0c43c; }
+  .enh-wizard { --c: #6ea8ff; }
+  .enh-healer { --c: #4fd48a; }
+  .enh-fighter { --c: #ff7676; }
+  .enh-thief { --c: #b88cff; }
+  .enh-hybrid { --c: #ff9d52; }
+  .enh-spellbreaker { --c: #4fd1d1; }
+  .enh-forge { --c: #ff6fb0; }
+  .enh-proc { --c: #9d93ff; }
+  .boost { --c: #45d6b4; }
+}
 .bank-item button { flex: none; white-space: nowrap; }
 .inv-wearable { margin: 0; font-size: 13px; white-space: nowrap; }
 .sopt-group h3 { font-size: 13px; margin: 14px 0 6px; color: var(--muted); font-weight: 600; }
