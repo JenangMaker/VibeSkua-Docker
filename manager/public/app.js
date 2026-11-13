@@ -446,6 +446,7 @@ function makeCard(n) {
   };
   r.pick = h('input', { type: 'checkbox', class: 'card-pick', title: 'Select: Load script (army bar) goes to the selected tabs only', 'aria-label': `Select tab ${n}` });
   const el = h('article', { class: 'card' },
+    r.top = h('div', { class: 'card-top', title: 'Click to select or unselect this tab' },
     h('div', { class: 'card-head' },
       r.pick,
       h('span', { class: 'card-num', text: `Tab ${n}` }),
@@ -456,7 +457,7 @@ function makeCard(n) {
       r.pill = h('span', { class: 'pill' }),
       r.shown = h('span', { class: 'shown-badge', text: 'Shown', title: 'This tab is the one shown on the VibeSkua desktop', hidden: true }),
       r.dialogBadge = h('button', { type: 'button', class: 'dialog-badge', hidden: true, onclick: () => openMsgbox(n) }, 'Waiting for you')),
-    h('dl', { class: 'kv' }, field('map', 'Map'), field('room', 'Room'), field('level', 'Level'), field('gold', 'Gold'), field('coins', 'AC'), field('bag', 'Inventory'), field('script', 'Script'), field('elapsed', 'Running')),
+    h('dl', { class: 'kv' }, field('map', 'Map'), field('room', 'Room'), field('level', 'Level'), field('gold', 'Gold'), field('coins', 'AC'), field('bag', 'Inventory'), field('script', 'Script'), field('elapsed', 'Running'))),
     h('div', { class: 'bars' }, bar('hp', 'HP'), bar('mp', 'MP')),
     r.fight = h('div', { class: 'fight' },
       h('div', { class: 'fight-head' }, h('span', { class: 'muted', text: 'Target' }), r.targetName = h('b'), r.targetPct = h('span', { class: 'muted' })),
@@ -495,6 +496,15 @@ function makeCard(n) {
       h('button', { class: 'small', title: 'Restart Skua and reload the game page (logs in again)', onclick: () => restartTab(n, true) }, 'Reload game'),
       h('button', { class: 'small danger', onclick: () => closeTab(n) }, 'Close')));
   for (const d of [r.char, r.rep]) d.addEventListener('toggle', () => { if (d.open) loadCharacter(n, r, true); });
+  // A click on the card's top part (name, tags, map, gold...) ticks it too, so
+  // several tabs are quick to select; buttons, links and selected text keep
+  // their own meaning.
+  r.top.addEventListener('click', e => {
+    if (e.target.closest('button, a, input, select, textarea, summary, label')) return;
+    if (String(window.getSelection?.() || '').trim()) return;
+    r.pick.checked = !r.pick.checked;
+    r.pick.dispatchEvent(new Event('change'));
+  });
   r.pick.addEventListener('change', () => {
     if (r.pick.checked) picked.add(n); else picked.delete(n);
     el.classList.toggle('picked', r.pick.checked);

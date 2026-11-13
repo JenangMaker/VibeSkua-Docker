@@ -176,7 +176,11 @@ input.masked { -webkit-text-security: disc; }
 /* The tab on the desktop: a Shown badge (the accent outline means ticked). */
 .shown-badge { font-size: 12px; font-weight: 600; color: var(--accent-text); background: var(--accent); border-radius: 6px; padding: 2px 7px; white-space: nowrap; }
 /* Ticked for the army's Load script (.selected is the tab on the desktop). */
-.card.picked { outline: 2px solid var(--accent); outline-offset: -1px; background: color-mix(in srgb, var(--accent) 6%, var(--panel)); }
+/* Only the frame and the top part change, so the sections inside keep their contrast. */
+.card.picked { outline: 2px solid var(--accent); outline-offset: -1px; box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
+.card-top { display: flex; flex-direction: column; gap: 10px; margin: -14px -14px 0; padding: 14px 14px 6px; border-radius: 12px 12px 0 0; cursor: pointer; }
+.card-top:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.card.picked .card-top { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .card-pick { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); cursor: pointer; flex: none; }
 .card-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: -4px; }
 
