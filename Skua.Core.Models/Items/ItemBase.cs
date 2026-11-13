@@ -9,7 +9,37 @@ public class ItemBase
     /// The ID of the item.
     /// </summary>
     [JsonProperty("ItemID")]
-    public virtual int ID { get; set; }
+    public virtual int ID
+    {
+        get => _id;
+        set
+        {
+            _id = value;
+            _hasId = true;
+        }
+    }
+
+    private int _id;
+    private bool _hasId;
+
+    // An inventory entry the game rebuilt from a quest reward can lack ItemID
+    // (seen on Vindicator Crest and Archfiend's Favor, still so after a
+    // relogin), so ID read 0 and every lookup by ID missed it (merge scripts
+    // then report the item as not acquired). Its _aqk key still holds the ID
+    // as the third \u0001-separated field ("01name\u00019998\u00010000087925\u0001<CharItemID>"):
+    // use that when ItemID is absent; ItemID wins whichever comes first.
+    [JsonProperty("_aqk")]
+    private string? AqKey
+    {
+        set
+        {
+            if (_hasId || string.IsNullOrEmpty(value))
+                return;
+            string[] parts = value.Split('\u0001');
+            if (parts.Length > 2 && int.TryParse(parts[2], out int id) && id > 0)
+                _id = id;
+        }
+    }
 
     /// <summary>
     /// The name of the item.
