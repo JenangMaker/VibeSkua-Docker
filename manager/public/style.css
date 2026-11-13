@@ -556,3 +556,27 @@ dialog:has(.wide) { width: min(820px, calc(100vw - 32px)); }
   .lib-actions, .queue-actions { flex-basis: 100%; justify-content: flex-start; }
   .hide-phone { display: none; }
 }
+
+/* Preview: the character in AQW's viewer (715 x 455) beside its slots and the
+   items to try on; one column on a narrow screen. */
+dialog.preview-dialog:has(.wide) { width: min(1180px, calc(100vw - 32px)); }
+.preview-body { display: grid; grid-template-columns: minmax(0, 715px) minmax(260px, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 960px) { .preview-body { grid-template-columns: minmax(0, 1fr); } }
+.preview-stage { aspect-ratio: 715 / 455; background: var(--panel-2); border-radius: 8px; overflow: hidden; }
+.preview-stage .preview-player { display: block; width: 100%; height: 100%; }
+.preview-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.preview-slots { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.preview-slots li { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto auto; gap: 8px; align-items: center; min-height: 28px; padding: 0 6px; border-radius: 6px; }
+.preview-slots li.changed { background: var(--panel-2); }
+.preview-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preview-tag { font-size: 11px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+.preview-actions { display: flex; gap: 8px; }
+.preview-tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.preview-tools select { width: auto; }
+.preview-tools input[type=search] { flex: 1; min-width: 120px; }
+.preview-items { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow: auto; overscroll-behavior: contain; border: 1px solid var(--border); border-radius: 8px; }
+.preview-items li.muted { padding: 8px 10px; }
+.preview-item { display: flex; gap: 8px; align-items: center; width: 100%; text-align: left; background: none; border: 0; border-radius: 0; padding: 6px 10px; color: var(--text); cursor: pointer; }
+.preview-item:hover, .preview-item:focus-visible { background: var(--panel-2); }
+.preview-item.on { box-shadow: inset 3px 0 0 var(--accent); }
+.preview-slot { width: 56px; flex: none; font-size: 12px; }

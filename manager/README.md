@@ -86,6 +86,7 @@ Its buttons:
 | **CoreBots options...** | This account's Options > CoreBots, as Skua's window has it. **Loadout:** the Solo, Farm, Dodge and Boss class, each class's mode (from its skills) and, with **Specify equipment**, its equipment. **Options** and **Other:** rooms, delays, auto-enhance, best gear, boosters, Nation farms and the rest. **Save** writes the account's options file; scripts use it from their next start. Needs VibeSkua 1.3.0 or newer and a logged-in tab. **Inventory:** what the character wears, by slot, then the rest of the inventory (equippable items only, or everything), searchable and by category; **Equip** / **Unequip** as the game allows them, and why not when it does not (the class and the weapon are only replaced, an unenhanced weapon, helm or cape cannot be worn, member items need membership; elixirs and tonics are used, not equipped). Not in combat or while the tab's script runs. **Bank:** the account's bank and inventory side by side, with their slots (AC items take no bank slot), searchable and filtered by AC or not and by category; **To bank** / **To inventory** moves an item at once. Equipped items stay where they are, and moves are refused while the tab's script runs. The Inventory and Bank tabs need a VibeSkua newer than 1.3.0. |
 | **Log in / Log out** | Log this tab's account in, or out (asks first; a running script stops). The button shows whichever applies. |
 | **Log** | The live script, debug or Flash log, following new lines. Each tab opens its own log window, so several can stay open at once. |
+| **Preview** | The character drawn on the page with AQW's own character viewer (the one on account.aq.com's character pages), running in Ruffle in your browser: its current class or armor, helm, cape, weapon, pet, ground item, hair and colors. Click an item from the inventory (or the bank, with **Add bank items**) to try it on; the drawing changes, the game does not. **Undo** on a slot or **Reset** goes back to what is worn; **Helm**, **Cape** and **Pet** show or hide them. **Equip tried items** equips the inventory items tried on (not in combat or while the tab's script runs; bank items must be moved to the inventory first). Trying a class on takes the armor off in the drawing, since the game draws the armor over the class. Needs a VibeSkua with `GET /look`. |
 | **Show** | Bring the tab to the front on the VibeSkua desktop. |
 | **Restart** | Restart the tab's Skua (a running script stops). With the Electron game the game stays logged in; with the native game (`:native` image) the game restarts with it and logs back in by itself. |
 | **Reload game** | Restart Skua and reload the game page (it logs in again). |
@@ -264,6 +265,7 @@ LAN address (`"192.168.1.10:8789:8789"`) and point `VIBESKUA_URL` there.
 | `MANAGER_TRUST_PROXY` | `0` | `1` behind a reverse proxy: take the client address and https from `X-Forwarded-For` / `X-Forwarded-Proto`. |
 | `MANAGER_SECURE_COOKIE` | `0` | `1`: the session cookie is only sent over https. Automatic behind a proxy that says https. |
 | `MANAGER_SESSION_HOURS` | `12` | How long a login lasts. |
+| `GAME_CACHE_MB` | `64` | Memory for the game art the Preview draws (fetched from game.aq.com, see Security). |
 
 ## Security
 
@@ -278,6 +280,13 @@ Whoever logs in controls every account in the instance, so:
 - **The page:** a strict Content-Security-Policy, no third-party code, an
   HttpOnly SameSite=Strict session cookie, and every API call must carry a
   header other sites cannot send.
+- **The Preview** runs Ruffle (a pinned release, served by the manager, put
+  in the image at build time) and AQW's character viewer. The manager fetches
+  the viewer and the item art (`.swf` files under `/game/gamefiles/`, for a
+  logged-in session only) from game.aq.com, so the manager needs internet
+  access to it; your browser does not. The viewer may call the page's
+  functions (Flash ExternalInterface, which it needs to start); it only
+  registers two callbacks.
 - **The log** (`docker logs vibeskua-manager`) records logins, failed logins
   and every action taken (method and path, never request bodies, which carry
   passwords).
@@ -289,4 +298,11 @@ Node 22 or newer, no packages to install:
 ```bash
 cd manager
 MANAGER_PASSWORD=... VIBESKUA_URL=http://192.168.1.10:8789 VIBESKUA_TOKEN=... node server.js
+```
+
+The Preview needs Ruffle in `public/ruffle` (the Dockerfile puts it there):
+
+```bash
+cd manager && npm pack @ruffle-rs/ruffle@0.7.1 && tar xzf ruffle-rs-ruffle-0.7.1.tgz
+mkdir -p public/ruffle && cp package/*.js package/*.wasm public/ruffle/ && rm -rf package ruffle-rs-ruffle-0.7.1.tgz
 ```

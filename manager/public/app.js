@@ -491,6 +491,7 @@ function makeCard(n) {
       r.cboBtn = h('button', { class: 'small', title: "This account's CoreBots options (Options > CoreBots in Skua): classes for solo, farm, dodge and boss, delays, rooms...", onclick: () => openCoreBotsOptions(n) }, 'CoreBots options...'),
       r.loginBtn = h('button', { class: 'small', onclick: () => logInOut(n) }),
       h('button', { class: 'small', onclick: () => openLog(n) }, 'Log'),
+      h('button', { class: 'small', title: "This character drawn here, to try items from its inventory and bank on before equipping them", onclick: () => openPreview(n) }, 'Preview'),
       h('button', { class: 'small', title: 'Show this tab on the VibeSkua desktop', onclick: () => act(`Tab ${n} shown`, () => api('POST', `/api/tabs/${n}/select`)) }, 'Show'),
       h('button', { class: 'small', title: "Restart this tab's Skua (a running script stops; the game logs back in if it was restarted too)", onclick: () => restartTab(n, false) }, 'Restart'),
       h('button', { class: 'small', title: 'Restart Skua and reload the game page (logs in again)', onclick: () => restartTab(n, true) }, 'Reload game'),
@@ -1960,6 +1961,269 @@ $('#dlg-sopts').addEventListener('close', () => {
   $('#sopts-queue').hidden = false;
   $('#sopts-save').textContent = 'Save';
 });
+
+// ---- Preview ---------------------------------------------------------------------
+//
+// A tab's character drawn on this page with AQW's own viewer (characterB.swf,
+// the one account.aq.com's character page runs) in Ruffle. This manager
+// serves both: Ruffle from public/ruffle (put there by the Dockerfile) and the
+// game's art through /game/gamefiles/ (server.js). The look comes from GET
+// /look (VibeSkua with the Preview); items from GET /inventory and, when asked,
+// GET /bank. Trying an item on changes the drawing only; Equip asks the game.
+
+const PREVIEW_SLOTS = [['ar', 'Class'], ['co', 'Armor'], ['he', 'Helm'], ['ba', 'Cape'], ['Weapon', 'Weapon'], ['pe', 'Pet'], ['mi', 'Ground']];
+const LOOK_SLOTS = { class: 'ar', armor: 'co', helm: 'he', cape: 'ba', weapon: 'Weapon', pet: 'pe', misc: 'mi' };
+const PREVIEW_SWF = '/game/gamefiles/etc/chardetail/characterB.swf?v=2';
+// The viewer builds its art URLs from its own (http://<host>/game/gamefiles/,
+// without the port): sent back to this server.
+const PREVIEW_REWRITE = [[new RegExp('^https?://[^/]+/game/gamefiles/'), `${location.origin}/game/gamefiles/`]];
+
+let rufflePromise = null;
+function loadRuffle() {
+  if (window.RufflePlayer?.newest) return Promise.resolve();
+  return rufflePromise ||= new Promise((resolve, reject) => {
+    // polyfills off: Ruffle leaves the rest of the page alone.
+    window.RufflePlayer = window.RufflePlayer || {};
+    window.RufflePlayer.config = { publicPath: '/ruffle/', polyfills: false, logLevel: 'error' };
+    const s = h('script', { src: '/ruffle/ruffle.js' });
+    s.addEventListener('load', () => window.RufflePlayer?.newest ? resolve() : reject(new Error('Ruffle did not start')));
+    s.addEventListener('error', () => { rufflePromise = null; s.remove(); reject(new Error('Ruffle is not in this manager image (public/ruffle): update the manager')); });
+    document.head.append(s);
+  });
+}
+
+const previewWindows = new Map();   // tab -> the open preview window
+
+function openPreview(n) {
+  const existing = previewWindows.get(n);
+  if (existing?.dlg.open) { raiseDialog(existing.dlg); return; }
+  if (existing) previewWindows.delete(n);
+
+  const win = { n, look: null, base: {}, cur: {}, items: [], bankLoaded: false, player: null, closed: false, drawTimer: null };
+  win.status = h('p', { class: 'muted small', role: 'status', text: 'Reading the look...' });
+  win.stage = h('div', { class: 'preview-stage' });
+  win.slots = h('ul', { class: 'preview-slots' });
+  win.helm = h('input', { type: 'checkbox' });
+  win.cape = h('input', { type: 'checkbox' });
+  win.pet = h('input', { type: 'checkbox' });
+  for (const c of [win.helm, win.cape, win.pet]) c.addEventListener('change', () => drawPreviewSoon(win));
+  win.filter = h('select', { 'aria-label': 'Slot' }, h('option', { value: '', text: 'All slots' }), ...PREVIEW_SLOTS.map(([k, label]) => h('option', { value: k, text: label })));
+  win.search = h('input', { type: 'search', placeholder: 'Search items', 'aria-label': 'Search items' });
+  win.list = h('ul', { class: 'preview-items' });
+  for (const el of [win.filter, win.search]) el.addEventListener('input', () => renderPreviewItems(win));
+  win.bankBtn = h('button', { type: 'button', class: 'small', title: "Add the bank's items to the list (reading the bank opens the game's bank window once if it was not read yet)", onclick: () => loadPreviewBank(win) }, 'Add bank items');
+  win.equipBtn = h('button', { type: 'button', class: 'small primary', title: 'Equip the inventory items tried on (the game refuses while a script runs or in combat)', onclick: () => equipPreview(win) }, 'Equip tried items');
+  const reset = h('button', { type: 'button', class: 'small', title: 'Back to what the character wears now', onclick: () => { win.cur = { ...win.base }; renderPreviewSlots(win); drawPreviewSoon(win); } }, 'Reset');
+  const reload = h('button', { type: 'button', class: 'small', title: 'Read the look and inventory again', onclick: () => loadPreview(win) }, 'Reload');
+  const close = h('button', { type: 'button', class: 'ghost' }, 'Close');
+  win.dlg = h('dialog', { class: 'preview-dialog' },
+    h('div', { class: 'dlg wide' },
+      h('div', { class: 'log-head' },
+        h('h2', { text: `Tab ${n} preview` }),
+        h('label', { class: 'check', title: 'Show the helm' }, win.helm, ' Helm'),
+        h('label', { class: 'check', title: 'Show the cape' }, win.cape, ' Cape'),
+        h('label', { class: 'check', title: 'Show the pet' }, win.pet, ' Pet'),
+        h('div', { class: 'spacer' }),
+        reset, reload, close),
+      win.status,
+      h('div', { class: 'preview-body' },
+        win.stage,
+        h('div', { class: 'preview-side' },
+          win.slots,
+          h('div', { class: 'preview-actions' }, win.equipBtn),
+          h('div', { class: 'preview-tools' }, win.filter, win.search, win.bankBtn),
+          win.list))));
+  close.addEventListener('click', () => win.dlg.close());
+  win.dlg.addEventListener('close', () => {
+    win.closed = true;
+    clearTimeout(win.drawTimer);
+    try { win.player?.remove(); } catch { /* gone */ }
+    if (previewWindows.get(n) === win) previewWindows.delete(n);
+    win.dlg.remove();
+  });
+  previewWindows.set(n, win);
+  document.body.append(win.dlg);
+  makeDraggable(win.dlg);
+  openDialog(win.dlg);
+  loadPreview(win);
+}
+
+// Each slot's art: what the drawing uses, and where it came from.
+const previewArt = (art, name, id, source) => art ? { file: art.file, link: art.link, type: art.type, name: name || '', id: id || 0, source } : null;
+
+async function loadPreview(win) {
+  win.status.hidden = false;
+  win.status.textContent = 'Reading the look...';
+  try {
+    const [look, inv] = await Promise.all([
+      api('GET', `/api/tabs/${win.n}/api/look`),
+      api('GET', `/api/tabs/${win.n}/api/inventory`),
+    ]);
+    if (win.closed) return;
+    if (look?.error) throw new Error(look.error);
+    win.look = look;
+    win.base = {};
+    for (const [slot, key] of Object.entries(LOOK_SLOTS)) {
+      const s = look.slots?.[slot];
+      win.base[key] = s ? previewArt(s, s.name || `(${slot})`, s.id, 'worn') : null;
+    }
+    win.cur = { ...win.base };
+    const ia1 = Number(look.ia1) || 0;
+    win.cape.checked = !(ia1 & 1);
+    win.helm.checked = !(ia1 & 2);
+    win.pet.checked = !(ia1 & 4);
+    const old = win.items.filter(i => i.source === 'bank');
+    win.items = [...(inv?.items || []).filter(i => i.art).map(i => ({ ...i, source: 'inventory' })), ...old];
+    renderPreviewSlots(win);
+    renderPreviewItems(win);
+    win.status.textContent = 'Loading the viewer...';
+    await drawPreview(win);
+  } catch (e) {
+    if (win.closed) return;
+    win.status.hidden = false;
+    win.status.textContent = e.status === 404 ? 'Needs a newer VibeSkua image (with GET /look).' : `Could not read: ${e.message}`;
+  }
+}
+
+async function loadPreviewBank(win) {
+  try {
+    const d = await api('GET', `/api/tabs/${win.n}/api/bank`);
+    if (d?.error) throw new Error(d.error);
+    if (win.closed) return;
+    win.items = [...win.items.filter(i => i.source !== 'bank'), ...(d.bank?.items || []).filter(i => i.art).map(i => ({ ...i, source: 'bank' }))];
+    win.bankLoaded = true;
+    win.bankBtn.textContent = 'Read bank again';
+    renderPreviewItems(win);
+  } catch (e) {
+    if (e.status !== 401) toast(`Bank: ${e.message}`, true);
+  }
+}
+
+function previewChanged(win, key) {
+  const a = win.cur[key], b = win.base[key];
+  return (a?.file || '') !== (b?.file || '') || (a?.id || 0) !== (b?.id || 0);
+}
+
+function renderPreviewSlots(win) {
+  win.slots.replaceChildren(...PREVIEW_SLOTS.map(([key, label]) => {
+    const cur = win.cur[key];
+    const changed = previewChanged(win, key);
+    // An armor taken off by a class tried on (the game draws the armor over it).
+    const byClass = key === 'co' && !cur && changed;
+    return h('li', { class: changed ? 'changed' : '' },
+      h('span', { class: 'muted', text: label }),
+      h('span', { class: 'preview-name', text: byClass ? 'None (shows the class)' : cur?.name || 'None', title: cur?.name || '' }),
+      changed ? h('span', { class: 'preview-tag', text: byClass ? 'hidden' : cur?.source === 'bank' ? 'from bank' : 'trying' }) : null,
+      changed ? h('button', { type: 'button', class: 'small ghost', title: 'Back to what is worn', onclick: () => { win.cur[key] = win.base[key]; renderPreviewSlots(win); drawPreviewSoon(win); } }, 'Undo') : null);
+  }));
+  const tried = PREVIEW_SLOTS.filter(([key]) => previewChanged(win, key) && win.cur[key]?.source === 'inventory');
+  win.equipBtn.disabled = tried.length === 0;
+}
+
+function renderPreviewItems(win) {
+  const slot = win.filter.value;
+  const words = win.search.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const order = Object.fromEntries(PREVIEW_SLOTS.map(([k], i) => [k, i]));
+  const shown = win.items
+    .filter(i => (!slot || i.art.group === slot) && words.every(w => i.name.toLowerCase().includes(w)))
+    .sort((a, b) => order[a.art.group] - order[b.art.group] || a.name.localeCompare(b.name));
+  const label = Object.fromEntries(PREVIEW_SLOTS);
+  const max = 300;
+  win.list.replaceChildren(...[
+    ...shown.slice(0, max).map(i => {
+      const worn = win.base[i.art.group]?.id === i.id;
+      const trying = win.cur[i.art.group]?.id === i.id && !worn;
+      return h('li', {},
+        h('button', { type: 'button', class: `preview-item${trying ? ' on' : ''}`, title: `Try ${i.name} on`, onclick: () => tryOnPreview(win, i) },
+          h('span', { class: 'muted preview-slot', text: label[i.art.group] }),
+          h('span', { class: 'preview-name', text: i.name }),
+          worn ? h('span', { class: 'preview-tag', text: 'worn' }) : null,
+          i.source === 'bank' ? h('span', { class: 'preview-tag', text: 'bank' }) : null,
+          i.member ? h('span', { class: 'preview-tag', text: 'member' }) : null));
+    }),
+    shown.length > max ? h('li', { class: 'muted small', text: `${shown.length - max} more: narrow the search` }) : null,
+    shown.length === 0 ? h('li', { class: 'muted small', text: win.items.length ? 'No item matches' : 'No wearable items read yet' }) : null,
+  ].filter(Boolean));
+}
+
+function tryOnPreview(win, item) {
+  const key = item.art.group;
+  win.cur[key] = previewArt(item.art, item.name, item.id, item.source);
+  // The game draws the armor over the class: trying a class on shows it.
+  if (key === 'ar') win.cur.co = null;
+  renderPreviewSlots(win);
+  renderPreviewItems(win);
+  drawPreviewSoon(win);
+}
+
+function drawPreviewSoon(win) {
+  clearTimeout(win.drawTimer);
+  win.drawTimer = setTimeout(() => drawPreview(win).catch(e => { win.status.hidden = false; win.status.textContent = e.message; }), 250);
+}
+
+function previewFlashvars(win) {
+  const L = win.look, c = win.cur, col = L.colors || {};
+  const body = c.co || c.ar;
+  let ia1 = Number(L.ia1) || 0;
+  const bit = (on, b) => { ia1 = on ? ia1 & ~b : ia1 | b; };
+  bit(win.cape.checked, 1); bit(win.helm.checked, 2); bit(win.pet.checked, 4);
+  const fv = {
+    strName: anonText(L.name || `Tab ${win.n}`), intLevel: L.level, strGender: L.gender || 'M',
+    strHairFile: L.hair?.file || '', strHairName: L.hair?.name || '',
+    intColorSkin: col.skin, intColorHair: col.hair, intColorEye: col.eye, intColorBase: col.base, intColorTrim: col.trim, intColorAccessory: col.accessory,
+    strClassName: c.ar?.name || '', strClassFile: body?.file || '', strClassLink: body?.link || '', strArmorName: body?.name || '',
+    strWeaponFile: c.Weapon?.file || 'none', strWeaponLink: c.Weapon?.link || 'none', strWeaponType: c.Weapon?.type || '', strWeaponName: c.Weapon?.name || '',
+    strCapeFile: c.ba?.file || 'none', strCapeLink: c.ba?.link || 'none', strCapeName: c.ba?.name || '',
+    strHelmFile: c.he?.file || 'none', strHelmLink: c.he?.link || 'none', strHelmName: c.he?.name || '',
+    strPetFile: c.pe?.file || 'none', strPetLink: c.pe?.link || 'none', strPetName: c.pe?.name || '',
+    strFaction: '', ia1, bgindex: 0,
+  };
+  // The viewer loads a ground item whenever its file is given.
+  if (c.mi) Object.assign(fv, { strMiscFile: c.mi.file, strMiscLink: c.mi.link, strMiscName: c.mi.name });
+  return new URLSearchParams(Object.entries(fv).map(([k, v]) => [k, String(v ?? '')])).toString();
+}
+
+async function drawPreview(win) {
+  if (!win.look || win.closed) return;
+  await loadRuffle();
+  if (win.closed) return;
+  if (!win.player) {
+    win.player = window.RufflePlayer.newest().createPlayer();
+    win.player.classList.add('preview-player');
+    win.stage.append(win.player);
+  }
+  // A new load per change: the viewer reads its parameters once. Its art
+  // comes from the browser's cache after the first time.
+  await win.player.ruffle().load({
+    url: PREVIEW_SWF,
+    parameters: previewFlashvars(win),
+    // The viewer registers ExternalInterface callbacks at its start and
+    // stops there without them.
+    allowScriptAccess: true,
+    autoplay: 'on', unmuteOverlay: 'hidden', splashScreen: false, contextMenu: 'off',
+    backgroundColor: '#000000', letterbox: 'on', urlRewriteRules: PREVIEW_REWRITE,
+  });
+  if (!win.closed) win.status.hidden = true;
+}
+
+async function equipPreview(win) {
+  const tried = PREVIEW_SLOTS.map(([key]) => key).filter(key => previewChanged(win, key) && win.cur[key]?.source === 'inventory');
+  if (!tried.length) return;
+  const bank = PREVIEW_SLOTS.map(([key]) => key).filter(key => previewChanged(win, key) && win.cur[key]?.source === 'bank');
+  let done = 0;
+  for (const key of tried) {
+    const item = win.cur[key];
+    let r;
+    try { r = await api('POST', `/api/tabs/${win.n}/api/inventory/equip`, { id: item.id, equip: true }); }
+    catch (e) { if (e.status !== 401) toast(`${item.name}: ${e.message}`, true); break; }
+    if (r?.error) { toast(`${item.name}: ${r.error}`, true); break; }
+    toast(r.message, !r.done);
+    if (!r.done) break;
+    done++;
+  }
+  if (bank.length) toast(`${bank.map(k => win.cur[k].name).join(', ')}: in the bank; move ${bank.length > 1 ? 'them' : 'it'} to the inventory to equip`, true);
+  if (done && !win.closed) loadPreview(win);
+}
 
 // ---- log dialogs -----------------------------------------------------------------
 

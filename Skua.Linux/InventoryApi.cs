@@ -147,12 +147,25 @@ public sealed partial class HostApi
                     level = i.EnhancementLevel,
                     proc = ProcName(i.ProcID),
                     boosts = ItemBoosts(i.Meta),
+                    art = ItemArt(i),
                     canEquip,
                     canUnequip,
                     why,
                 };
             }).ToList(),
         };
+    }
+
+    // The art the manager's Preview draws an item with: its group (the eqp
+    // key: ar, co, he, ba, Weapon, pe, mi), file (sFile), link (sLink) and
+    // type (sType). Null for what is not worn (resources, items, houses).
+    internal static object? ItemArt(InventoryItem i)
+    {
+        string? group = i.ItemGroup;
+        if (group is not ("ar" or "co" or "he" or "ba" or "Weapon" or "pe" or "mi")
+            || string.IsNullOrEmpty(i.FileLink) || string.Equals(i.FileLink, "none", StringComparison.OrdinalIgnoreCase))
+            return null;
+        return new { group, file = i.FileLink, link = i.FileName, type = i.CategoryString };
     }
 
     // A usable item: type Item with a link (sLink, Skua's FileName), as the

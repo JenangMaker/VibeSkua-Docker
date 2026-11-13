@@ -23,6 +23,7 @@
 //   MANAGER_SESSION_HOURS  how long a login lasts (12)
 
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -261,10 +262,17 @@ async function runInitialOptions(tab, options, id) {
 
 // ---- serving ----------------------------------------------------------------
 
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.wasm': 'application/wasm' };
+
+// Ruffle (the Preview) puts two <style> elements in its shadow DOM: its
+// stylesheet and an empty one it fills through CSSOM. Allowed by hash, so the
+// page's own styles stay 'self' only; the first hash is Ruffle 0.7.1's
+// (RUFFLE_VERSION in the Dockerfile): a new version needs its hash here, which
+// Chrome's console prints when it refuses the style.
+const RUFFLE_STYLES = "'sha256-ZkgLurYRxhAKQETPII5RdGEXa9N3yPUbF48odoi9Cns=' 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='";
 
 const SECURITY_HEADERS = {
-  'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+  'Content-Security-Policy': `default-src 'self'; img-src 'self' data:; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' ${RUFFLE_STYLES}; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`,
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
   'X-Frame-Options': 'DENY',
@@ -295,8 +303,69 @@ function serveFile(res, rel) {
   if (!file.startsWith(PUBLIC + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
     res.writeHead(404); res.end(); return;
   }
-  res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
+  // Ruffle (public/ruffle, fixed per image) is 14 MB of WebAssembly: cached a
+  // day rather than asked again on each Preview.
+  const cache = rel.startsWith('ruffle/') ? 'private, max-age=86400' : 'no-cache';
+  res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': cache, 'Content-Length': fs.statSync(file).size });
   fs.createReadStream(file).pipe(res);
+}
+
+// ---- game art for the Preview -------------------------------------------------
+//
+// The Preview draws a character with AQW's own viewer (characterB.swf, as
+// account.aq.com's character page does) in Ruffle on this page. The viewer
+// asks for its art at http://<page host>/game/gamefiles/... (it builds that
+// from its own URL), so this server fetches those SWFs from game.aq.com and
+// the page's CSP stays 'self'. SWF files only, for a logged-in session, kept
+// in memory (up to GAME_CACHE_MB, least recently used out first) so trying
+// items on does not ask the game's server again.
+const GAME_ORIGIN = 'https://game.aq.com';
+const GAME_PATH = /^\/game\/gamefiles\/[A-Za-z0-9_\-./ ()']+\.swf$/i;
+const GAME_CACHE_MAX = (Number(env('GAME_CACHE_MB')) || 64) * 1024 * 1024;
+const gameCache = new Map();   // path -> Buffer, least recently used first
+let gameCacheSize = 0;
+const gameFetches = new Map(); // path -> the fetch in flight
+
+function fetchGameFile(p) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(GAME_ORIGIN + encodeURI(p), { headers: { 'User-Agent': 'VibeSkua-Manager' }, timeout: 20000 }, r => {
+      if (r.statusCode !== 200) { r.resume(); resolve({ status: r.statusCode === 404 ? 404 : 502 }); return; }
+      const chunks = []; let size = 0;
+      r.on('data', c => { size += c.length; if (size > 32 * 1024 * 1024) { req.destroy(new Error('too large')); return; } chunks.push(c); });
+      r.on('end', () => resolve({ status: 200, body: Buffer.concat(chunks) }));
+      r.on('error', reject);
+    });
+    req.on('timeout', () => req.destroy(new Error('timed out')));
+    req.on('error', reject);
+  });
+}
+
+async function gameFile(req, res, p) {
+  if (!session(req)) { res.writeHead(401); res.end(); return; }
+  let rel;
+  try { rel = decodeURIComponent(p); } catch { res.writeHead(400); res.end(); return; }
+  if (!GAME_PATH.test(rel) || rel.includes('..')) { res.writeHead(404); res.end(); return; }
+  let body = gameCache.get(rel);
+  if (body) { gameCache.delete(rel); gameCache.set(rel, body); }
+  else {
+    let job = gameFetches.get(rel);
+    if (!job) {
+      job = fetchGameFile(rel).finally(() => gameFetches.delete(rel));
+      gameFetches.set(rel, job);
+    }
+    let got;
+    try { got = await job; } catch (e) { console.warn(`[manager] game file ${rel}: ${e.message}`); res.writeHead(502); res.end(); return; }
+    if (got.status !== 200) { res.writeHead(got.status); res.end(); return; }
+    body = got.body;
+    if (!gameCache.has(rel) && body.length < GAME_CACHE_MAX / 4) {
+      gameCache.set(rel, body); gameCacheSize += body.length;
+      for (const [k, v] of gameCache) { if (gameCacheSize <= GAME_CACHE_MAX) break; gameCache.delete(k); gameCacheSize -= v.length; }
+    }
+  }
+  // Content-Length matters: the viewer's preloader waits for bytesLoaded to
+  // reach bytesTotal.
+  res.writeHead(200, { 'Content-Type': 'application/x-shockwave-flash', 'Content-Length': body.length, 'Cache-Control': 'private, max-age=86400' });
+  res.end(req.method === 'HEAD' ? undefined : body);
 }
 
 const server = http.createServer(async (req, res) => {
@@ -326,6 +395,7 @@ const server = http.createServer(async (req, res) => {
       return await relay(req, res, p.slice('/api'.length), url.search, s, ip);
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); res.end(); return; }
+    if (p.startsWith('/game/gamefiles/')) return await gameFile(req, res, p);
     serveFile(res, p === '/' ? 'index.html' : decodeURIComponent(p).replace(/^\/+/, ''));
   } catch (e) {
     console.error(`[manager] ${req.method} ${p}: ${e.message}`);

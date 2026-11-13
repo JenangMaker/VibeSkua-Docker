@@ -91,6 +91,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                 ("POST", "/dialog/answer") => AnswerDialog(ctx.Request),
                 ("GET", "/inventory") => Inventory(),
                 ("GET", "/character") => Character(),
+                ("GET", "/look") => Look(),
                 ("POST", "/inventory/equip") => await InventoryEquip(ctx.Request),
                 ("POST", _) when path.StartsWith("/army/") => await Army(path["/army/".Length..], ctx.Request),
                 _ when Routes.TryGetValue($"{method} {path}", out var route) => await route(ctx.Request),

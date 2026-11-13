@@ -398,3 +398,6 @@ Skua.AS3/flex.zip
 
 # Ad-hoc container logs pasted in for debugging
 /docker_logs*.txt
+
+# Ruffle for the manager's Preview: fetched by manager/Dockerfile (or by hand for a local run)
+/manager/public/ruffle/

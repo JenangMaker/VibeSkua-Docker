@@ -11,6 +11,14 @@ LABEL org.opencontainers.image.title="VibeSkua Manager" \
 WORKDIR /app
 COPY package.json server.js ./
 COPY public/ public/
+# Ruffle for the Preview (AQW's character viewer in the browser): the
+# self-hosted web build, pinned, without its source maps. MIT/Apache-2.0.
+# A new version also needs its stylesheet's hash in server.js (RUFFLE_STYLES).
+ARG RUFFLE_VERSION=0.7.1
+RUN cd /tmp && npm pack --silent "@ruffle-rs/ruffle@${RUFFLE_VERSION}" \
+ && tar xzf ruffle-rs-ruffle-*.tgz && mkdir -p /app/public/ruffle \
+ && cp package/*.js package/*.wasm package/LICENSE_* /app/public/ruffle/ \
+ && rm -rf /tmp/package /tmp/ruffle-rs-ruffle-*.tgz
 # A syntax error fails the build rather than the container.
 RUN node --check server.js && node --check public/app.js
 
