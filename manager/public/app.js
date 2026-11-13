@@ -674,7 +674,8 @@ function updateQuests(r, quests) {
 }
 
 // What the character wears (status.equipment: VibeSkua 1.3.0+): slot,
-// item and its enhancement, and the special one (proc) if any. Rebuilt only
+// item and its enhancement, and the special one (proc) if any, colored as in
+// the Inventory and Bank tabs, with the item's boosts (VibeSkua 2.2+). Rebuilt only
 // when it changes.
 function updateEquipment(r, items) {
   r.equip.hidden = !items?.length;
@@ -689,8 +690,7 @@ function updateEquipment(r, items) {
   r.equipList.replaceChildren(...items.map(i => h('li', {},
     h('span', { class: 'equip-slot muted', text: i.slot }),
     h('span', { class: 'equip-name', text: i.name, title: i.name }),
-    i.enhancement ? h('span', { class: 'tag', text: i.enhancement, title: 'Enhancement' }) : null,
-    i.proc ? h('span', { class: 'tag ok', text: i.proc, title: 'Special enhancement' }) : null)));
+    h('span', { class: 'equip-tags' }, enhancementChips(i)))));
 }
 
 // The Character and Reputation sections (GET /character: VibeSkua 2.2.0+):

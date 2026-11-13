@@ -240,7 +240,8 @@ input.masked { -webkit-text-security: disc; }
 .equip-peek { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; text-align: right; }
 .equip[open] .equip-peek { visibility: hidden; }
 .equip-list { list-style: none; margin: 6px 0 2px; padding: 0; display: grid; gap: 3px; }
-.equip-list li { display: flex; align-items: baseline; gap: 6px; min-width: 0; font-size: 12px; }
+.equip-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; min-width: 0; font-size: 12px; }
+.equip-tags { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; margin-left: auto; }
 .equip-slot { flex: none; width: 62px; }
 .equip-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .equip-list .tag { flex: none; }
@@ -379,7 +380,7 @@ dialog:has(.wide) { width: min(820px, calc(100vw - 32px)); }
 .bank-item .tag { background: var(--panel-2); }
 .bank-worn { color: var(--accent); }
 /* Enhancement chips: one hue per kind, tinted background in both themes. */
-.bank-item .tag.enh, .bank-item .tag.boost { color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); font-weight: 600; }
+.tag.enh, .tag.boost, .bank-item .tag.enh, .bank-item .tag.boost { color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); font-weight: 600; }
 .enh { --c: var(--muted); }
 .enh-lucky { --c: #a87900; }
 .enh-wizard { --c: #2f6fd6; }

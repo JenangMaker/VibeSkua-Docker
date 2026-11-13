@@ -349,6 +349,7 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
             "pe" => (5, "Pet"),
             "am" => (6, "Necklace"),
             "mi" => (7, "Ground"),
+            "none" or "" or null => (8, "Item"),
             _ => (8, group ?? "Other"),
         };
         try
@@ -362,7 +363,9 @@ public sealed partial class HostApi(IServiceProvider services, ScriptSync script
                     slot = x.Slot.Slot,
                     name = x.Item.Name,
                     enhancement = EnhancementName(x.Item.EnhancementPatternID),
+                    level = x.Item.EnhancementLevel,
                     proc = ProcName(x.Item.ProcID),
+                    boosts = ItemBoosts(x.Item.Meta),
                 })
                 .ToList();
         }
