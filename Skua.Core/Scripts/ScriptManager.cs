@@ -1052,20 +1052,12 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
                 if (compiledFiles.Contains(file))
                     continue;
 
-                bool allDepsReady = true;
-                if (dependencyGraph.TryGetValue(file, out List<string>? fileDeps))
-                {
-                    foreach (string dep in fileDeps)
-                    {
-                        if (!compilationCompleted.GetValueOrDefault(dep, false))
-                        {
-                            allDepsReady = false;
-                            break;
-                        }
-                    }
-                }
-
-                if (allDepsReady)
+                // Waits for every include below it, not only its own: a file
+                // can use a type it gets through another include (CoreFarmerJoe
+                // uses CoreAdvanced, which only its includes include). With
+                // those includes cached and CoreAdvanced changed, a direct-only
+                // check put both in one batch and CoreAdvanced was missing.
+                if (AllIncludesCompiled(file, dependencyGraph, compilationCompleted, new HashSet<string>()))
                     readyBatch.Add(file);
             }
 
@@ -1231,6 +1223,24 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
             {
             }
         }
+    }
+
+    // Whether every include under the file, at any depth, is compiled. Goes
+    // through cached (already compiled) includes too: theirs may not be.
+    private static bool AllIncludesCompiled(string file, ConcurrentDictionary<string, List<string>> dependencyGraph,
+        ConcurrentDictionary<string, bool> compilationCompleted, HashSet<string> seen)
+    {
+        if (!dependencyGraph.TryGetValue(file, out List<string>? deps))
+            return true;
+        foreach (string dep in deps)
+        {
+            if (!seen.Add(dep))
+                continue;
+            if (!compilationCompleted.GetValueOrDefault(dep, false)
+                || !AllIncludesCompiled(dep, dependencyGraph, compilationCompleted, seen))
+                return false;
+        }
+        return true;
     }
 
     private List<string> SortByDependencyOrder(ConcurrentDictionary<string, List<string>> dependencyGraph, List<string> files)
