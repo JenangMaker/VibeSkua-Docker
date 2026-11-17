@@ -152,13 +152,37 @@ public static class ExtraScripts
             : $"{s.Site}/{s.Owner}/{s.Repo}/raw/branch/{b}/{p}";
     }
 
-    private static async Task<JsonElement> GetJson(string url, CancellationToken ct)
+    private static Task<JsonElement> GetJson(string url, CancellationToken ct) => Retry(async () =>
     {
         using var reply = await Http.GetAsync(url, ct);
         if (!reply.IsSuccessStatusCode)
-            throw new HttpRequestException($"{(int)reply.StatusCode} {reply.ReasonPhrase} from {url}");
+            throw new HttpRequestException($"{(int)reply.StatusCode} {reply.ReasonPhrase} from {url}", null, reply.StatusCode);
         using var doc = JsonDocument.Parse(await reply.Content.ReadAsStringAsync(ct));
         return doc.RootElement.Clone();
+    }, url, ct);
+
+    // Network errors (a failed name lookup, a refused or reset connection, a
+    // timeout) and 5xx replies are tried again, after 2, 5 and 10 s: right
+    // after the stack starts the container's DNS can fail a lookup ("Resource
+    // temporarily unavailable"), and one failure dropped a whole repository.
+    private static async Task<T> Retry<T>(Func<Task<T>> get, string url, CancellationToken ct)
+    {
+        int[] delays = { 2000, 5000, 10000 };
+        for (int attempt = 0; ; attempt++)
+        {
+            try
+            {
+                return await get();
+            }
+            catch (Exception e) when (attempt < delays.Length && !ct.IsCancellationRequested
+                && (e is TaskCanceledException
+                    || e is HttpRequestException { StatusCode: null }
+                    || e is HttpRequestException { StatusCode: >= System.Net.HttpStatusCode.InternalServerError }))
+            {
+                Console.Error.WriteLine($"[scripts] {url}: {e.Message}; trying again in {delays[attempt] / 1000} s");
+                await Task.Delay(delays[attempt], ct);
+            }
+        }
     }
 
     /// <summary>The repository's .cs files (path, git blob hash) on its branch, and the branch.</summary>
@@ -229,7 +253,8 @@ public static class ExtraScripts
                 await slots.WaitAsync(ct);
                 try
                 {
-                    byte[] bytes = await Http.GetByteArrayAsync(Raw(s, branch, f.Path), ct);
+                    string url = Raw(s, branch, f.Path);
+                    byte[] bytes = await Retry(() => Http.GetByteArrayAsync(url, ct), url, ct);
                     string local = Path.Combine(s.Dir, f.Path);
                     Directory.CreateDirectory(Path.GetDirectoryName(local)!);
                     string temp = local + ".download";
