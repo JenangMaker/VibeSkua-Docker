@@ -836,6 +836,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
         string cacheDir = _cacheScriptsDir;
 
         ConcurrentBag<string> validCachedFiles = new();
+        ConcurrentDictionary<string, string> sources = new();
 
 #if DEBUG_VERBOSE
 
@@ -890,11 +891,39 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
                 }
             }
             dependencyGraph[includedFile] = normalizedDeps;
+            sources[includedFile] = includeSource;
+        });
 
+        // A cached include is only good while the includes under it are the
+        // same: CoreVHL's DLL, built when CoreNation.CragName was a string, kept
+        // calling get_CragName():string after upstream made it an int
+        // (MissingMethodException). So the cache key is the file's own source
+        // hash plus the keys of its includes, at any depth.
+        ConcurrentDictionary<string, byte[]> cacheKeys = new();
+        byte[] CacheKey(string file, HashSet<string> path)
+        {
+            if (cacheKeys.TryGetValue(file, out byte[]? known))
+                return known;
+            using SHA256 sha = SHA256.Create();
+            byte[] own = sha.ComputeHash(Encoding.UTF8.GetBytes(sources.GetValueOrDefault(file, string.Empty)));
+            if (!path.Add(file))
+                return own;   // an include cycle: stop here
+            using MemoryStream ms = new();
+            ms.Write(own);
+            foreach (string dep in dependencyGraph.GetValueOrDefault(file, new()).OrderBy(d => d, StringComparer.Ordinal))
+                ms.Write(CacheKey(dep, path));
+            path.Remove(file);
+            return cacheKeys[file] = sha.ComputeHash(ms.ToArray());
+        }
+        // In order, one thread, so a cycle cuts at the same place every run.
+        foreach (string file in includedFilesSnapshot.OrderBy(f => f, StringComparer.Ordinal))
+            CacheKey(file, new HashSet<string>());
+
+        Parallel.ForEach(includedFilesSnapshot, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, includedFile =>
+        {
+            string includeSource = sources[includedFile];
             string includeFileName = Path.GetFileNameWithoutExtension(includedFile);
-            using SHA256 sha256 = SHA256.Create();
-            byte[] hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(includeSource));
-            int includeHash = BitConverter.ToInt32(hashBytes, 0);
+            int includeHash = BitConverter.ToInt32(CacheKey(includedFile, new HashSet<string>()), 0);
             string compiledPath = Path.Combine(cacheDir, $"{includeHash}-{includeFileName}.dll");
 
             if (File.Exists(compiledPath))
