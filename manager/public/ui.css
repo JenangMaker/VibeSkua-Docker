@@ -770,15 +770,26 @@ dialog {
 
 
 
-/* ---- tabs ticked: the army bar stays in view ----
-   Group actions sit above the cards, so ticking tabs low on the page meant
-   scrolling back up. While any tab is ticked the bar sticks to the top of the
-   scroller (.content on wide screens, the window below 1024px), opaque so
-   cards don't show through. The phone Execute panel still opens under it. */
-.army.picking {
+/* ---- the army bar stays in view ----
+   Group actions sit above the cards, so acting on tabs low on the page meant
+   scrolling back up. The bar always sticks to the top of the scroller
+   (.content on wide screens, the window below 1024px), opaque so cards don't
+   show through, and tinted while tabs are ticked. The phone Execute panel
+   still opens under it. */
+.army {
   position: sticky;
   top: 0;
   z-index: 20;
+  margin-top: -8px;
+  padding-top: 8px;
+  background: var(--bg);
+  box-shadow: 0 6px 16px -12px rgba(0, 0, 0, .45);
+}
+.army.picking {
   background: color-mix(in srgb, var(--accent) 7%, var(--bg));
-  box-shadow: 0 6px 16px -10px rgba(0, 0, 0, .45);
+}
+/* Wide screens: the bar stops at .content's top padding; pull it up to the
+   edge so cards don't show above it. */
+@media (min-width: 1025px) {
+  .army { top: calc(-1 * var(--spacing-6)); }
 }
